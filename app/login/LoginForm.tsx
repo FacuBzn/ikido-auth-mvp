@@ -7,10 +7,7 @@ import { getDashboardPathByRole } from "@/lib/authRoutes";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 import { useSessionStore } from "@/store/useSessionStore";
 import type { SessionProfile } from "@/store/useSessionStore";
-import type { UserRole } from "@/types/supabase";
-
-const isUserRole = (role: unknown): role is UserRole =>
-  role === "Parent" || role === "Child";
+import { fromDatabaseUserRole, isUserRole } from "@/types/supabase";
 
 export const LoginForm = () => {
   const [serverError, setServerError] = useState<string | null>(null);
@@ -32,17 +29,23 @@ export const LoginForm = () => {
       throw error;
     }
 
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+    const [{ data: sessionResult, error: sessionError }, { data: userResult, error: userError }] =
+      await Promise.all([supabase.auth.getSession(), supabase.auth.getUser()]);
 
     if (sessionError) {
       setServerError(sessionError.message);
       throw sessionError;
     }
 
-    if (!session) {
+    if (userError) {
+      setServerError(userError.message);
+      throw userError;
+    }
+
+    const session = sessionResult.session;
+    const authenticatedUser = userResult.user;
+
+    if (!session || !authenticatedUser) {
       const fallback = new Error("No session was created. Please try again.");
       setServerError(fallback.message);
       throw fallback;
@@ -51,7 +54,7 @@ export const LoginForm = () => {
     const { data: profileData, error: profileError } = await supabase
       .from("users")
       .select("id, email, name, role")
-      .eq("id", session.user.id)
+      .eq("id", authenticatedUser.id)
       .maybeSingle();
 
     if (profileError) {
@@ -59,11 +62,12 @@ export const LoginForm = () => {
       throw profileError;
     }
 
-    const resolvedRole = isUserRole(profileData?.role)
-      ? profileData!.role
-      : isUserRole(session.user.user_metadata.role)
-        ? session.user.user_metadata.role
-        : null;
+    const profileRole = fromDatabaseUserRole(profileData?.role) ?? null;
+    const metadataRole = isUserRole(authenticatedUser.user_metadata.role)
+      ? authenticatedUser.user_metadata.role
+      : fromDatabaseUserRole(authenticatedUser.user_metadata.role);
+
+    const resolvedRole = profileRole ?? metadataRole ?? null;
 
     if (!resolvedRole) {
       const fallback = new Error(
@@ -74,9 +78,13 @@ export const LoginForm = () => {
     }
 
     const profile: SessionProfile = {
-      id: session.user.id,
-      email: session.user.email ?? profileData?.email ?? email,
-      name: profileData?.name ?? (session.user.user_metadata?.name as string | undefined) ?? null,
+      id: authenticatedUser.id,
+      email: authenticatedUser.email ?? profileData?.email ?? email,
+      name:
+        profileData?.name ??
+        (typeof authenticatedUser.user_metadata?.name === "string"
+          ? authenticatedUser.user_metadata.name
+          : null),
       role: resolvedRole,
     };
 

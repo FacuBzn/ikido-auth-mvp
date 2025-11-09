@@ -16,8 +16,9 @@ export default async function RegisterPage() {
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center px-4 py-16">
-      <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900/60 p-8 shadow-xl backdrop-blur">
+    <main className="relative flex min-h-screen flex-1 items-center justify-center overflow-hidden bg-gradient-to-b from-[#0F4C7D] via-[#1A5FA0] to-[#133A67] px-4 py-24">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.12),_transparent_45%),radial-gradient(circle_at_bottom,_rgba(15,76,125,0.3),_transparent_45%)]" />
+      <div className="relative z-10 w-full max-w-lg">
         <RegisterForm />
       </div>
     </main>

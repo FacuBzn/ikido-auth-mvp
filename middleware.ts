@@ -1,44 +1,58 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { DASHBOARD_ROUTE_BY_ROLE } from "@/lib/authRoutes";
 import { createSupabaseMiddlewareClient } from "@/lib/supabase/serverClient";
-import type { UserRole } from "@/types/supabase";
-
-const isUserRole = (role: unknown): role is UserRole =>
-  role === "Parent" || role === "Child";
+import {
+  fromDatabaseUserRole,
+  isUserRole,
+  type UserRole,
+} from "@/types/supabase";
 
 export async function middleware(req: NextRequest) {
   const { supabase, response } = createSupabaseMiddlewareClient(req);
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const [
+    { data: sessionResult },
+    { data: userResult, error: userError },
+  ] = await Promise.all([supabase.auth.getSession(), supabase.auth.getUser()]);
+
+  if (userError) {
+    console.error("[middleware] Failed to validate user", userError);
+  }
+
+  const session = sessionResult.session;
+  const user = userResult.user ?? null;
 
   const { pathname } = req.nextUrl;
   const isAuthRoute = pathname === "/login" || pathname === "/register";
   const isDashboardRoute = pathname.startsWith("/dashboard");
 
-  if (!session && isDashboardRoute) {
+  if (!user && isDashboardRoute) {
     const redirectUrl = req.nextUrl.clone();
-    redirectUrl.pathname = "/login";
+    redirectUrl.pathname = "/";
     redirectUrl.searchParams.set("redirectTo", pathname);
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (!session) {
+  if (!session || !user) {
     return response;
   }
 
-  const metadataRole = session.user.user_metadata?.role;
-  let resolvedRole: UserRole | null = isUserRole(metadataRole) ? metadataRole : null;
+  const metadataRole = user.user_metadata?.role;
+  let resolvedRole: UserRole | null = isUserRole(metadataRole)
+    ? metadataRole
+    : fromDatabaseUserRole(metadataRole);
 
   if (!resolvedRole) {
     const { data: profile } = await supabase
       .from("users")
       .select("role")
-      .eq("id", session.user.id)
+      .eq("id", user.id)
       .maybeSingle();
 
-    if (profile && isUserRole(profile.role)) {
-      resolvedRole = profile.role;
+    if (profile) {
+      const databaseRole = fromDatabaseUserRole(profile.role);
+      if (databaseRole) {
+        resolvedRole = databaseRole;
+      }
     }
   }
 

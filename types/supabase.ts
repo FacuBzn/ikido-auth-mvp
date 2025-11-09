@@ -1,4 +1,23 @@
+export type DatabaseUserRole = "parent" | "child";
 export type UserRole = "Parent" | "Child";
+
+export const isUserRole = (role: unknown): role is UserRole =>
+  role === "Parent" || role === "Child";
+
+export const fromDatabaseUserRole = (
+  role: DatabaseUserRole | string | null | undefined
+): UserRole | null => {
+  if (role === "parent" || role === "Parent") {
+    return "Parent";
+  }
+  if (role === "child" || role === "Child") {
+    return "Child";
+  }
+  return null;
+};
+
+export const toDatabaseUserRole = (role: UserRole): DatabaseUserRole =>
+  role === "Parent" ? "parent" : "child";
 
 export type Database = {
   public: {
@@ -8,18 +27,18 @@ export type Database = {
           id: string;
           email: string;
           name: string | null;
-          role: UserRole;
+          role: DatabaseUserRole;
         };
         Insert: {
           id?: string;
           email: string;
           name?: string | null;
-          role: UserRole;
+          role: DatabaseUserRole;
         };
         Update: {
           email?: string;
           name?: string | null;
-          role?: UserRole;
+          role?: DatabaseUserRole;
         };
         Relationships: [];
       };

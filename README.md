@@ -1,9 +1,10 @@
 ## iKidO (GGPoints) – Auth MVP
 
-Base project for the iKidO (GGPoints) MVP: a family web app where parents assign tasks, kids complete them, and both track GGPoints and rewards. This repository contains a production-ready authentication module built with Next.js 14, Supabase, TailwindCSS, and Zustand.
+Base project for the iKidO (GGPoints) MVP: a family web app where parents assign tasks, kids complete them, and both track GGPoints and rewards. This repository contains a production-ready authentication module built with Next.js 16, Supabase, TailwindCSS, and Zustand.
 
 ### Features
-- Registration and login flows with Supabase Auth.
+- Public landing page with calls to action for sign in and registration.
+- Registration and login flows backed by Supabase Auth.
 - Role-aware redirects (`Parent` / `Child`) and protected dashboards.
 - Session persistence and global store with Zustand + real-time Supabase listeners.
 - Middleware-based route protection (App Router compatible).
@@ -51,26 +52,32 @@ middleware.ts
 ```
 
 ### Environment Variables
-Create a `.env.local` file with your Supabase project credentials:
+- Copy `.env.example` to `.env.local`.
+- Fill in the Supabase credentials for your project:
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=your-project-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-public-anon-key
 ```
 
-> Remember to run `npx supabase login` and `prisma generate` only when working with Prisma migrations (not part of this auth module yet).
+> The project currently relies on Supabase Auth and Postgres only; Prisma migrations are not required for this module.
 
 ### Development
 
-```bash
-npm install
-npm run dev
-```
+1. Install dependencies with `npm install`.
+2. Duplicate `.env.example` into `.env.local` and add your Supabase keys.
+3. Run the development server with `npm run dev`.
 
-Visit `http://localhost:3000` to access the app. The middleware will redirect you automatically to `/login` when necessary.
+Visit `http://localhost:3000` to access the app. Unauthenticated users land on the public home page, while authenticated users are redirected to their dashboard.
+
+### Quality checks
+- `npm run lint` – ESLint via `next lint`.
+- `npm run typecheck` – TypeScript in no-emit mode.
+- `npm run build` – Production build of the Next.js app (outputs to `dist/`).
 
 ### Deployment
-- The app is ready for Vercel. Add the Supabase environment variables on the Vercel dashboard.
+- Configure a Vercel project pointing to this repository and set `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` in the dashboard for Development, Preview, and Production environments.
+- Optionally wire the build command to `npm run vercel-build` to enforce linting and type checking before `next build`.
 - Consider enabling Supabase email auto-confirmation for a frictionless signup on the MVP.
 
 ### Next Steps

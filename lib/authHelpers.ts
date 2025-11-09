@@ -3,22 +3,41 @@ import { cache } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { getDashboardPathByRole } from "@/lib/authRoutes";
 import { createSupabaseServerComponentClient } from "@/lib/supabase/serverClient";
-import type { Database, UserRole } from "@/types/supabase";
+import {
+  fromDatabaseUserRole,
+  isUserRole,
+  type Database,
+  type UserRole,
+} from "@/types/supabase";
 
-export const getServerSession = cache(async (): Promise<Session | null> => {
+export const getServerSession = cache(
+  async (): Promise<{ session: Session; user: User } | null> => {
   const supabase = await createSupabaseServerComponentClient();
-  const {
-    data: { session },
-    error,
-  } = await supabase.auth.getSession();
+    const [
+      { data: sessionResult, error: sessionError },
+      { data: userResult, error: userError },
+    ] = await Promise.all([supabase.auth.getSession(), supabase.auth.getUser()]);
 
-  if (error) {
-    console.error("[auth:getServerSession] Failed to read session", error);
-    return null;
+    if (sessionError) {
+      console.error("[auth:getServerSession] Failed to read session", sessionError);
+      return null;
+    }
+
+    if (userError) {
+      console.error("[auth:getServerSession] Failed to validate user", userError);
+      return null;
+    }
+
+    const session = sessionResult.session;
+    const user = userResult.user;
+
+    if (!session || !user) {
+      return null;
+    }
+
+    return { session, user };
   }
-
-  return session;
-});
+);
 
 export type AuthenticatedUser = {
   user: User;
@@ -32,16 +51,17 @@ export type AuthenticatedUser = {
 
 export const getAuthenticatedUser = cache(
   async (): Promise<AuthenticatedUser | null> => {
-    const session = await getServerSession();
-    if (!session?.user) {
+    const authState = await getServerSession();
+    if (!authState) {
       return null;
     }
 
+    const { user } = authState;
     const supabase = await createSupabaseServerComponentClient();
     const { data, error } = await supabase
       .from("users")
       .select("id, email, name, role")
-      .eq("id", session.user.id)
+      .eq("id", user.id)
       .maybeSingle();
 
     if (error) {
@@ -53,13 +73,23 @@ export const getAuthenticatedUser = cache(
       return null;
     }
 
+    const metadataRole = isUserRole(user.user_metadata?.role)
+      ? user.user_metadata.role
+      : fromDatabaseUserRole(user.user_metadata?.role);
+
+    const resolvedRole = fromDatabaseUserRole(data.role) ?? metadataRole;
+
+    if (!resolvedRole) {
+      return null;
+    }
+
     return {
-      user: session.user,
+      user,
       profile: {
         id: data.id,
-        email: data.email ?? session.user.email ?? "",
+        email: data.email ?? user.email ?? "",
         name: data.name,
-        role: data.role,
+        role: resolvedRole,
       },
     };
   }

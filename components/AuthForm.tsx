@@ -2,6 +2,18 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types/supabase";
 
@@ -111,123 +123,128 @@ export const AuthForm = ({
   const footer = FOOTER_MESSAGE[variant];
 
   return (
-    <form className="flex flex-col gap-6" onSubmit={handleSubmit} noValidate>
-      <div className="flex flex-col gap-2 text-center">
-        <h1 className="text-3xl font-semibold text-white">{TITLE_LABEL[variant]}</h1>
-        <p className="text-sm text-slate-300">{SUBTITLE_LABEL[variant]}</p>
-      </div>
+    <Card className="w-full max-w-lg border-0 bg-white/95 p-8 shadow-2xl backdrop-blur dark:bg-slate-900/90">
+      <CardHeader className="space-y-2 text-center">
+        <CardTitle className="text-3xl font-bold text-[#0F4C7D] dark:text-white">
+          {TITLE_LABEL[variant]}
+        </CardTitle>
+        <CardDescription className="text-base text-gray-600 dark:text-slate-300">
+          {SUBTITLE_LABEL[variant]}
+        </CardDescription>
+      </CardHeader>
 
-      {serverError && (
-        <p className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          {serverError}
-        </p>
-      )}
-
-      {localError && !serverError && (
-        <p className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          {localError}
-        </p>
-      )}
-
-      <div className="space-y-5">
-        {isRegister && (
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-slate-200" htmlFor="name">
-              Full name
-            </label>
-            <input
-              id="name"
-              name="name"
-              type="text"
-              required
-              placeholder="Jane Doe"
-              className="h-12 rounded-2xl border border-slate-700 bg-slate-900/50 px-4 text-sm text-white outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </div>
+      <CardContent className="space-y-6">
+        {(serverError || localError) && (
+          <Alert variant="destructive">
+            <AlertDescription>{serverError ?? localError}</AlertDescription>
+          </Alert>
         )}
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-slate-200" htmlFor="email">
-            Email
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            placeholder="you@example.com"
-            className="h-12 rounded-2xl border border-slate-700 bg-slate-900/50 px-4 text-sm text-white outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-          />
-        </div>
+        <form className="space-y-6" onSubmit={handleSubmit} noValidate>
+          <div className="space-y-4">
+            {isRegister && (
+              <div className="space-y-2 text-left">
+                <Label htmlFor="name" className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  Full name
+                </Label>
+                <Input
+                  id="name"
+                  name="name"
+                  type="text"
+                  required
+                  placeholder="Jane Doe"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  className="h-12 rounded-lg border border-slate-200 bg-white text-slate-900 placeholder:text-slate-500 focus-visible:ring-[#0F4C7D] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                />
+              </div>
+            )}
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-slate-200" htmlFor="password">
-            Password
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            autoComplete={variant === "login" ? "current-password" : "new-password"}
-            placeholder="••••••••"
-            minLength={6}
-            className="h-12 rounded-2xl border border-slate-700 bg-slate-900/50 px-4 text-sm text-white outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/40"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-        </div>
-
-        {isRegister && (
-          <div className="flex flex-col gap-3">
-            <span className="text-sm font-medium text-slate-200">Role</span>
-            <div className="grid grid-cols-2 gap-3 rounded-2xl bg-slate-900/50 p-1">
-              {ROLE_OPTIONS.map((option) => {
-                const isActive = role === option;
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    className={cn(
-                      "h-12 rounded-2xl border border-transparent text-sm font-semibold text-white transition",
-                      isActive
-                        ? "bg-sky-500 shadow-lg shadow-sky-500/40"
-                        : "bg-transparent hover:border-slate-700 hover:bg-slate-800/60"
-                    )}
-                    onClick={() => setRole(option)}
-                  >
-                    {option}
-                  </button>
-                );
-              })}
+            <div className="space-y-2 text-left">
+              <Label htmlFor="email" className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Email
+              </Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="h-12 rounded-lg border border-slate-200 bg-white text-slate-900 placeholder:text-slate-500 focus-visible:ring-[#0F4C7D] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+              />
             </div>
+
+            <div className="space-y-2 text-left">
+              <Label htmlFor="password" className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Password
+              </Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                required
+                autoComplete={variant === "login" ? "current-password" : "new-password"}
+                placeholder="••••••••"
+                minLength={6}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="h-12 rounded-lg border border-slate-200 bg-white text-slate-900 placeholder:text-slate-500 focus-visible:ring-[#0F4C7D] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+              />
+            </div>
+
+            {isRegister && (
+              <div className="space-y-3 text-left">
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  Choose account type
+                </span>
+                <ToggleGroup
+                  type="single"
+                  value={role}
+                  onValueChange={(value) => {
+                    if (value === "Parent" || value === "Child") {
+                      setRole(value);
+                    }
+                  }}
+                  className="grid grid-cols-2 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900"
+                >
+                  {ROLE_OPTIONS.map((option) => (
+                    <ToggleGroupItem
+                      key={option}
+                      value={option}
+                      className={cn(
+                        "h-12 rounded-none text-sm font-semibold tracking-wide transition",
+                        "data-[state=on]:bg-gradient-to-r data-[state=on]:from-[#0F4C7D] data-[state=on]:to-[#1A5FA0] data-[state=on]:text-white",
+                        "data-[state=off]:text-slate-600 data-[state=off]:backdrop-blur hover:bg-white/70 dark:data-[state=off]:text-slate-300"
+                      )}
+                    >
+                      {option === "Parent" ? "👨‍👩‍👧 Parent" : "👧 Child"}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      <button
-        type="submit"
-        disabled={isSubmitDisabled}
-        className={cn(
-          "h-12 rounded-2xl bg-sky-500 text-sm font-semibold text-white transition hover:bg-sky-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-not-allowed disabled:opacity-70",
-          isSubmitting && "animate-pulse"
-        )}
-      >
-        {isSubmitting ? "Please wait..." : CTA_LABEL[variant]}
-      </button>
+          <Button
+            type="submit"
+            disabled={isSubmitDisabled}
+            className="h-12 w-full bg-gradient-to-r from-[#0F4C7D] to-[#1A5FA0] text-base font-semibold text-white shadow-lg shadow-[#0F4C7D]/30 transition hover:shadow-xl disabled:opacity-70"
+          >
+            {isSubmitting ? "Please wait..." : CTA_LABEL[variant]}
+          </Button>
+        </form>
 
-      <p className="text-center text-sm text-slate-300">
-        {footer.label}{" "}
-        <Link className="font-semibold text-sky-400 hover:text-sky-300" href={footer.href}>
-          {footer.linkLabel}
-        </Link>
-      </p>
-    </form>
+        <p className="text-center text-sm text-gray-600 dark:text-slate-300">
+          {footer.label}{" "}
+          <Link className="font-semibold text-[#0F4C7D] hover:underline dark:text-sky-300" href={footer.href}>
+            {footer.linkLabel}
+          </Link>
+        </p>
+      </CardContent>
+    </Card>
   );
 };
 

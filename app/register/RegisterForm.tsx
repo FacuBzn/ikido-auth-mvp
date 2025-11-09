@@ -7,10 +7,7 @@ import { getDashboardPathByRole } from "@/lib/authRoutes";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 import { useSessionStore } from "@/store/useSessionStore";
 import type { SessionProfile } from "@/store/useSessionStore";
-import type { UserRole } from "@/types/supabase";
-
-const isUserRole = (role: unknown): role is UserRole =>
-  role === "Parent" || role === "Child";
+import { fromDatabaseUserRole, isUserRole, toDatabaseUserRole } from "@/types/supabase";
 
 export const RegisterForm = () => {
   const [serverError, setServerError] = useState<string | null>(null);
@@ -21,7 +18,7 @@ export const RegisterForm = () => {
   const handleRegister = async ({ email, password, name, role }: AuthFormValues) => {
     setServerError(null);
 
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -33,41 +30,30 @@ export const RegisterForm = () => {
     });
 
     if (error) {
-      setServerError(error.message);
-      throw error;
+      const message = error.message.includes("User already registered")
+        ? "This email is already registered. Please sign in instead."
+        : error.message;
+      setServerError(message);
+      throw new Error(message);
     }
 
-    const user = data.user;
-
-    if (!user) {
-      const fallback = new Error("We could not create your account. Please try again.");
-      setServerError(fallback.message);
-      throw fallback;
-    }
-
-    const { error: upsertError } = await supabase.from("users").upsert({
-      id: user.id,
-      email,
-      name: name ?? null,
-      role,
-    });
-
-    if (upsertError) {
-      setServerError(upsertError.message);
-      throw upsertError;
-    }
-
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+    const [{ data: sessionResult, error: sessionError }, { data: userResult, error: userError }] =
+      await Promise.all([supabase.auth.getSession(), supabase.auth.getUser()]);
 
     if (sessionError) {
       setServerError(sessionError.message);
       throw sessionError;
     }
 
-    if (!session) {
+    if (userError) {
+      setServerError(userError.message);
+      throw userError;
+    }
+
+    const session = sessionResult.session;
+    const authenticatedUser = userResult.user;
+
+    if (!authenticatedUser || !session) {
       const fallback = new Error(
         "Your account was created, but we could not verify the session. Please confirm your email."
       );
@@ -75,11 +61,25 @@ export const RegisterForm = () => {
       throw fallback;
     }
 
+    const normalizedRole = toDatabaseUserRole(role);
+
+    const { error: upsertError } = await supabase.from("users").upsert({
+      id: authenticatedUser.id,
+      email,
+      name: name ?? null,
+      role: normalizedRole,
+    });
+
+    if (upsertError) {
+      setServerError(upsertError.message);
+      throw upsertError;
+    }
+
     const resolvedRole = isUserRole(role)
       ? role
-      : isUserRole(user.user_metadata.role)
-        ? user.user_metadata.role
-        : null;
+      : isUserRole(authenticatedUser.user_metadata.role)
+        ? authenticatedUser.user_metadata.role
+        : fromDatabaseUserRole(authenticatedUser.user_metadata.role);
 
     if (!resolvedRole) {
       const fallback = new Error("Account role is invalid. Please contact support.");
@@ -88,9 +88,13 @@ export const RegisterForm = () => {
     }
 
     const profile: SessionProfile = {
-      id: user.id,
-      email: user.email ?? email,
-      name: name ?? null,
+      id: authenticatedUser.id,
+      email: authenticatedUser.email ?? email,
+      name:
+        name ??
+        (typeof authenticatedUser.user_metadata?.name === "string"
+          ? authenticatedUser.user_metadata.name
+          : null),
       role: resolvedRole,
     };
 
