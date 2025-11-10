@@ -4,7 +4,7 @@ import { getAuthenticatedUser } from "@/lib/authHelpers";
 import { getDashboardPathByRole } from "@/lib/authRoutes";
 
 type HomePageProps = {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export default async function Home({ searchParams }: HomePageProps) {
@@ -14,7 +14,9 @@ export default async function Home({ searchParams }: HomePageProps) {
     redirect(getDashboardPathByRole(authUser.profile.role));
   }
 
-  const redirectToParam = searchParams?.redirectTo;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+
+  const redirectToParam = resolvedSearchParams?.redirectTo;
   const rawRedirectTo =
     typeof redirectToParam === "string"
       ? redirectToParam

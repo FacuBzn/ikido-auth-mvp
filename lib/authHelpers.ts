@@ -10,6 +10,15 @@ import {
   type UserRole,
 } from "@/types/supabase";
 
+const isSessionMissingError = (error: unknown) => {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const authError = error as { message?: string; status?: number };
+  return authError.message === "Auth session missing!" || authError.status === 400;
+};
+
 export const getServerSession = cache(
   async (): Promise<{ session: Session; user: User } | null> => {
   const supabase = await createSupabaseServerComponentClient();
@@ -18,12 +27,15 @@ export const getServerSession = cache(
       { data: userResult, error: userError },
     ] = await Promise.all([supabase.auth.getSession(), supabase.auth.getUser()]);
 
-    if (sessionError) {
+    if (sessionError && !isSessionMissingError(sessionError)) {
       console.error("[auth:getServerSession] Failed to read session", sessionError);
       return null;
     }
 
     if (userError) {
+      if (isSessionMissingError(userError)) {
+        return null;
+      }
       console.error("[auth:getServerSession] Failed to validate user", userError);
       return null;
     }
