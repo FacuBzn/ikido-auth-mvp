@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 import { selectProfile, selectSession, useSessionStore } from "@/store/useSessionStore";
 
 export const Header = () => {
@@ -15,8 +14,6 @@ export const Header = () => {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-
   const handleSignOut = async () => {
     if (isSigningOut) {
       return;
@@ -25,9 +22,28 @@ export const Header = () => {
     setIsSigningOut(true);
     setError(null);
 
-    const { error: signOutError } = await supabase.auth.signOut();
-    if (signOutError) {
-      setError(signOutError.message);
+    try {
+      const response = await fetch("/api/auth/signout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        let message = "Failed to sign out.";
+        try {
+          const body = (await response.json()) as { error?: string };
+          if (body?.error) {
+            message = body.error;
+          }
+        } catch {
+          // ignore JSON parsing errors
+        }
+        throw new Error(message);
+      }
+    } catch (signOutError) {
+      setError(signOutError instanceof Error ? signOutError.message : "Failed to sign out.");
       setIsSigningOut(false);
       return;
     }

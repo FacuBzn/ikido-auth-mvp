@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { ChildrenSummaryModal } from "./ChildrenSummaryModal";
 
 export const metadata: Metadata = {
   title: "Parent Dashboard | iKidO (GGPoints)",
@@ -25,9 +26,12 @@ export default function ParentDashboardPage() {
                   Monitor family progress, unlock rewards, and assign new missions to keep the GGPoints momentum alive.
                 </p>
               </div>
-              <Button className="h-11 rounded-full bg-white/15 px-6 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/25">
-                Export weekly report
-              </Button>
+              <div className="flex flex-wrap items-center gap-3">
+                <ChildrenSummaryModal parentId={profile.id} />
+                <Button className="h-11 rounded-full bg-white/15 px-6 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/25">
+                  Export weekly report
+                </Button>
+              </div>
             </header>
 
             <section className="grid gap-6 md:grid-cols-3">
