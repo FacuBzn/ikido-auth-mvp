@@ -144,6 +144,40 @@ button {
   @apply bg-[var(--brand-yellow-400)] text-[var(--brand-blue-900)];
 }
 
+@keyframes confetti-fall {
+  0% {
+    transform: translate3d(0, -120%, 0) rotateZ(0deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(0, 120vh, 0) rotateZ(220deg);
+    opacity: 0;
+  }
+}
+
+@keyframes emoji-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes coin-bounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-10px) scale(1.05);
+  }
+}
+
 @layer utilities {
   .screen-shell {
     @apply relative flex min-h-screen w-full flex-col items-center justify-center px-4 py-12;
@@ -183,5 +217,19 @@ button {
 
   .ikido-section-title {
     @apply text-sm font-semibold uppercase tracking-[0.3em] text-[var(--brand-gold-200)];
+  }
+
+  .animate-confetti {
+    animation-name: confetti-fall;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+
+  .animate-emoji-bob {
+    animation: emoji-bob 3.6s ease-in-out infinite;
+  }
+
+  .animate-coin-bounce {
+    animation: coin-bounce 1.9s ease-in-out infinite;
   }
 }

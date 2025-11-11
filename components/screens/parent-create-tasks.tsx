@@ -31,7 +31,7 @@ export function ParentCreateTasks({ onBack, onTaskCreated }: ParentCreateTasksPr
   };
 
   return (
-    <div className="w-full max-w-sm rounded-3xl bg-gradient-to-b from-[#0F4C7D] to-[#1A5FA0] p-6 text-white shadow-2xl">
+    <div className="w-full max-w-sm rounded-3xl bg-linear-to-b from-[#0F4C7D] to-[#1A5FA0] px-6 pb-6 pt-16 text-white shadow-2xl">
       <button
         onClick={onBack}
         className="mb-6 text-sm font-bold text-[#FFD369] transition-colors hover:text-[#FFC93F]"
