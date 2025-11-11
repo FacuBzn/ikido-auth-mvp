@@ -16,10 +16,25 @@ export default async function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen flex-1 items-center justify-center overflow-hidden bg-gradient-to-b from-[#0F4C7D] via-[#1A5FA0] to-[#133A67] px-4 py-24">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.12),_transparent_45%),radial-gradient(circle_at_bottom,_rgba(15,76,125,0.3),_transparent_45%)]" />
-      <div className="relative z-10 w-full max-w-lg">
-        <LoginForm />
+    <main className="screen-shell">
+      <div className="screen-card w-full max-w-md p-8 text-white">
+        <div className="screen-card__inner">
+          <header className="space-y-2 text-center">
+            <h1 className="text-3xl font-bold tracking-tight">iKidO</h1>
+            <p className="text-xl font-semibold text-[var(--brand-gold-400)]">Welcome back!</p>
+            <p className="text-sm text-white/75">
+              Sign in to manage missions, approve rewards, and keep the GGPoints adventure alive.
+            </p>
+          </header>
+
+          <div className="rounded-3xl bg-[#0d3a5c]/70 p-6 shadow-[0_18px_40px_-32px_rgba(0,0,0,0.7)]">
+            <LoginForm />
+          </div>
+
+          <footer className="text-center text-xs text-white/65">
+            Secure Supabase authentication with parent and child dashboards.
+          </footer>
+        </div>
       </div>
     </main>
   );

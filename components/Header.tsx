@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { LogOut, Sparkles } from "lucide-react";
+import { useMemo, useState } from "react";
+import { getDashboardPathByRole } from "@/lib/authRoutes";
 import { cn } from "@/lib/utils";
 import { selectProfile, selectSession, useSessionStore } from "@/store/useSessionStore";
 
@@ -13,6 +15,18 @@ export const Header = () => {
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const brandHref = useMemo(() => {
+    if (!session) {
+      return "/";
+    }
+
+    if (profile?.role) {
+      return getDashboardPathByRole(profile.role);
+    }
+
+    return "/dashboard/parent";
+  }, [profile?.role, session]);
 
   const handleSignOut = async () => {
     if (isSigningOut) {
@@ -55,57 +69,35 @@ export const Header = () => {
   };
 
   return (
-    <header className="border-b border-slate-800/80 bg-slate-950/80">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/login" className="flex items-center gap-2">
-          <span className="rounded-full bg-sky-500/20 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-sky-300">
-            iKidO
+    <header className="pointer-events-none absolute inset-x-0 top-0 z-50 flex justify-center px-4 py-6">
+      <div className="flex w-full max-w-5xl items-center justify-between">
+        <Link
+          href={brandHref}
+          className="pointer-events-auto inline-flex items-center gap-3 rounded-full bg-[#0d3a5c]/70 px-4 py-2 text-white shadow-[0_12px_24px_-18px_rgba(0,0,0,0.6)] backdrop-blur"
+        >
+          <span className="flex size-8 items-center justify-center rounded-full bg-[var(--brand-gold-400)] text-[var(--brand-blue-900)]">
+            <Sparkles className="size-4" />
           </span>
-          <span className="hidden text-sm font-medium text-slate-200 sm:inline">
-            GGPoints family mission control
-          </span>
+          <span className="text-sm font-semibold tracking-[0.3em] uppercase">iKidO</span>
         </Link>
 
         {session ? (
-          <div className="flex items-center gap-4">
-            <div className="flex flex-col text-right">
-              <span className="text-sm font-semibold text-white">
-                {profile?.name ?? profile?.email ?? "User"}
-              </span>
-              {profile?.role && (
-                <span className="text-xs uppercase tracking-wide text-slate-400">
-                  {profile.role}
-                </span>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={handleSignOut}
-              disabled={isSigningOut}
-              className={cn(
-                "rounded-2xl border border-sky-500/40 px-4 py-2 text-xs font-semibold text-sky-300 transition hover:border-sky-400 hover:text-sky-200",
-                isSigningOut && "animate-pulse opacity-70"
-              )}
-            >
-              {isSigningOut ? "Signing out..." : "Sign out"}
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-3 text-sm font-medium">
-            <Link className="text-slate-300 transition hover:text-white" href="/login">
-              Login
-            </Link>
-            <Link
-              className="rounded-full bg-sky-500 px-4 py-2 text-slate-950 transition hover:bg-sky-400"
-              href="/register"
-            >
-              Register
-            </Link>
-          </div>
-        )}
+          <button
+            type="button"
+            onClick={handleSignOut}
+            disabled={isSigningOut}
+            className={cn(
+              "pointer-events-auto inline-flex items-center gap-2 rounded-full bg-[#0d3a5c]/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-white shadow-[0_14px_28px_-20px_rgba(0,0,0,0.7)] backdrop-blur focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-gold-400)]",
+              isSigningOut && "opacity-70"
+            )}
+          >
+            <LogOut className="size-4" />
+            {isSigningOut ? "Signing out…" : "Logout"}
+          </button>
+        ) : null}
       </div>
       {error && (
-        <div className="border-t border-red-500/40 bg-red-500/10 px-6 py-3 text-center text-xs text-red-200">
+        <div className="pointer-events-auto absolute inset-x-4 top-[4.5rem] rounded-2xl border border-red-400/40 bg-red-500/20 px-4 py-2 text-center text-xs text-red-100 backdrop-blur">
           {error}
         </div>
       )}

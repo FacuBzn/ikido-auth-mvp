@@ -153,32 +153,32 @@ export const ChildrenSummaryModal = ({ parentId }: ChildrenSummaryModalProps) =>
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="h-11 rounded-full bg-white/20 px-6 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/30">
+        <Button className="ikido-button ikido-button--gold ikido-button--pill text-xs uppercase tracking-[0.25em]">
           View children summary
         </Button>
       </DialogTrigger>
-      <DialogContent className="bg-slate-950 text-white sm:max-w-2xl" showCloseButton>
+      <DialogContent className="screen-card w-full max-w-2xl border border-white/20 bg-[#0d3a5c]/95 text-white" showCloseButton>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-2xl font-bold">
-            <Users className="size-5" />
+          <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
+            <Users className="size-5 text-[var(--brand-gold-400)]" />
             Children overview
           </DialogTitle>
-          <DialogDescription className="text-slate-300">
+          <DialogDescription className="text-sm text-white/75">
             Review the GGPoints earned and spent by each child. Keep an eye on their balance to plan the next rewards.
           </DialogDescription>
         </DialogHeader>
 
         {loading ? (
-          <div className="flex items-center justify-center gap-3 py-10 text-slate-200">
-            <Loader2 className="size-5 animate-spin" />
+          <div className="flex items-center justify-center gap-3 py-10 text-white/70">
+            <Loader2 className="size-5 animate-spin text-[var(--brand-gold-400)]" />
             <span>Loading children summary…</span>
           </div>
         ) : error ? (
-          <Alert variant="destructive" className="border-red-500/40 bg-red-500/10 text-red-50">
+          <Alert variant="destructive" className="border-red-400/40 bg-red-500/15 text-red-100">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : summary.length === 0 ? (
-          <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-6 text-center text-slate-200">
+          <div className="rounded-2xl border border-white/20 bg-[#0b2f4c] px-4 py-6 text-center text-white/75">
             No children are linked to this parent account yet. Add a child to start tracking GGPoints.
           </div>
         ) : (
@@ -186,19 +186,21 @@ export const ChildrenSummaryModal = ({ parentId }: ChildrenSummaryModalProps) =>
             {summary.map((child) => (
               <div
                 key={child.id}
-                className="rounded-xl border border-white/10 bg-white/5 px-4 py-4 transition hover:border-white/20"
+                className="rounded-2xl border border-[var(--brand-gold-400)] bg-[#0b2f4c] px-4 py-4 text-sm shadow-[0_18px_32px_-28px_rgba(0,0,0,0.45)] transition hover:-translate-y-[1px]"
               >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-lg font-semibold text-white">{child.name}</p>
-                    <p className="text-sm text-slate-300">
+                    <p className="text-base font-semibold text-white">{child.name}</p>
+                    <p className="text-xs text-white/70">
                       {child.completedTasks} completed tasks · {child.claimedRewards} rewards claimed
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs uppercase tracking-wide text-slate-300">Balance</p>
-                    <p className="text-2xl font-bold text-white">{child.balance} GGPoints</p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[var(--brand-gold-200)]/80">
+                      Balance
+                    </p>
+                    <p className="text-xl font-bold text-white">{child.balance} GGPoints</p>
+                    <p className="text-[11px] text-white/60">
                       Earned {child.earned} · Spent {child.spent}
                     </p>
                   </div>
@@ -210,7 +212,7 @@ export const ChildrenSummaryModal = ({ parentId }: ChildrenSummaryModalProps) =>
 
         <DialogFooter>
           <DialogClose asChild>
-            <Button variant="secondary" className="rounded-full bg-white/20 text-white hover:bg-white/30">
+            <Button variant="secondary" className="ikido-button ikido-button--pill bg-[#0b2f4c] text-xs uppercase tracking-[0.25em] text-white">
               Close
             </Button>
           </DialogClose>

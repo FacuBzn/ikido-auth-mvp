@@ -2,15 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { Sparkles } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -42,26 +36,26 @@ const CTA_LABEL: Record<AuthFormVariant, string> = {
 };
 
 const TITLE_LABEL: Record<AuthFormVariant, string> = {
-  login: "Welcome back",
-  register: "Get started with iKidO",
+  login: "Welcome back, captain!",
+  register: "Assemble your crew",
 };
 
 const SUBTITLE_LABEL: Record<AuthFormVariant, string> = {
-  login: "Access your tasks and rewards dashboard.",
-  register: "Create an account to manage family tasks and rewards.",
+  login: "Jump back into your family missions and rewards.",
+  register: "Invite parents and cadets to start earning GGPoints together.",
 };
 
 const FOOTER_MESSAGE: Record<AuthFormVariant, { label: string; href: string; linkLabel: string }> =
   {
     login: {
-      label: "Don't have an account?",
+      label: "No account yet?",
       href: "/register",
-      linkLabel: "Register",
+      linkLabel: "Create one",
     },
     register: {
-      label: "Already have an account?",
+      label: "Already part of the crew?",
       href: "/login",
-      linkLabel: "Login",
+      linkLabel: "Sign in",
     },
   };
 
@@ -123,128 +117,121 @@ export const AuthForm = ({
   const footer = FOOTER_MESSAGE[variant];
 
   return (
-    <Card className="w-full max-w-lg border-0 bg-white/95 p-8 shadow-2xl backdrop-blur dark:bg-slate-900/90">
-      <CardHeader className="space-y-2 text-center">
-        <CardTitle className="text-3xl font-bold text-[#0F4C7D] dark:text-white">
-          {TITLE_LABEL[variant]}
-        </CardTitle>
-        <CardDescription className="text-base text-gray-600 dark:text-slate-300">
-          {SUBTITLE_LABEL[variant]}
-        </CardDescription>
-      </CardHeader>
+    <div className="space-y-6">
+      <div className="flex flex-col items-center gap-2 text-center text-white">
+        <span className="ikido-badge gap-2">
+          <Sparkles className="size-4 text-[var(--brand-gold-400)]" />
+          GGPoints portal
+        </span>
+        <h2 className="text-2xl font-semibold tracking-tight">{TITLE_LABEL[variant]}</h2>
+        <p className="text-sm text-white/75">{SUBTITLE_LABEL[variant]}</p>
+      </div>
 
-      <CardContent className="space-y-6">
-        {(serverError || localError) && (
-          <Alert variant="destructive">
-            <AlertDescription>{serverError ?? localError}</AlertDescription>
-          </Alert>
+      {(serverError || localError) && (
+        <Alert variant="destructive" className="border-red-400/40 bg-red-500/15 text-red-50">
+          <AlertDescription>{serverError ?? localError}</AlertDescription>
+        </Alert>
+      )}
+
+      <form className="space-y-5" onSubmit={handleSubmit} noValidate>
+        {isRegister && (
+          <div className="space-y-2 text-left">
+            <Label htmlFor="name" className="ikido-section-title text-[var(--brand-gold-200)]">
+              Explorer name
+            </Label>
+            <Input
+              id="name"
+              name="name"
+              type="text"
+              required
+              placeholder="Jane Doe"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="h-12 rounded-3xl border-2 border-[var(--brand-gold-400)] bg-[#1a5fa0]/40 text-white placeholder:text-white/60 focus-visible:ring-[var(--brand-gold-400)]"
+            />
+          </div>
         )}
 
-        <form className="space-y-6" onSubmit={handleSubmit} noValidate>
-          <div className="space-y-4">
-            {isRegister && (
-              <div className="space-y-2 text-left">
-                <Label htmlFor="name" className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  Full name
-                </Label>
-                <Input
-                  id="name"
-                  name="name"
-                  type="text"
-                  required
-                  placeholder="Jane Doe"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  className="h-12 rounded-lg border border-slate-200 bg-white text-slate-900 placeholder:text-slate-500 focus-visible:ring-[#0F4C7D] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                />
-              </div>
-            )}
+        <div className="space-y-2 text-left">
+          <Label htmlFor="email" className="ikido-section-title text-[var(--brand-gold-200)]">
+            Email
+          </Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className="h-12 rounded-3xl border-2 border-[var(--brand-gold-400)] bg-[#1a5fa0]/40 text-white placeholder:text-white/60 focus-visible:ring-[var(--brand-gold-400)]"
+          />
+        </div>
 
-            <div className="space-y-2 text-left">
-              <Label htmlFor="email" className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                Email
-              </Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                required
-                autoComplete="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="h-12 rounded-lg border border-slate-200 bg-white text-slate-900 placeholder:text-slate-500 focus-visible:ring-[#0F4C7D] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-              />
-            </div>
+        <div className="space-y-2 text-left">
+          <Label htmlFor="password" className="ikido-section-title text-[var(--brand-gold-200)]">
+            Password
+          </Label>
+          <Input
+            id="password"
+            name="password"
+            type="password"
+            required
+            autoComplete={variant === "login" ? "current-password" : "new-password"}
+            placeholder="••••••••"
+            minLength={6}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            className="h-12 rounded-3xl border-2 border-[var(--brand-gold-400)] bg-[#1a5fa0]/40 text-white placeholder:text-white/60 focus-visible:ring-[var(--brand-gold-400)]"
+          />
+        </div>
 
-            <div className="space-y-2 text-left">
-              <Label htmlFor="password" className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                Password
-              </Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                required
-                autoComplete={variant === "login" ? "current-password" : "new-password"}
-                placeholder="••••••••"
-                minLength={6}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="h-12 rounded-lg border border-slate-200 bg-white text-slate-900 placeholder:text-slate-500 focus-visible:ring-[#0F4C7D] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-              />
-            </div>
-
-            {isRegister && (
-              <div className="space-y-3 text-left">
-                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  Choose account type
-                </span>
-                <ToggleGroup
-                  type="single"
-                  value={role}
-                  onValueChange={(value) => {
-                    if (value === "Parent" || value === "Child") {
-                      setRole(value);
-                    }
-                  }}
-                  className="grid grid-cols-2 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-900"
+        {isRegister && (
+          <div className="space-y-3 text-left">
+            <span className="ikido-section-title text-[var(--brand-gold-200)]">Choose account type</span>
+            <ToggleGroup
+              type="single"
+              value={role}
+              onValueChange={(value) => {
+                if (value === "Parent" || value === "Child") {
+                  setRole(value);
+                }
+              }}
+              className="grid grid-cols-2 gap-3"
+            >
+              {ROLE_OPTIONS.map((option) => (
+                <ToggleGroupItem
+                  key={option}
+                  value={option}
+                  className={cn(
+                    "rounded-3xl border-2 border-[var(--brand-gold-400)] bg-[#0d3a5c] px-4 py-3 text-sm font-semibold text-white transition",
+                    "data-[state=on]:bg-[var(--brand-gold-400)] data-[state=on]:text-[var(--brand-blue-900)]"
+                  )}
                 >
-                  {ROLE_OPTIONS.map((option) => (
-                    <ToggleGroupItem
-                      key={option}
-                      value={option}
-                      className={cn(
-                        "h-12 rounded-none text-sm font-semibold tracking-wide transition",
-                        "data-[state=on]:bg-gradient-to-r data-[state=on]:from-[#0F4C7D] data-[state=on]:to-[#1A5FA0] data-[state=on]:text-white",
-                        "data-[state=off]:text-slate-600 data-[state=off]:backdrop-blur hover:bg-white/70 dark:data-[state=off]:text-slate-300"
-                      )}
-                    >
-                      {option === "Parent" ? "👨‍👩‍👧 Parent" : "👧 Child"}
-                    </ToggleGroupItem>
-                  ))}
-                </ToggleGroup>
-              </div>
-            )}
+                  {option === "Parent" ? "👨‍👩‍👧 Parent" : "👧 Child"}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
           </div>
+        )}
 
-          <Button
-            type="submit"
-            disabled={isSubmitDisabled}
-            className="h-12 w-full bg-gradient-to-r from-[#0F4C7D] to-[#1A5FA0] text-base font-semibold text-white shadow-lg shadow-[#0F4C7D]/30 transition hover:shadow-xl disabled:opacity-70"
-          >
-            {isSubmitting ? "Please wait..." : CTA_LABEL[variant]}
-          </Button>
-        </form>
+        <Button
+          type="submit"
+          disabled={isSubmitDisabled}
+          className="ikido-button ikido-button--gold ikido-button--pill text-sm uppercase tracking-[0.28em]"
+        >
+          {isSubmitting ? "Please wait…" : CTA_LABEL[variant]}
+        </Button>
+      </form>
 
-        <p className="text-center text-sm text-gray-600 dark:text-slate-300">
-          {footer.label}{" "}
-          <Link className="font-semibold text-[#0F4C7D] hover:underline dark:text-sky-300" href={footer.href}>
-            {footer.linkLabel}
-          </Link>
-        </p>
-      </CardContent>
-    </Card>
+      <p className="text-center text-xs text-white/70">
+        {footer.label}{" "}
+        <Link className="font-semibold text-[var(--brand-gold-400)] underline-offset-4 hover:underline" href={footer.href}>
+          {footer.linkLabel}
+        </Link>
+      </p>
+    </div>
   );
 };
 
