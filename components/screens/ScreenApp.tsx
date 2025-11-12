@@ -189,74 +189,72 @@ export const ScreenApp = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[#0F4C7D] to-[#1A5FA0] p-4">
-      {currentScreen === "login" && <LoginScreen onLogin={handleLogin} />}
+    <div className="flex min-h-dvh w-full flex-col items-center justify-start bg-linear-to-b from-[#0F4C7D] to-[#1A5FA0] px-4 pb-6 pt-24">
+      <div className="flex w-full max-w-sm flex-1 flex-col items-stretch justify-center gap-6">
+        {currentScreen === "login" && <LoginScreen onLogin={handleLogin} />}
 
-      {currentScreen === "parent-dashboard" && role === "parent" && (
-        <ParentDashboard parentName={userName} crew={children} onNavigate={handleNavigate} onLogout={handleLogout} />
-      )}
+        {currentScreen === "parent-dashboard" && role === "parent" && (
+          <ParentDashboard parentName={userName} crew={children} onNavigate={handleNavigate} onLogout={handleLogout} />
+        )}
 
-      {currentScreen === "parent-manage-tasks" && role === "parent" && (
-        <ParentCreateTasks onBack={() => setCurrentScreen("parent-dashboard")} onTaskCreated={handleTaskCreated} />
-      )}
+        {currentScreen === "parent-manage-tasks" && role === "parent" && (
+          <ParentCreateTasks onBack={() => setCurrentScreen("parent-dashboard")} onTaskCreated={handleTaskCreated} />
+        )}
 
-      {currentScreen === "parent-manage-children" && role === "parent" && (
-        <ParentManageChildren
-          crew={children}
-          onBack={() => setCurrentScreen("parent-dashboard")}
-          onAddChild={handleAddChild}
-          onRemoveChild={handleRemoveChild}
-        />
-      )}
+        {currentScreen === "parent-manage-children" && role === "parent" && (
+          <ParentManageChildren
+            crew={children}
+            onBack={() => setCurrentScreen("parent-dashboard")}
+            onAddChild={handleAddChild}
+            onRemoveChild={handleRemoveChild}
+          />
+        )}
 
-      {currentScreen === "parent-manage-rewards" && role === "parent" && (
-        <ParentManageRewards
-          onBack={() => setCurrentScreen("parent-dashboard")}
-          rewards={rewards}
-          onAddReward={handleAddReward}
-        />
-      )}
+        {currentScreen === "parent-manage-rewards" && role === "parent" && (
+          <ParentManageRewards onBack={() => setCurrentScreen("parent-dashboard")} rewards={rewards} onAddReward={handleAddReward} />
+        )}
 
-      {currentScreen === "parent-history" && role === "parent" && (
-        <ParentHistory onBack={() => setCurrentScreen("parent-dashboard")} activities={activities} />
-      )}
+        {currentScreen === "parent-history" && role === "parent" && (
+          <ParentHistory onBack={() => setCurrentScreen("parent-dashboard")} activities={activities} />
+        )}
 
-      {currentScreen === "child-dashboard" && role === "child" && (
-        <ChildDashboard
-          childName={userName}
-          ggPoints={childGGPoints}
-          tasks={tasks}
-          onNavigate={handleNavigate}
-          onCompleteTask={handleCompleteTask}
-          onLogout={handleLogout}
-        />
-      )}
+        {currentScreen === "child-dashboard" && role === "child" && (
+          <ChildDashboard
+            childName={userName}
+            ggPoints={childGGPoints}
+            tasks={tasks}
+            onNavigate={handleNavigate}
+            onCompleteTask={handleCompleteTask}
+            onLogout={handleLogout}
+          />
+        )}
 
-      {currentScreen === "child-rewards" && role === "child" && (
-        <ChildRewards
-          childName={userName}
-          ggPoints={childGGPoints}
-          rewards={rewards}
-          onBack={() => setCurrentScreen("child-dashboard")}
-          onRewardRedeemed={handleRewardRedeemed}
-        />
-      )}
+        {currentScreen === "child-rewards" && role === "child" && (
+          <ChildRewards
+            childName={userName}
+            ggPoints={childGGPoints}
+            rewards={rewards}
+            onBack={() => setCurrentScreen("child-dashboard")}
+            onRewardRedeemed={handleRewardRedeemed}
+          />
+        )}
 
-      {currentScreen === "child-history" && role === "child" && (
-        <ChildHistory childName={userName} onBack={() => setCurrentScreen("child-dashboard")} history={childHistory} />
-      )}
+        {currentScreen === "child-history" && role === "child" && (
+          <ChildHistory childName={userName} onBack={() => setCurrentScreen("child-dashboard")} history={childHistory} />
+        )}
 
-      {currentScreen === "rewards" && (
-        <RewardsScreen
-          onBack={() => setCurrentScreen("child-dashboard")}
-          onRewardRedeemed={(points) => {
-            setChildGGPoints((prev) => prev - points);
-            setCurrentScreen("success");
-          }}
-        />
-      )}
+        {currentScreen === "rewards" && (
+          <RewardsScreen
+            onBack={() => setCurrentScreen("child-dashboard")}
+            onRewardRedeemed={(points) => {
+              setChildGGPoints((prev) => prev - points);
+              setCurrentScreen("success");
+            }}
+          />
+        )}
 
-      {currentScreen === "success" && <SuccessScreen onDone={() => setCurrentScreen("child-dashboard")} />}
+        {currentScreen === "success" && <SuccessScreen onDone={() => setCurrentScreen("child-dashboard")} />}
+      </div>
     </div>
   );
 };
