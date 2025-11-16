@@ -7,7 +7,7 @@ import {
   type UserRole,
 } from "@/types/supabase";
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { supabase, response } = createSupabaseMiddlewareClient(req);
   const [
     { data: sessionResult },
@@ -15,7 +15,7 @@ export async function middleware(req: NextRequest) {
   ] = await Promise.all([supabase.auth.getSession(), supabase.auth.getUser()]);
 
   if (userError) {
-    console.error("[middleware] Failed to validate user", userError);
+    console.error("[proxy] Failed to validate user", userError);
   }
 
   const session = sessionResult.session;
@@ -83,4 +83,5 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: ["/login", "/register", "/dashboard/:path*"],
 };
+
 
