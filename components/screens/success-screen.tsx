@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 
 type SuccessScreenProps = {
   onDone: () => void;
@@ -18,19 +18,34 @@ export function SuccessScreen({ onDone }: SuccessScreenProps) {
     size: number;
   };
 
-  const [confettiPieces, setConfettiPieces] = useState<ConfettiPiece[]>([]);
+  // Pure, deterministic pseudo-random generator based on seed and index
+  const pseudoRandom = (seed: number, index: number): number => {
+    // Simple LCG-inspired hash, deterministic and side-effect free
+    const a = 1664525;
+    const c = 1013904223;
+    let x = (seed ^ (index + 1)) >>> 0;
+    x = (Math.imul(a, x) + c) >>> 0;
+    return (x >>> 8) / 16777216; // [0,1)
+  };
 
-  useEffect(() => {
-    const pieces: ConfettiPiece[] = Array.from({ length: 20 }).map((_, index) => ({
-      id: index,
-      left: Math.random() * 100,
-      delay: Math.random() * 2.5,
-      duration: 2.4 + Math.random() * 2,
-      color: CONFETTI_COLORS[index % CONFETTI_COLORS.length],
-      size: 0.4 + Math.random() * 0.6,
-    }));
+  const SEED = 123456789;
 
-    setConfettiPieces(pieces);
+  const confettiPieces = useMemo<ConfettiPiece[]>(() => {
+    return Array.from({ length: 20 }).map((_, index) => {
+      const r1 = pseudoRandom(SEED, index * 4 + 0);
+      const r2 = pseudoRandom(SEED, index * 4 + 1);
+      const r3 = pseudoRandom(SEED, index * 4 + 2);
+      const r4 = pseudoRandom(SEED, index * 4 + 3);
+
+      return {
+        id: index,
+        left: r1 * 100,
+        delay: r2 * 2.5,
+        duration: 2.4 + r3 * 2,
+        color: CONFETTI_COLORS[index % CONFETTI_COLORS.length],
+        size: 0.4 + r4 * 0.6,
+      };
+    });
   }, []);
 
   return (
