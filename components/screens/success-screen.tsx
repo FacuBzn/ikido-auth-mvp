@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 
 type SuccessScreenProps = {
   onDone: () => void;
@@ -9,18 +9,29 @@ type SuccessScreenProps = {
 const CONFETTI_COLORS = ["#FFD369", "#FF6B6B", "#4ECDC4", "#6CE2FF", "#FF9F68"];
 
 export function SuccessScreen({ onDone }: SuccessScreenProps) {
-  const confettiPieces = useMemo(
-    () =>
-      Array.from({ length: 20 }).map((_, index) => ({
-        id: index,
-        left: Math.random() * 100,
-        delay: Math.random() * 2.5,
-        duration: 2.4 + Math.random() * 2,
-        color: CONFETTI_COLORS[index % CONFETTI_COLORS.length],
-        size: 0.4 + Math.random() * 0.6,
-      })),
-    []
-  );
+  type ConfettiPiece = {
+    id: number;
+    left: number;
+    delay: number;
+    duration: number;
+    color: string;
+    size: number;
+  };
+
+  const [confettiPieces, setConfettiPieces] = useState<ConfettiPiece[]>([]);
+
+  useEffect(() => {
+    const pieces: ConfettiPiece[] = Array.from({ length: 20 }).map((_, index) => ({
+      id: index,
+      left: Math.random() * 100,
+      delay: Math.random() * 2.5,
+      duration: 2.4 + Math.random() * 2,
+      color: CONFETTI_COLORS[index % CONFETTI_COLORS.length],
+      size: 0.4 + Math.random() * 0.6,
+    }));
+
+    setConfettiPieces(pieces);
+  }, []);
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden rounded-3xl bg-linear-to-b from-[#0F4C7D] to-[#1A5FA0] px-5 py-8 text-white shadow-2xl">
