@@ -62,19 +62,7 @@ export function ChildDashboard({ childName, ggPoints, tasks, onNavigate, onCompl
           </div>
         </section>
 
-        <div className="mt-auto space-y-3">
-          <Button
-            onClick={() => onNavigate("child-rewards")}
-            className="w-full rounded-2xl border border-[#FFD369] bg-[#0D3A5C] py-3 text-sm text-white transition hover:bg-[#0A2A47]"
-          >
-            Rewards
-          </Button>
-          <Button
-            onClick={() => onNavigate("child-history")}
-            className="w-full rounded-2xl border border-[#FFD369] bg-[#0D3A5C] py-3 text-sm text-white transition hover:bg-[#0A2A47]"
-          >
-            History
-          </Button>
+        <div className="mt-auto space-y-3">        
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { getDashboardPathByRole } from "@/lib/authRoutes";
+import { getDashboardPathByRole, getLoginPathByRole } from "@/lib/authRoutes";
 import { createSupabaseServerComponentClient } from "@/lib/supabase/serverClient";
 import {
   fromDatabaseUserRole,
@@ -110,13 +110,52 @@ export const getAuthenticatedUser = cache(
 export const ensureRoleAccess = async (allowedRoles: UserRole[]) => {
   const authUser = await getAuthenticatedUser();
   if (!authUser) {
-    redirect("/login");
+    redirect(getLoginPathByRole(allowedRoles[0] ?? "Parent"));
   }
 
   if (!allowedRoles.includes(authUser.profile.role)) {
     redirect(getDashboardPathByRole(authUser.profile.role));
   }
 
+  return authUser;
+};
+
+export const redirectParentIfNeeded = async () => {
+  const authUser = await getAuthenticatedUser();
+  if (!authUser) {
+    redirect("/login-parent");
+    return;
+  }
+  if (authUser.profile.role !== "Parent") {
+    redirect(getDashboardPathByRole(authUser.profile.role));
+    return;
+  }
+  return authUser;
+};
+
+export const redirectChildIfNeeded = async () => {
+  const authUser = await getAuthenticatedUser();
+  if (!authUser) {
+    redirect("/login-child");
+    return;
+  }
+  if (authUser.profile.role !== "Child") {
+    redirect(getDashboardPathByRole(authUser.profile.role));
+    return;
+  }
+  return authUser;
+};
+
+export const redirectByRole = async (requiredRole: UserRole) => {
+  const authUser = await getAuthenticatedUser();
+  if (!authUser) {
+    redirect(getLoginPathByRole(requiredRole));
+    return;
+  }
+  if (authUser.profile.role !== requiredRole) {
+    redirect(getDashboardPathByRole(authUser.profile.role));
+    return;
+  }
   return authUser;
 };
 

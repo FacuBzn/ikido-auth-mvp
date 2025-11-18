@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browserClient";
 import { useSessionStore, type SessionProfile } from "@/store/useSessionStore";
 import { useToast } from "@/hooks/use-toast";
+import { getLoginPathByRole } from "@/lib/authRoutes";
 
 type ChildDashboardClientProps = {
   profile: SessionProfile;
@@ -38,7 +39,7 @@ export const ChildDashboardClient = ({ profile }: ChildDashboardClientProps) => 
         title: "Signed out",
         description: "Come back soon for more missions!",
       });
-      router.push("/");
+      router.push(getLoginPathByRole(profile.role));
       router.refresh();
     } catch (cause) {
       const message =
@@ -94,9 +95,6 @@ export const ChildDashboardClient = ({ profile }: ChildDashboardClientProps) => 
               Your missions, points, and rewards live here. Complete tasks, earn GGPoints, and unlock
               special treats from your crew.
             </p>
-            <Button className="mx-auto mt-2 h-11 w-fit rounded-full bg-yellow-300 px-6 text-sm font-semibold text-[#0F4C7D] shadow-lg shadow-yellow-300/30 transition hover:bg-yellow-200 md:mx-0">
-              View my GGPoints history
-            </Button>
           </div>
         </header>
 
@@ -137,28 +135,10 @@ export const ChildDashboardClient = ({ profile }: ChildDashboardClientProps) => 
                 </p>
               </CardContent>
             </Card>
-
-            <Card className="border-white/15 bg-white/10 backdrop-blur">
-              <CardContent className="space-y-4 px-6 py-6">
-                <h2 className="text-xl font-semibold">Rewards tracker</h2>
-                <div className="space-y-3 text-sm text-white/80">
-                  <div className="rounded-lg border border-white/15 bg-white/10 px-4 py-3">
-                    <p className="font-semibold">🎮 New game level unlock</p>
-                    <p className="text-white/60">Need 200 more GGPoints</p>
-                  </div>
-                  <div className="rounded-lg border border-white/15 bg-white/10 px-4 py-3">
-                    <p className="font-semibold">🍨 Ice cream Friday</p>
-                    <p className="text-white/60">Almost there! Only 80 GGPoints left</p>
-                  </div>
-                </div>
-                <p className="text-xs uppercase tracking-wide text-white/60">
-                  Replace these placeholders with the `RewardCard` component bound to Supabase data.
-                </p>
-              </CardContent>
-            </Card>
           </div>
         </section>
       </div>
     </main>
   );
 };
+

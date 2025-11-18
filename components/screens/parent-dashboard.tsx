@@ -34,25 +34,13 @@ export function ParentDashboard({ parentName, crew, onNavigate, onLogout }: Pare
             className="w-full rounded-2xl border border-[#FFD369] bg-[#0D3A5C] py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0A2A47]"
           >
             Manage Children
-          </button>
-          <button
-            onClick={() => onNavigate("parent-manage-rewards")}
-            className="w-full rounded-2xl border border-[#FFD369] bg-[#0D3A5C] py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0A2A47]"
-          >
-            Manage Rewards
-          </button>
+          </button>          
           <button
             onClick={() => onNavigate("parent-manage-tasks")}
             className="w-full rounded-2xl border border-[#FFD369] bg-[#0D3A5C] py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0A2A47]"
           >
             Create Tasks
-          </button>
-          <button
-            onClick={() => onNavigate("parent-history")}
-            className="w-full rounded-2xl border border-[#FFD369] bg-[#0D3A5C] py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0A2A47]"
-          >
-            History
-          </button>
+          </button>          
         </div>
 
         <div className="space-y-3 rounded-2xl bg-[#0D3A5C] p-4">

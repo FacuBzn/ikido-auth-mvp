@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { ChildrenSummaryModal } from "./ChildrenSummaryModal";
+import { ChildrenSummaryModal } from "../ChildrenSummaryModal";
 
 export const metadata: Metadata = {
   title: "Parent Dashboard | iKidO (GGPoints)",
@@ -30,7 +30,7 @@ export default function ParentDashboardPage() {
                 asChild
                 className="ikido-button ikido-button--pill justify-between text-base"
               >
-                <Link href="/dashboard/parent/children">Manage Children</Link>
+                <Link href="/parent/children">Manage Children</Link>
               </Button>
               <Button
                 className="ikido-button ikido-button--pill justify-between text-base"
@@ -43,18 +43,6 @@ export default function ParentDashboardPage() {
                 disabled
               >
                 Create Tasks
-              </Button>
-              <Button
-                className="ikido-button ikido-button--pill justify-between text-base"
-                disabled
-              >
-                Rewards
-              </Button>
-              <Button
-                className="ikido-button ikido-button--pill justify-between text-base"
-                disabled
-              >
-                History
               </Button>
             </div>
 

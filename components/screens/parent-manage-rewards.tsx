@@ -37,7 +37,7 @@ export function ParentManageRewards({ onBack, rewards, onAddReward }: ParentMana
 
       <div className="mt-4 flex flex-1 flex-col gap-5 overflow-hidden">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold">Manage Rewards</h1>
+          {/* <h1 className="text-2xl font-bold">Manage Rewards</h1> */}
           <p className="text-xs text-gray-200">Add exciting prizes for your cadets.</p>
         </div>
 
@@ -81,12 +81,12 @@ export function ParentManageRewards({ onBack, rewards, onAddReward }: ParentMana
 
           {error && <p className="text-xs font-semibold text-red-300">{error}</p>}
 
-          <button
+          {/* <button
             onClick={handleAddReward}
             className="w-full rounded-2xl bg-[#FFD369] py-3 text-sm font-bold text-[#0F4C7D] transition-colors hover:bg-[#FFC93F]"
           >
             Add Reward
-          </button>
+          </button> */}
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col rounded-2xl bg-[#0D3A5C] p-4">

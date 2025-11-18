@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { ChildDashboardClient } from "./ChildDashboardClient";
+import { ChildDashboardClient } from "../ChildDashboardClient";
 
 export const metadata: Metadata = {
   title: "Child Dashboard | iKidO (GGPoints)",

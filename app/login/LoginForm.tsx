@@ -91,7 +91,7 @@ export const LoginForm = () => {
     setAuthState(session, profile);
 
     const redirectTarget = searchParams.get("redirectTo");
-    if (redirectTarget?.startsWith("/dashboard")) {
+    if (redirectTarget && (redirectTarget.startsWith("/parent") || redirectTarget.startsWith("/child"))) {
       router.replace(redirectTarget);
     } else {
       router.replace(getDashboardPathByRole(resolvedRole));

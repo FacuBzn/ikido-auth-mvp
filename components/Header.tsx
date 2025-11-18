@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogOut, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
-import { getDashboardPathByRole } from "@/lib/authRoutes";
+import { getDashboardPathByRole, getLoginPathByRole } from "@/lib/authRoutes";
 import { cn } from "@/lib/utils";
 import { selectProfile, selectSession, useSessionStore } from "@/store/useSessionStore";
 
@@ -25,7 +25,7 @@ export const Header = () => {
       return getDashboardPathByRole(profile.role);
     }
 
-    return "/dashboard/parent";
+    return "/parent/dashboard";
   }, [profile?.role, session]);
 
   const handleSignOut = async () => {
@@ -63,7 +63,8 @@ export const Header = () => {
     }
 
     resetSession();
-    router.push("/login");
+    const loginPath = profile?.role ? getLoginPathByRole(profile.role) : "/login-parent";
+    router.push(loginPath);
     router.refresh();
     setIsSigningOut(false);
   };

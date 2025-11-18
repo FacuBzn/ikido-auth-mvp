@@ -106,7 +106,7 @@ export const ChildrenManagement = ({ parentId, initialChildren }: ChildrenManage
           asChild
           className="w-fit self-start rounded-full bg-[#0d3a5c]/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-white shadow-[0_12px_24px_-18px_rgba(0,0,0,0.6)] backdrop-blur"
         >
-          <Link href="/dashboard/parent">← Back</Link>
+          <Link href="/parent/dashboard">← Back</Link>
         </Button>
 
         <header className="space-y-2 text-center">
@@ -213,5 +213,4 @@ export const ChildrenManagement = ({ parentId, initialChildren }: ChildrenManage
     </main>
   );
 };
-
 
