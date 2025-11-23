@@ -1,48 +1,55 @@
 import { create } from "zustand";
-import type { Session } from "@supabase/supabase-js";
-import type { UserRole } from "@/types/supabase";
+import { persist } from "zustand/middleware";
+import { createBrowserClient } from "@/lib/supabaseClient";
 
-export type SessionProfile = {
+export type Parent = {
   id: string;
+  auth_user_id: string;
+  full_name: string;
   email: string;
-  name: string | null;
-  role: UserRole;
+  family_code: string;
+  created_at: string;
 };
 
-type SessionState = {
-  session: Session | null;
-  profile: SessionProfile | null;
-  loading: boolean;
+export type Child = {
+  id: string;
+  parent_id: string;
+  name: string;
+  created_at: string;
 };
 
-type SessionActions = {
-  setAuthState: (session: Session | null, profile: SessionProfile | null) => void;
-  setLoading: (loading: boolean) => void;
-  reset: () => void;
+type SessionStore = {
+  parent: Parent | null;
+  child: Child | null;
+  setParent: (parent: Parent) => void;
+  setChild: (child: Child) => void;
+  logout: () => void;
 };
 
-type SessionStore = SessionState & SessionActions;
-
-export const useSessionStore = create<SessionStore>((set) => ({
-  session: null,
-  profile: null,
-  loading: true,
-  setAuthState: (session, profile) =>
-    set({
-      session,
-      profile,
-      loading: false,
+export const useSessionStore = create<SessionStore>()(
+  persist(
+    (set) => ({
+      parent: null,
+      child: null,
+      setParent: (parent) => {
+        set({ parent, child: null }); // Clear child when setting parent
+      },
+      setChild: (child) => {
+        set({ child, parent: null }); // Clear parent when setting child
+      },
+      logout: async () => {
+        const state = useSessionStore.getState();
+        // If there's a parent, sign out from Supabase Auth
+        if (state.parent) {
+          const supabase = createBrowserClient();
+          await supabase.auth.signOut();
+        }
+        // Clear both parent and child
+        set({ parent: null, child: null });
+      },
     }),
-  setLoading: (loading) => set({ loading }),
-  reset: () =>
-    set({
-      session: null,
-      profile: null,
-      loading: false,
-    }),
-}));
-
-export const selectSession = (state: SessionStore) => state.session;
-export const selectProfile = (state: SessionStore) => state.profile;
-export const selectIsLoading = (state: SessionStore) => state.loading;
-
+    {
+      name: "ikido-session-storage",
+    }
+  )
+);

@@ -58,6 +58,8 @@ export type AuthenticatedUser = {
     email: string;
     name: string | null;
     role: UserRole;
+    child_code?: string | null;
+    points_balance?: number;
   };
 };
 
@@ -72,7 +74,7 @@ export const getAuthenticatedUser = cache(
     const supabase = await createSupabaseServerComponentClient();
     const { data, error } = await supabase
       .from("users")
-      .select("id, email, name, role")
+      .select("id, email, name, role, child_code, points_balance")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -102,6 +104,8 @@ export const getAuthenticatedUser = cache(
         email: data.email ?? user.email ?? "",
         name: data.name,
         role: resolvedRole,
+        child_code: data.child_code ?? null,
+        points_balance: data.points_balance ?? 0,
       },
     };
   }
@@ -123,7 +127,7 @@ export const ensureRoleAccess = async (allowedRoles: UserRole[]) => {
 export const redirectParentIfNeeded = async () => {
   const authUser = await getAuthenticatedUser();
   if (!authUser) {
-    redirect("/login-parent");
+    redirect("/parent/login");
     return;
   }
   if (authUser.profile.role !== "Parent") {
@@ -136,7 +140,7 @@ export const redirectParentIfNeeded = async () => {
 export const redirectChildIfNeeded = async () => {
   const authUser = await getAuthenticatedUser();
   if (!authUser) {
-    redirect("/login-child");
+    redirect("/child/join");
     return;
   }
   if (authUser.profile.role !== "Child") {

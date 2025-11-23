@@ -1,19 +1,12 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { getAuthenticatedUser } from "@/lib/authHelpers";
-import { getDashboardPathByRole } from "@/lib/authRoutes";
-import { ScreenApp } from "@/components/screens/ScreenApp";
+import { RoleSelection } from "@/components/screens/role-selection";
 
 export const metadata: Metadata = {
   title: "iKidO | GGPoints",
 };
 
-export default async function Home() {
-  const authUser = await getAuthenticatedUser();
-
-  if (authUser) {
-    redirect(getDashboardPathByRole(authUser.profile.role));
-  }
-
-  return <ScreenApp />;
+export default function Home() {
+  // Landing page - no need to check auth here
+  // Client-side navigation will handle redirects if needed
+  return <RoleSelection />;
 }

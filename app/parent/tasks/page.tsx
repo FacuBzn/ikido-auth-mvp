@@ -1,25 +1,41 @@
 import type { Metadata } from "next";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { createSupabaseServerComponentClient } from "@/lib/supabase/serverClient";
+import type { Database } from "@/types/supabase";
+import { TasksManagement } from "./TasksManagement";
 
 export const metadata: Metadata = {
   title: "Create Tasks | iKidO (GGPoints)",
 };
 
+type ChildUser = Pick<
+  Database["public"]["Tables"]["users"]["Row"],
+  "id" | "name" | "child_code"
+>;
+
+const ParentTasksManager = async ({ parentId }: { parentId: string }) => {
+  const supabase = await createSupabaseServerComponentClient();
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, name, child_code")
+    .eq("role", "child")
+    .eq("parent_id", parentId)
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("[parent:tasks] Failed to load children", error);
+    throw new Error("We could not load your children list. Please try again.");
+  }
+
+  return (
+    <TasksManagement parentId={parentId} initialChildren={(data ?? []) as ChildUser[]} />
+  );
+};
+
 export default function ParentTasksPage() {
   return (
     <ProtectedRoute allowedRoles={["Parent"]}>
-      {() => (
-        <main className="screen-shell text-white">
-          <div className="screen-card w-full max-w-md space-y-8 px-8 py-10">
-            <header className="space-y-2 text-center">
-              <h1 className="text-2xl font-semibold tracking-tight">Create Tasks</h1>
-              <p className="text-sm text-white/75">
-                This page is under construction. Task creation functionality will be available soon.
-              </p>
-            </header>
-          </div>
-        </main>
-      )}
+      {({ profile }) => <ParentTasksManager parentId={profile.id} />}
     </ProtectedRoute>
   );
 }

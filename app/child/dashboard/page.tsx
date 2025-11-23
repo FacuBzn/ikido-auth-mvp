@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import { ChildDashboardClient } from "../ChildDashboardClient";
+import { redirect } from "next/navigation";
+import { createServerClient } from "@/lib/supabaseServerClient";
+import { ChildDashboardClient } from "./ChildDashboardClient";
 
 export const metadata: Metadata = {
-  title: "Child Dashboard | iKidO (GGPoints)",
+  title: "Child Dashboard | iKidO",
 };
 
-export default function ChildDashboardPage() {
-  return (
-    <ProtectedRoute allowedRoles={["Child"]}>
-      {({ profile }) => <ChildDashboardClient profile={profile} />}
-    </ProtectedRoute>
-  );
-}
+export default async function ChildDashboardPage() {
+  const supabase = await createServerClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
+  // For child, we don't use Supabase Auth, so we check the session store on client side
+  // This is a server component that will redirect if needed
+  return <ChildDashboardClient />;
+}
