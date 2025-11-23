@@ -22,9 +22,10 @@ export function ChildDashboardClient() {
         try {
           const supabase = createBrowserClient();
           const { data, error } = await supabase
-            .from("parents")
-            .select("full_name")
+            .from("users")
+            .select("name")
             .eq("id", child.parent_id)
+            .eq("role", "parent")
             .maybeSingle();
 
           if (error) {
@@ -33,7 +34,8 @@ export function ChildDashboardClient() {
           }
 
           if (data) {
-            setParentName(data.full_name);
+            const parentData = data as { name: string | null };
+            setParentName(parentData.name || "");
           }
         } catch (error) {
           console.error("Failed to fetch parent:", error);

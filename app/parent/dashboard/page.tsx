@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
-import { createServerClient } from "@/lib/supabaseServerClient";
+import { createServerClient } from "@/lib/supabase/serverClient";
 import { getChildrenByParent } from "@/lib/repositories/childRepository";
 import { createChild } from "@/lib/repositories/parentRepository";
 import { ParentDashboardClient } from "./ParentDashboardClient";
@@ -22,24 +22,25 @@ export default async function ParentDashboardPage() {
     redirect("/parent/login");
   }
 
-  // Get parent from parents table
+  // Get parent from users table
   const { data: parentData, error: parentError } = await supabase
-    .from("parents")
+    .from("users")
     .select()
-    .eq("auth_user_id", session.user.id)
-    .single();
+    .eq("auth_id", session.user.id)
+    .eq("role", "parent")
+    .maybeSingle();
 
   if (parentError || !parentData) {
     redirect("/parent/login");
   }
 
-  // Type assertion for parentData
+  // Map users table structure to Parent type
   const parentRecord = parentData as {
     id: string;
-    auth_user_id: string;
-    full_name: string;
+    auth_id: string;
+    name: string | null;
     email: string;
-    family_code: string;
+    child_code?: string | null; // child_code is used as family code for parents
     created_at: string;
   };
 
@@ -53,10 +54,10 @@ export default async function ParentDashboardPage() {
 
   const parent = {
     id: parentRecord.id,
-    auth_user_id: parentRecord.auth_user_id,
-    full_name: parentRecord.full_name,
+    auth_user_id: parentRecord.auth_id,
+    full_name: parentRecord.name || "",
     email: parentRecord.email,
-    family_code: parentRecord.family_code,
+    family_code: parentRecord.child_code || "",
     created_at: parentRecord.created_at,
   };
 

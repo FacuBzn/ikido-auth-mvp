@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browserClient";
+import { createBrowserClient } from "@/lib/supabaseClient";
 import type { Database } from "@/types/supabase";
 import { useToast } from "@/hooks/use-toast";
 
@@ -28,7 +28,7 @@ type CreateChildResponse = {
 };
 
 export const ChildrenManagement = ({ parentId, initialChildren }: ChildrenManagementProps) => {
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const supabase = useMemo(() => createBrowserClient(), []);
   const { toast } = useToast();
   const [children, setChildren] = useState<ChildRecord[]>(initialChildren);
   const [newChildName, setNewChildName] = useState("");

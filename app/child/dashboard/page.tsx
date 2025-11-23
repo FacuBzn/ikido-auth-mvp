@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { createServerClient } from "@/lib/supabaseServerClient";
+import { createServerClient } from "@/lib/supabase/serverClient";
 import { ChildDashboardClient } from "./ChildDashboardClient";
 
 export const metadata: Metadata = {

@@ -22,33 +22,6 @@ export const toDatabaseUserRole = (role: UserRole): DatabaseUserRole =>
 export type Database = {
   public: {
     Tables: {
-      parents: {
-        Row: {
-          id: string;
-          auth_user_id: string;
-          full_name: string;
-          email: string;
-          family_code: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          auth_user_id: string;
-          full_name: string;
-          email: string;
-          family_code: string;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          auth_user_id?: string;
-          full_name?: string;
-          email?: string;
-          family_code?: string;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
       users: {
         Row: {
           id: string;
@@ -57,7 +30,7 @@ export type Database = {
           name: string | null;
           role: DatabaseUserRole;
           parent_id: string | null;
-          child_code: string | null;
+          child_code: string | null; // Used as family code for parents, child code for children
           points_balance: number;
           created_at: string;
         };
@@ -68,7 +41,7 @@ export type Database = {
           name?: string | null;
           role: DatabaseUserRole;
           parent_id?: string | null;
-          child_code?: string | null;
+          child_code?: string | null; // Used as family code for parents, child code for children
           points_balance?: number;
           created_at?: string;
         };
@@ -79,7 +52,7 @@ export type Database = {
           name?: string | null;
           role?: DatabaseUserRole;
           parent_id?: string | null;
-          child_code?: string | null;
+          child_code?: string | null; // Used as family code for parents, child code for children
           points_balance?: number;
           created_at?: string;
         };
@@ -114,7 +87,7 @@ export type Database = {
           {
             foreignKeyName: "children_parent_id_fkey";
             columns: ["parent_id"];
-            referencedRelation: "parents";
+            referencedRelation: "users";
             referencedColumns: ["id"];
           },
         ];

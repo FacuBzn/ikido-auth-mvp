@@ -14,7 +14,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browserClient";
+import { createBrowserClient } from "@/lib/supabaseClient";
 import type { Database } from "@/types/supabase";
 
 type UsersRow = Database["public"]["Tables"]["users"]["Row"];
@@ -40,7 +40,7 @@ export const ChildrenSummaryModal = ({ parentId }: ChildrenSummaryModalProps) =>
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<ChildSummary[]>([]);
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const supabase = useMemo(() => createBrowserClient(), []);
 
   useEffect(() => {
     if (!open) {

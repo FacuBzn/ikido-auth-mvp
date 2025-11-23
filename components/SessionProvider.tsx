@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useMemo } from "react";
 import { createBrowserClient } from "@/lib/supabaseClient";
 import { useSessionStore } from "@/store/useSessionStore";
 import { getParentByAuthUserId } from "@/lib/repositories/parentRepository";
@@ -11,39 +11,101 @@ type SessionProviderProps = {
 
 /**
  * SessionProvider - Hydrates Zustand store with Supabase session
- * This is a simplified version for MVP
+ * Uses onAuthStateChange to handle session refresh automatically
  */
 export const SessionProvider = ({ children }: SessionProviderProps) => {
   const setParent = useSessionStore((state) => state.setParent);
-  const parent = useSessionStore((state) => state.parent);
+  const logout = useSessionStore((state) => state.logout);
+
+  const supabase = useMemo(() => createBrowserClient(), []);
 
   useEffect(() => {
-    // Only hydrate if we don't already have a parent in store
-    if (parent) {
-      return;
-    }
+    let cancelled = false;
 
-    const hydrateSession = async () => {
+    const syncParentProfile = async (authUserId: string) => {
       try {
-        const supabase = createBrowserClient();
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+        const parentData = await getParentByAuthUserId(authUserId);
+        if (cancelled) {
+          return;
+        }
 
-        if (session?.user) {
-          // Try to get parent from database
-          const parentData = await getParentByAuthUserId(session.user.id);
-          if (parentData) {
-            setParent(parentData);
-          }
+        if (parentData) {
+          setParent(parentData);
+        } else {
+          console.warn("[SessionProvider] No parent profile found during hydration", {
+            authUserId,
+          });
         }
       } catch (error) {
-        console.error("Failed to hydrate session:", error);
+        if (error instanceof Error) {
+          console.error("[SessionProvider] Failed to hydrate parent profile", {
+            message: error.message,
+            authUserId,
+          });
+        } else {
+          console.error("[SessionProvider] Unknown error hydrating parent profile", {
+            error,
+            authUserId,
+          });
+        }
       }
     };
 
-    hydrateSession();
-  }, [parent, setParent]);
+    const hydrateSession = async () => {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        if (
+          sessionError.message?.includes("refresh") ||
+          sessionError.message?.includes("token") ||
+          sessionError.status === 400
+        ) {
+          console.debug("[SessionProvider] Refresh token invalid, clearing session:", sessionError.message);
+          if (!cancelled) {
+            logout();
+          }
+          return;
+        }
+
+        console.debug("[SessionProvider] Session check error (non-fatal):", sessionError.message);
+        return;
+      }
+
+      if (!session || !session.user) {
+        if (!cancelled) {
+          logout();
+        }
+        return;
+      }
+
+      await syncParentProfile(session.user.id);
+    };
+
+    const { data: subscription } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (cancelled) {
+        return;
+      }
+
+      if (event === "SIGNED_OUT" || !session) {
+        logout();
+        return;
+      }
+
+      if (session?.user) {
+        await syncParentProfile(session.user.id);
+      }
+    });
+
+    void hydrateSession();
+
+    return () => {
+      cancelled = true;
+      subscription.subscription.unsubscribe();
+    };
+  }, [supabase, setParent, logout]);
 
   return <>{children}</>;
 };

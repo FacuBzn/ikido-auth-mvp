@@ -27,9 +27,22 @@ export const ParentRegisterForm = () => {
     setIsSubmitting(true);
 
     try {
+      // Additional client-side validation
+      if (!email.trim()) {
+        setServerError("Email is required");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (password.length < 6) {
+        setServerError("Password must be at least 6 characters");
+        setIsSubmitting(false);
+        return;
+      }
+
       const parent = await registerParent({
         fullName: name.trim(),
-        email: email.trim().toLowerCase(),
+        email: email.trim(),
         password,
       });
 
@@ -42,10 +55,67 @@ export const ParentRegisterForm = () => {
         router.push("/parent/dashboard");
       }, 3000);
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "We could not process your request. Please try again.";
+      // Enhanced error handling to show more details
+      let message = "We could not process your request. Please try again.";
+      
+      // Extract error information more robustly
+      let errorMessage = "";
+      let errorStatus: number | undefined;
+      let errorName = "";
+      let errorCode: string | undefined;
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        errorName = error.name;
+        // Check if error has a 'code' property (Supabase AuthApiError)
+        errorCode = (error as { code?: string }).code;
+      } else if (error && typeof error === "object") {
+        // Handle Supabase AuthApiError or other error objects
+        const err = error as { message?: string; status?: number; name?: string; code?: string };
+        errorMessage = err.message || String(error);
+        errorStatus = err.status;
+        errorName = err.name || "UnknownError";
+        errorCode = err.code;
+      } else {
+        errorMessage = String(error);
+      }
+      
+      // Log full error details for debugging
+      console.error("[ParentRegisterForm] Registration error:", {
+        error: errorMessage,
+        code: errorCode,
+        status: errorStatus,
+        name: errorName,
+        stack: error instanceof Error ? error.stack : undefined,
+        fullError: error, // Include full error object for inspection
+      });
+      
+      // Use the error message if available
+      if (errorMessage) {
+        message = errorMessage;
+      }
+      
+      // Show more helpful messages for specific errors
+      if (message.includes("Database error")) {
+        message = message + " Please check your database configuration or contact support.";
+      }
+      
+      if (message.includes("Permission denied") || message.includes("RLS")) {
+        message = "Permission error: Your session may not be fully established yet. The user account was created but the profile could not be saved. Please try logging in again.";
+      }
+      
+      if (message.includes("trigger") || message.includes("function")) {
+        message = "Database trigger error: " + message + " Please check your database triggers or contact support.";
+      }
+      
+      if (message.includes("Session not ready") || message.includes("Authentication failed")) {
+        message = "Session error: " + message + " Please try again in a moment.";
+      }
+      
+      if (message.includes("temporarily unavailable") || errorStatus === 500) {
+        message = "The authentication service is temporarily unavailable. Please try again in a few moments.";
+      }
+      
       setServerError(message);
       setIsSubmitting(false);
     }

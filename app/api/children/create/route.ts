@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSupabaseRouteHandlerClient } from "@/lib/supabase/serverClient";
+import { createRouteHandlerClient } from "@/lib/supabase/serverClient";
 import { getAuthenticatedUser } from "@/lib/authHelpers";
 import { childCodeToEmail } from "@/lib/childCodeHelpers";
 import type { NextRequest } from "next/server";
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { supabase } = createSupabaseRouteHandlerClient(request);
+    const { supabase } = createRouteHandlerClient(request);
 
     // Generate unique child_code
     let finalChildCode: string | null = null;

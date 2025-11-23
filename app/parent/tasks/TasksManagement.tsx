@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browserClient";
+import { createBrowserClient } from "@/lib/supabaseClient";
 import type { Database } from "@/types/supabase";
 import { useToast } from "@/hooks/use-toast";
 
@@ -36,7 +36,7 @@ export const TasksManagement = ({
   parentId,
   initialChildren,
 }: TasksManagementProps) => {
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const supabase = useMemo(() => createBrowserClient(), []);
   const { toast } = useToast();
   const router = useRouter();
 

@@ -1,10 +1,12 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { createServerClient } from "@/lib/supabaseServerClient";
+import { createServerClient } from "@/lib/supabase/serverClient";
 import type { UserRole } from "@/types/supabase";
 
+type ProtectedChildRenderer = (authUser: { profile: { role: UserRole; id: string } }) => ReactNode;
+
 type ProtectedRouteProps = {
-  children: ReactNode | ((authUser: any) => ReactNode);
+  children: ReactNode | ProtectedChildRenderer;
   allowedRoles?: UserRole[];
 };
 
@@ -19,8 +21,6 @@ export default async function ProtectedRoute({
     data: { session },
   } = await supabase.auth.getSession();
 
-  // For now, just check if there's a session
-  // In the future, we can add more sophisticated role checking
   if (!session) {
     if (allowedRoles.includes("Parent")) {
       redirect("/parent/login");
@@ -32,11 +32,14 @@ export default async function ProtectedRoute({
     return null;
   }
 
-  // For MVP, we'll use a simple check
-  // In production, you'd want to check the actual role from the database
   if (typeof children === "function") {
-    // For now, pass a simple object
-    return <>{children({ profile: { role: "Parent" } })}</>;
+    const metadataRole = session.user.user_metadata?.role;
+    const resolvedRole: UserRole =
+      metadataRole === "Child" || metadataRole === "Parent"
+        ? (metadataRole as UserRole)
+        : "Parent";
+
+    return <>{children({ profile: { role: resolvedRole, id: session.user.id } })}</>;
   }
 
   return <>{children}</>;

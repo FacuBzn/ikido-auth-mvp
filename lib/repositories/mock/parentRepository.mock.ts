@@ -52,7 +52,6 @@ const generateUniqueFamilyCode = (): string => {
 export const registerParent = async ({
   fullName,
   email,
-  password,
 }: {
   fullName: string;
   email: string;
@@ -88,11 +87,17 @@ export const registerParent = async ({
  */
 export const loginParent = async ({
   email,
-  password,
 }: {
   email: string;
   password: string;
-}): Promise<{ parent: Parent; session: any }> => {
+}): Promise<{
+  parent: Parent;
+  session: {
+    access_token: string;
+    refresh_token: string;
+    expires_at: number;
+  };
+}> => {
   const parents = loadParents();
   const parent = parents.find((p) => p.email === email.toLowerCase());
 
