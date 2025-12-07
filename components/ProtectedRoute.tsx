@@ -18,10 +18,11 @@ export default async function ProtectedRoute({
 }: ProtectedRouteProps) {
   const supabase = await createServerClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (userError || !user) {
     if (allowedRoles.includes("Parent")) {
       redirect("/parent/login");
     } else if (allowedRoles.includes("Child")) {
@@ -33,13 +34,13 @@ export default async function ProtectedRoute({
   }
 
   if (typeof children === "function") {
-    const metadataRole = session.user.user_metadata?.role;
+    const metadataRole = user.user_metadata?.role;
     const resolvedRole: UserRole =
       metadataRole === "Child" || metadataRole === "Parent"
         ? (metadataRole as UserRole)
         : "Parent";
 
-    return <>{children({ profile: { role: resolvedRole, id: session.user.id } })}</>;
+    return <>{children({ profile: { role: resolvedRole, id: user.id } })}</>;
   }
 
   return <>{children}</>;

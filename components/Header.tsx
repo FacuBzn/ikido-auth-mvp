@@ -45,7 +45,7 @@ export const Header = () => {
       await logout();
       
       router.push("/");
-      router.refresh();
+      // No need for refresh - navigation will handle it
     } catch (signOutError) {
       setError(signOutError instanceof Error ? signOutError.message : "Failed to sign out.");
       setIsSigningOut(false);

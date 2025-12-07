@@ -439,7 +439,17 @@ export const getParentByFamilyCode = async (
 };
 
 /**
- * Creates a new child for a parent
+ * @deprecated This function is deprecated. Use /api/children/create API route instead.
+ * 
+ * Creates a new child for a parent via API route.
+ * 
+ * NOTE: This function is kept for backward compatibility but should not be used.
+ * Use the API route /api/children/create instead which properly handles
+ * RLS policies and does not create Auth users for children.
+ * 
+ * LEGACY: This function used to insert directly into the "children" table,
+ * which is no longer used. All children are now stored in the "users" table
+ * with role='child' and without Auth users.
  */
 export const createChild = async ({
   parentId,
@@ -448,37 +458,33 @@ export const createChild = async ({
   parentId: string;
   childName: string;
 }): Promise<Child> => {
-  const supabase = createBrowserClient();
+  console.warn(
+    "[DEPRECATED] createChild() is deprecated. Use /api/children/create API route instead."
+  );
+  
+  // Redirect to API route for proper handling
+  const response = await fetch("/api/children/create", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name: childName.trim(),
+    }),
+  });
 
-  const { data: childData, error: childError } = await supabase
-    .from("children")
-    .insert({
-      parent_id: parentId,
-      name: childName,
-    })
-    .select()
-    .single();
-
-  if (childError) {
-    throw new Error(childError.message);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: "Unknown error" }));
+    throw new Error(errorData.message || "Failed to create child");
   }
 
-  if (!childData) {
-    throw new Error("Failed to create child record");
-  }
-
-  const childRecord = childData as {
-    id: string;
-    parent_id: string;
-    name: string;
-    created_at: string;
-  };
+  const data = await response.json();
 
   return {
-    id: childRecord.id,
-    parent_id: childRecord.parent_id,
-    name: childRecord.name,
-    created_at: childRecord.created_at,
+    id: data.id,
+    parent_id: parentId,
+    name: data.name,
+    created_at: data.created_at || new Date().toISOString(),
   };
 };
 

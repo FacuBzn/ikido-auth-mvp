@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase/serverClient";
 import { getAuthenticatedUser } from "@/lib/authHelpers";
-import { childCodeToEmail } from "@/lib/childCodeHelpers";
 import type { NextRequest } from "next/server";
+import { randomUUID } from "crypto";
 
 type CreateChildRequest = {
   name: string;
-  password: string;
 };
 
 /**
@@ -21,6 +20,7 @@ const generateChildCode = (name: string, randomSuffix: number): string => {
     .substring(0, 10) || "CHILD";
   return `${normalizedName}#${randomSuffix}`;
 };
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,20 +38,36 @@ export async function POST(request: NextRequest) {
     }
 
     const body: CreateChildRequest = await request.json();
-    const { name, password } = body;
+    const { name } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json({ message: "Child name is required" }, { status: 400 });
     }
 
-    if (!password || password.length < 6) {
+    const { supabase } = createRouteHandlerClient(request);
+
+    // Load parent row from database to get family_code (child_code of parent)
+    const { data: parentRow, error: parentError } = await supabase
+      .from("users")
+      .select("id, child_code")
+      .eq("id", authUser.profile.id)
+      .eq("role", "parent")
+      .maybeSingle();
+
+    if (parentError || !parentRow) {
+      console.error("[api:children:create] Failed to load parent:", parentError);
       return NextResponse.json(
-        { message: "Password must be at least 6 characters" },
-        { status: 400 }
+        { message: "Failed to load parent information" },
+        { status: 500 }
       );
     }
 
-    const { supabase } = createRouteHandlerClient(request);
+    if (!parentRow.child_code) {
+      return NextResponse.json(
+        { message: "Parent does not have a family code. Please contact support." },
+        { status: 500 }
+      );
+    }
 
     // Generate unique child_code
     let finalChildCode: string | null = null;
@@ -84,63 +100,40 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    const syntheticEmail = childCodeToEmail(finalChildCode);
 
-    // TODO: Create auth user requires service role or Edge Function
-    // For now, we'll attempt to create via signUp, but this may not work with RLS
-    // In production, this should be done via Edge Function with service role
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: syntheticEmail,
-      password,
-      options: {
-        data: {
-          name: name.trim(),
-          role: "child",
-        },
-      },
-    });
+    // Generate UUID for child (NOT from Auth, just a regular UUID)
+    // Children do NOT have Supabase Auth accounts in this MVP
+    const childId = randomUUID();
 
-    if (authError) {
-      console.error("[api:children:create] Auth creation error:", authError);
-      return NextResponse.json(
-        {
-          message:
-            "Failed to create authentication account. This may require service role access. Please use an Edge Function for production.",
-        },
-        { status: 500 }
-      );
-    }
-
-    if (!authData.user) {
-      return NextResponse.json(
-        { message: "Failed to create authentication user" },
-        { status: 500 }
-      );
-    }
-
-    // Insert user record in users table
+    // Insert child record in users table WITHOUT Auth user
+    // Children do NOT have Supabase Auth accounts in this MVP
     const { data: userData, error: userError } = await supabase
       .from("users")
       .insert({
-        id: authData.user.id,
-        auth_id: authData.user.id,
-        email: syntheticEmail,
+        id: childId,
+        auth_id: null, // Children do NOT have Auth users
+        email: null, // Children do NOT have email (not used for Auth)
         name: name.trim(),
         role: "child",
-        parent_id: authUser.profile.id,
+        parent_id: parentRow.id,
+        family_code: parentRow.child_code, // Use parent's child_code as family_code
         child_code: finalChildCode,
         points_balance: 0,
-      })
-      .select("id, name, child_code")
+      } as any) // Type assertion needed because auth_id, email, and family_code may not be in types
+      .select("id, name, child_code, created_at")
       .maybeSingle();
 
     if (userError) {
       console.error("[api:children:create] User creation error:", userError);
-      // Attempt to clean up auth user if possible
-      // Note: This may require service role
+      console.error("[api:children:create] Error details:", {
+        code: userError.code,
+        message: userError.message,
+        details: userError.details,
+        hint: userError.hint,
+      });
       return NextResponse.json(
         {
-          message: "Failed to create user record. Auth user may have been created but not linked.",
+          message: `Failed to create child record: ${userError.message}`,
         },
         { status: 500 }
       );
@@ -153,13 +146,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const loginHint = `${finalChildCode} (email: ${syntheticEmail})`;
+    console.log("[api:children:create] Child created successfully:", {
+      id: userData.id,
+      name: userData.name,
+      child_code: userData.child_code,
+      parent_id: parentRow.id,
+      family_code: parentRow.child_code,
+    });
 
     return NextResponse.json({
       id: userData.id,
       name: userData.name,
       child_code: userData.child_code,
-      login_hint: loginHint,
+      created_at: userData.created_at,
     });
   } catch (error) {
     console.error("[api:children:create] Unexpected error:", error);

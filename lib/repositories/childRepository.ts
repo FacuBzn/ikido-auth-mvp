@@ -1,6 +1,9 @@
 import { createBrowserClient } from "@/lib/supabaseClient";
-import { getParentByFamilyCode, createChild } from "./parentRepository";
+import { getParentByFamilyCode } from "./parentRepository";
 import type { Parent, Child } from "@/store/useSessionStore";
+import type { Database } from "@/types/supabase";
+
+type UserRow = Database["public"]["Tables"]["users"]["Row"];
 
 // This file uses Supabase. For mock fallback, see lib/repositories/mock/childRepository.mock.ts
 
@@ -24,10 +27,11 @@ export const joinChild = async ({
 
   const supabase = createBrowserClient();
 
-  // Step 2: Check if child already exists
+  // Step 2: Check if child already exists in USERS table
   const { data: existingChild, error: findError } = await supabase
-    .from("children")
+    .from("users")
     .select()
+    .eq("role", "child")
     .eq("parent_id", parent.id)
     .eq("name", childName.trim())
     .maybeSingle();
@@ -40,24 +44,17 @@ export const joinChild = async ({
 
   if (existingChild) {
     // Child exists, return it
-    const childData = existingChild as {
-      id: string;
-      parent_id: string;
-      name: string;
-      created_at: string;
-    };
+    const childData = existingChild as UserRow;
     child = {
       id: childData.id,
-      parent_id: childData.parent_id,
-      name: childData.name,
+      parent_id: childData.parent_id || "",
+      name: childData.name || "",
       created_at: childData.created_at,
     };
   } else {
-    // Child doesn't exist, create it
-    child = await createChild({
-      parentId: parent.id,
-      childName: childName.trim(),
-    });
+    // Child doesn't exist, create via API
+    // This will create both auth user and users record
+    throw new Error("Child not found. Please ask parent to create your account first.");
   }
 
   return { child, parent };
@@ -71,9 +68,11 @@ export const getChildrenByParent = async (
 ): Promise<Child[]> => {
   const supabase = createBrowserClient();
 
+  // Query USERS table instead of children table
   const { data, error } = await supabase
-    .from("children")
+    .from("users")
     .select()
+    .eq("role", "child")
     .eq("parent_id", parentId)
     .order("created_at", { ascending: true });
 
@@ -86,17 +85,12 @@ export const getChildrenByParent = async (
   }
 
   return data.map((child) => {
-    const childData = child as {
-      id: string;
-      parent_id: string;
-      name: string;
-      created_at: string;
-    };
+    const childRow = child as UserRow;
     return {
-      id: childData.id,
-      parent_id: childData.parent_id,
-      name: childData.name,
-      created_at: childData.created_at,
+      id: childRow.id,
+      parent_id: childRow.parent_id || "",
+      name: childRow.name || "",
+      created_at: childRow.created_at,
     };
   });
 };

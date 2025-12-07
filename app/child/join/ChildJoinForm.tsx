@@ -43,7 +43,10 @@ export const ChildJoinForm = () => {
       });
 
       setChild(child);
+      // Small delay to ensure Zustand persists
+      await new Promise(resolve => setTimeout(resolve, 120));
       router.push("/child/dashboard");
+      router.refresh();
     } catch (error) {
       const message =
         error instanceof Error

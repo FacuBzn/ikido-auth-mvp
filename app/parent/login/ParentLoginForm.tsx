@@ -29,7 +29,10 @@ export const ParentLoginForm = () => {
       });
 
       setParent(parent);
+      // Small delay to ensure Zustand persists and Supabase cookies sync
+      await new Promise(resolve => setTimeout(resolve, 150));
       router.push("/parent/dashboard");
+      router.refresh();
     } catch (error) {
       let message = "We could not process your request. Please try again.";
       

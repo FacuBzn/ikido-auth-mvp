@@ -7,13 +7,29 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useSessionStore } from "@/store/useSessionStore";
 import { useRequireChildAuth } from "@/hooks/useRequireChildAuth";
 import { createBrowserClient } from "@/lib/supabaseClient";
-import { LogOut } from "lucide-react";
+import { LogOut, Loader2 } from "lucide-react";
 
 export function ChildDashboardClient() {
   const router = useRouter();
-  const child = useRequireChildAuth();
+  const child = useSessionStore((state) => state.child);
+  const hydrated = useSessionStore((state) => state._hasHydrated);
   const logout = useSessionStore((state) => state.logout);
   const [parentName, setParentName] = useState<string | null>(null);
+
+  // Show loader while Zustand hydrates from localStorage
+  if (!hydrated) {
+    return (
+      <main className="min-h-screen bg-gradient-to-b from-[#0F4C7D] to-[#1A5FA0] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-12 h-12 text-yellow-400 animate-spin" />
+          <p className="text-white text-lg">Loading...</p>
+        </div>
+      </main>
+    );
+  }
+
+  // After hydration, check auth (will redirect if needed)
+  useRequireChildAuth();
 
   useEffect(() => {
     if (child) {

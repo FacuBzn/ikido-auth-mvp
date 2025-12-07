@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { createServerClient } from "@/lib/supabase/serverClient";
 import { ChildDashboardClient } from "./ChildDashboardClient";
 
 export const metadata: Metadata = {
@@ -8,12 +6,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ChildDashboardPage() {
-  const supabase = await createServerClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  // For child, we don't use Supabase Auth, so we check the session store on client side
-  // This is a server component that will redirect if needed
+  // No server-side auth for children
+  // ChildDashboardClient handles auth with useRequireChildAuth()
   return <ChildDashboardClient />;
 }

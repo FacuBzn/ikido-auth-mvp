@@ -51,8 +51,10 @@ export const ParentRegisterForm = () => {
       setShowFamilyCode(true);
       
       // Redirect after showing family code
-      setTimeout(() => {
+      setTimeout(async () => {
+        await new Promise(r => setTimeout(r, 150));
         router.push("/parent/dashboard");
+        router.refresh();
       }, 3000);
     } catch (error) {
       // Enhanced error handling to show more details

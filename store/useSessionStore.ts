@@ -21,9 +21,11 @@ export type Child = {
 type SessionStore = {
   parent: Parent | null;
   child: Child | null;
+  _hasHydrated: boolean;
   setParent: (parent: Parent) => void;
   setChild: (child: Child) => void;
   logout: () => void;
+  setHasHydrated: (state: boolean) => void;
 };
 
 export const useSessionStore = create<SessionStore>()(
@@ -31,6 +33,7 @@ export const useSessionStore = create<SessionStore>()(
     (set) => ({
       parent: null,
       child: null,
+      _hasHydrated: false,
       setParent: (parent) => {
         set({ parent, child: null }); // Clear child when setting parent
       },
@@ -47,9 +50,15 @@ export const useSessionStore = create<SessionStore>()(
         // Clear both parent and child
         set({ parent: null, child: null });
       },
+      setHasHydrated: (state) => {
+        set({ _hasHydrated: state });
+      },
     }),
     {
       name: "ikido-session-storage",
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );

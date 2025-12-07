@@ -1,9 +1,27 @@
 "use client";
 
 import { useRequireChildAuth } from "@/hooks/useRequireChildAuth";
+import { useSessionStore } from "@/store/useSessionStore";
+import { Loader2 } from "lucide-react";
 
 export const ChildRewardsClient = () => {
-  const child = useRequireChildAuth();
+  const child = useSessionStore((state) => state.child);
+  const hydrated = useSessionStore((state) => state._hasHydrated);
+
+  // Show loader while Zustand hydrates
+  if (!hydrated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#0F4C7D] to-[#1A5FA0] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-12 h-12 text-yellow-400 animate-spin" />
+          <p className="text-white text-lg">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // After hydration, check auth
+  useRequireChildAuth();
 
   if (!child) {
     return null;
