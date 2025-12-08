@@ -4,8 +4,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import type { Database } from "@/types/supabase";
 
-const { supabaseUrl, supabaseAnonKey } = getSupabaseConfig();
-
 const normalizeCookies = (entries: { name: string; value: string }[] | null) =>
   entries?.map(({ name, value }) => ({ name, value })) ?? null;
 
@@ -43,6 +41,7 @@ const applyCookies = (
 };
 
 export const createSupabaseServerComponentClient = async () => {
+  const { supabaseUrl, supabaseAnonKey } = getSupabaseConfig();
   const cookieStore = await cookies();
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -55,6 +54,7 @@ export const createSupabaseServerComponentClient = async () => {
 export const createSupabaseServerActionClient = async (options?: {
   cookieOptions?: CookieOptions;
 }) => {
+  const { supabaseUrl, supabaseAnonKey } = getSupabaseConfig();
   const cookieStore = await cookies();
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -66,6 +66,7 @@ export const createSupabaseServerActionClient = async (options?: {
 };
 
 export const createSupabaseRouteHandlerClient = (request: NextRequest) => {
+  const { supabaseUrl, supabaseAnonKey } = getSupabaseConfig();
   const response = NextResponse.next({
     request: {
       headers: request.headers,
