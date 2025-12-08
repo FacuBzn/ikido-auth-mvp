@@ -4,7 +4,6 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/serverClient";
 import { getChildrenByParent } from "@/lib/repositories/childRepository";
-import { createChild } from "@/lib/repositories/parentRepository";
 import { ParentDashboardClient } from "./ParentDashboardClient";
 import type { Child } from "@/store/useSessionStore";
 
@@ -14,11 +13,14 @@ export const metadata: Metadata = {
 
 export default async function ParentDashboardPage() {
   const supabase = await createServerClient();
+  
+  // Use getUser() instead of getSession() for secure authentication
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
 
-  if (!session?.user) {
+  if (userError || !user) {
     redirect("/parent/login");
   }
 
@@ -26,7 +28,7 @@ export default async function ParentDashboardPage() {
   const { data: parentData, error: parentError } = await supabase
     .from("users")
     .select()
-    .eq("auth_id", session.user.id)
+    .eq("auth_id", user.id)
     .eq("role", "parent")
     .maybeSingle();
 
@@ -40,7 +42,7 @@ export default async function ParentDashboardPage() {
     auth_id: string;
     name: string | null;
     email: string;
-    child_code?: string | null; // child_code is used as family code for parents
+    family_code?: string | null; // Family code for parent
     created_at: string;
   };
 
@@ -57,7 +59,7 @@ export default async function ParentDashboardPage() {
     auth_user_id: parentRecord.auth_id,
     full_name: parentRecord.name || "",
     email: parentRecord.email,
-    family_code: parentRecord.child_code || "",
+    family_code: parentRecord.family_code || "", // Use family_code field
     created_at: parentRecord.created_at,
   };
 

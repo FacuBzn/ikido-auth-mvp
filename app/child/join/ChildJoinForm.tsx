@@ -6,12 +6,13 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { joinChild } from "@/lib/repositories/childRepository";
 import { validateFamilyCode } from "@/lib/generateFamilyCode";
 import { useSessionStore } from "@/store/useSessionStore";
+import { createBrowserClient } from "@/lib/supabaseClient";
+import type { Database } from "@/types/supabase";
 
 export const ChildJoinForm = () => {
-  const [childName, setChildName] = useState("");
+  const [childCode, setChildCode] = useState("");
   const [familyCode, setFamilyCode] = useState("");
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,25 +25,64 @@ export const ChildJoinForm = () => {
     setIsSubmitting(true);
 
     try {
-      const trimmedCode = familyCode.trim().toUpperCase();
-      const trimmedName = childName.trim();
+      const familyCodeNormalized = familyCode.trim().toUpperCase();
+      const childCodeNormalized = childCode.trim().toUpperCase();
 
-      if (!validateFamilyCode(trimmedCode)) {
+      if (!validateFamilyCode(familyCodeNormalized)) {
         setServerError("Family code must be exactly 6 alphanumeric characters");
+        setIsSubmitting(false);
         return;
       }
 
-      if (trimmedName.length < 2) {
-        setServerError("Name must be at least 2 characters");
+      if (!childCodeNormalized || childCodeNormalized.length < 3) {
+        setServerError("Child code must be at least 3 characters");
+        setIsSubmitting(false);
         return;
       }
 
-      const { child } = await joinChild({
-        familyCode: trimmedCode,
-        childName: trimmedName,
+      // Force logout before child login
+      const supabase = createBrowserClient();
+      await supabase.auth.signOut();
+
+      // Call API endpoint with child_code + family_code
+      const response = await fetch("/api/child/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          child_code: childCodeNormalized,
+          family_code: familyCodeNormalized,
+        }),
       });
 
-      setChild(child);
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Handle specific error codes
+        if (data.error === "PARENT_LOGGED_IN") {
+          setServerError("A parent is logged in. Please log out before entering child mode.");
+        } else if (data.error === "INVALID_FAMILY_CODE") {
+          setServerError("Invalid family code. Please check with your parent.");
+        } else if (data.error === "INVALID_CHILD_CODE") {
+          setServerError("Invalid child code. Make sure your parent created your account.");
+        } else {
+          setServerError(data.message || "We could not process your request. Please try again.");
+        }
+        return;
+      }
+
+      // Success - set child in Zustand store
+      setChild({
+        id: data.child.id,
+        parent_id: data.child.parent_id,
+        name: data.child.name,
+        family_code: data.child.family_code,
+        child_code: data.child.child_code,
+        points_balance: data.child.points_balance,
+        created_at: data.child.created_at,
+      });
+
       // Small delay to ensure Zustand persists
       await new Promise(resolve => setTimeout(resolve, 120));
       router.push("/child/dashboard");
@@ -60,7 +100,8 @@ export const ChildJoinForm = () => {
 
   const isSubmitDisabled =
     isSubmitting ||
-    !childName.trim() ||
+    !childCode.trim() ||
+    childCode.trim().length < 3 ||
     familyCode.length !== 6 ||
     !validateFamilyCode(familyCode.toUpperCase());
 
@@ -82,25 +123,25 @@ export const ChildJoinForm = () => {
         )}
 
         <div>
-          <Label htmlFor="child-name" className="block text-white text-sm font-semibold mb-2">
-            Your Name
+          <Label htmlFor="child-code" className="block text-white text-sm font-semibold mb-2">
+            Your Child Code
           </Label>
           <Input
-            id="child-name"
+            id="child-code"
             type="text"
-            value={childName}
-            onChange={(e) => setChildName(e.target.value)}
-            placeholder="Enter your name"
+            value={childCode.toUpperCase()}
+            onChange={(e) => setChildCode(e.target.value.trim())}
+            placeholder="YOURNAME#1234"
             required
-            minLength={2}
+            minLength={3}
             className="w-full px-4 py-3 rounded-lg bg-white/10 border-2 border-yellow-400 text-white placeholder-white/50 focus:outline-none focus:border-yellow-300 focus:ring-2 focus:ring-yellow-400/30 transition-all"
           />
-          <p className="text-white/60 text-xs mt-2">This is how parents will see you</p>
+          <p className="text-white/60 text-xs mt-2">Ask your parent for your unique child code</p>
         </div>
 
         <div>
           <Label htmlFor="family-code" className="block text-white text-sm font-semibold mb-2">
-            Parent&apos;s Code
+            Family Code
           </Label>
           <div className="bg-white/5 p-4 rounded-lg border-2 border-yellow-400/30 mb-3">
             <Input
@@ -116,7 +157,7 @@ export const ChildJoinForm = () => {
               className="w-full bg-transparent text-white placeholder-white/50 focus:outline-none text-center tracking-widest text-3xl font-bold border-0"
             />
           </div>
-          <p className="text-white/60 text-xs">Ask your parent for this 6-character code</p>
+          <p className="text-white/60 text-xs">Ask your parent for the family code</p>
         </div>
 
         <Button
@@ -132,9 +173,9 @@ export const ChildJoinForm = () => {
         <div className="flex items-start gap-3">
           <span className="text-2xl">💡</span>
           <div>
-            <p className="text-white font-semibold text-sm">Need a code?</p>
+            <p className="text-white font-semibold text-sm">Need your codes?</p>
             <p className="text-white/70 text-xs mt-1">
-              Ask your parent to go to their dashboard and generate one for you!
+              Ask your parent for your child code and the family code!
             </p>
           </div>
         </div>
@@ -142,4 +183,3 @@ export const ChildJoinForm = () => {
     </div>
   );
 };
-

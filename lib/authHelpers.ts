@@ -58,7 +58,8 @@ export type AuthenticatedUser = {
     email: string;
     name: string | null;
     role: UserRole;
-    child_code?: string | null;
+    family_code?: string | null; // For parents
+    child_code?: string | null; // For children
     points_balance?: number;
   };
 };
@@ -74,7 +75,7 @@ export const getAuthenticatedUser = cache(
     const supabase = await createServerClient();
     const { data, error } = await supabase
       .from("users")
-      .select("id, email, name, role, child_code, points_balance")
+      .select("id, email, name, role, family_code, child_code, points_balance")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -104,6 +105,7 @@ export const getAuthenticatedUser = cache(
         email: data.email ?? user.email ?? "",
         name: data.name,
         role: resolvedRole,
+        family_code: data.family_code ?? null,
         child_code: data.child_code ?? null,
         points_balance: data.points_balance ?? 0,
       },

@@ -15,6 +15,9 @@ export type Child = {
   id: string;
   parent_id: string;
   name: string;
+  family_code?: string; // Family code from parent
+  child_code?: string; // Optional internal identifier
+  points_balance?: number;
   created_at: string;
 };
 

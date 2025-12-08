@@ -1,7 +1,8 @@
 import type { SupabaseClient, User, Session } from "@supabase/supabase-js";
 import { createBrowserClient } from "@/lib/supabaseClient";
 import { generateFamilyCode } from "@/lib/generateFamilyCode";
-import type { Parent, Child } from "@/store/useSessionStore";
+import type { Parent } from "@/store/useSessionStore";
+import { normalizeName, normalizeCode, type ParentProfile } from "@/lib/types/profiles";
 
 // This file uses Supabase. For mock fallback, see lib/repositories/mock/parentRepository.mock.ts
 
@@ -10,13 +11,14 @@ type ParentTableRow = {
   auth_id: string;
   name: string | null;
   email: string;
-  child_code: string | null;
+  family_code: string | null;
   created_at: string;
 };
 
 /**
  * Generates a unique family code by checking against the database
- * Uses users table with role='parent' and child_code field (family code)
+ * Uses users table with role='parent' and family_code field
+ * Returns UPPERCASE code
  */
 const generateUniqueFamilyCode = async (
   supabase: SupabaseClient
@@ -25,15 +27,14 @@ const generateUniqueFamilyCode = async (
   const maxAttempts = 10;
 
   while (attempts < maxAttempts) {
-    const code = generateFamilyCode();
+    const code = normalizeCode(generateFamilyCode());
     const { data, error } = await supabase
       .from("users")
-      .select("child_code")
+      .select("family_code")
       .eq("role", "parent")
-      .eq("child_code", code)
+      .eq("family_code", code)
       .maybeSingle();
 
-    // If no data found (error code PGRST116) or error indicates not found, code is available
     if (error && error.code === "PGRST116") {
       return code;
     }
@@ -55,7 +56,7 @@ const mapParent = (parentRecord: ParentTableRow, fallbackCode?: string): Parent 
   auth_user_id: parentRecord.auth_id,
   full_name: parentRecord.name || "",
   email: parentRecord.email,
-  family_code: parentRecord.child_code || fallbackCode || "",
+  family_code: parentRecord.family_code || fallbackCode || "",
   created_at: parentRecord.created_at,
 });
 
@@ -86,6 +87,10 @@ const waitForAuthUser = async (
   );
 };
 
+/**
+ * Inserts parent profile into users table
+ * Normalizes name to INITCAP and family_code to UPPERCASE
+ */
 const insertParentProfile = async ({
   supabase,
   authUserId,
@@ -99,19 +104,39 @@ const insertParentProfile = async ({
   fullName: string;
   familyCode?: string;
 }): Promise<ParentTableRow> => {
-  let code = familyCode ?? (await generateUniqueFamilyCode(supabase));
+  let code = familyCode ? normalizeCode(familyCode) : (await generateUniqueFamilyCode(supabase));
   let retries = 3;
 
   while (retries > 0) {
+    // Normalize name to INITCAP
+    const normalizedName = normalizeName(fullName);
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedCode = normalizeCode(code); // Ensure UPPERCASE
+
+    // Validate family_code is not empty
+    if (!normalizedCode || normalizedCode.trim().length === 0) {
+      throw new Error("Failed to generate valid family code");
+    }
+
     const payload = {
       id: authUserId,
       auth_id: authUserId,
-      email,
-      name: fullName.trim(),
+      email: normalizedEmail,
+      name: normalizedName,
       role: "parent" as const,
-      child_code: code,
+      family_code: normalizedCode, // UPPERCASE - MUST be set at registration, NOT NULL
+      parent_auth_id: null, // Parents don't have parent_auth_id
+      child_code: null, // Parents don't have child_code
       points_balance: 0,
     };
+
+    console.log("[parentRepository] Inserting parent profile:", {
+      id: payload.id,
+      auth_id: payload.auth_id,
+      role: payload.role,
+      family_code: payload.family_code,
+      email: payload.email,
+    });
 
     const { data, error } = await supabase
       .from("users")
@@ -120,11 +145,15 @@ const insertParentProfile = async ({
       .single();
 
     if (!error && data) {
+      console.log("[parentRepository] Parent profile inserted successfully:", {
+        id: data.id,
+        family_code: data.family_code,
+      });
       return data as ParentTableRow;
     }
 
     if (error?.code === "23505") {
-      console.warn("[parentRepository] Duplicate child_code detected, regenerating...");
+      console.warn("[parentRepository] Duplicate family_code detected, regenerating...");
       code = await generateUniqueFamilyCode(supabase);
       retries -= 1;
       continue;
@@ -181,6 +210,7 @@ const fetchParentRow = async (
 
 /**
  * Registers a new parent user
+ * Normalizes email to lowercase, name to INITCAP, family_code to UPPERCASE
  */
 export const registerParent = async ({
   fullName,
@@ -207,43 +237,35 @@ export const registerParent = async ({
   }
 
   // Step 1: Create user in Supabase Auth
+  const normalizedName = normalizeName(fullName);
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email: normalizedEmail,
     password,
     options: {
       data: {
-        full_name: fullName.trim(),
+        full_name: normalizedName,
       },
     },
   });
 
   if (authError) {
-    // Extract error code if available (Supabase AuthApiError may have a 'code' property)
     const errorCode = (authError as { code?: string }).code;
     const errorMessage = authError.message || "Unknown error";
     
-    // Log the full error for debugging (including all properties)
-    const errorDetails = {
+    console.error("[parentRepository] Supabase signup error details:", {
       message: errorMessage,
       code: errorCode,
       status: authError.status,
       name: authError.name,
-      // Include any additional properties that might exist
-      ...(typeof authError === "object" ? authError : {}),
-    };
-    console.error("[parentRepository] Supabase signup error details:", errorDetails);
+    });
 
-    // Handle specific error codes from Supabase Auth
     if (errorCode === "unexpected_failure") {
-      // This error typically occurs when a database trigger or function fails during user creation
       throw new Error(
         "Database error during account creation. This may be caused by a database trigger or function. Please check your Supabase database configuration or contact support."
       );
     }
 
-    // Handle 500 Internal Server Error (Supabase Auth server issue)
     if (authError.status === 500) {
-      // Check if it's the specific "unexpected_failure" error
       if (errorCode === "unexpected_failure" || errorMessage.includes("Database error")) {
         throw new Error(
           "Database error during account creation. A database trigger or function may be failing. Please check your Supabase database logs or contact support."
@@ -254,24 +276,20 @@ export const registerParent = async ({
       );
     }
 
-    // Provide more detailed error messages based on error type
     if (errorMessage.includes("already registered") || 
         errorMessage.includes("already exists") ||
         errorMessage.includes("User already registered")) {
       throw new Error("This email is already registered. Please sign in instead.");
     }
     
-    if (errorMessage.includes("password") || 
-        errorMessage.includes("Password")) {
+    if (errorMessage.includes("password") || errorMessage.includes("Password")) {
       throw new Error("Password does not meet requirements. Please use at least 6 characters.");
     }
     
-    if (errorMessage.includes("email") || 
-        errorMessage.includes("Email")) {
+    if (errorMessage.includes("email") || errorMessage.includes("Email")) {
       throw new Error("Invalid email address. Please check and try again.");
     }
 
-    // For 422 errors, show the specific message from Supabase
     if (authError.status === 422) {
       throw new Error(
         errorMessage || 
@@ -279,7 +297,6 @@ export const registerParent = async ({
       );
     }
 
-    // Generic error fallback - include status code and error code if available
     const finalMessage = errorCode 
       ? `${errorMessage} (Code: ${errorCode}${authError.status ? `, Status: ${authError.status}` : ""})`
       : errorMessage;
@@ -299,7 +316,7 @@ export const registerParent = async ({
   // Step 2: Confirm Supabase Auth session is ready
   await waitForAuthUser(supabase, authUserId);
 
-  // Step 3: Generate unique family code
+  // Step 3: Generate unique family code (UPPERCASE)
   const familyCode = await generateUniqueFamilyCode(supabase);
 
   // Step 4: Insert the profile row (will retry internally on conflicts)
@@ -326,23 +343,19 @@ export const loginParent = async ({
 }): Promise<{ parent: Parent; session: Session }> => {
   const supabase = createBrowserClient();
 
+  const normalizedEmail = email.trim().toLowerCase();
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email,
+    email: normalizedEmail,
     password,
   });
 
   if (authError) {
-    // Log full error details for debugging
-    const errorDetails = {
+    console.error("[parentRepository] Supabase login error details:", {
       message: authError.message,
       status: authError.status,
       name: authError.name,
-      // Include any additional properties
-      ...(typeof authError === "object" ? authError : {}),
-    };
-    console.error("[parentRepository] Supabase login error details:", errorDetails);
+    });
 
-    // Handle 500 Internal Server Error (Supabase Auth server issue)
     if (authError.status === 500) {
       throw new Error(
         "Authentication service is temporarily unavailable. Please try again in a few moments. If the problem persists, contact support."
@@ -353,7 +366,6 @@ export const loginParent = async ({
       throw new Error("Invalid email or password. Please check your credentials and try again.");
     }
     
-    // Include status code in error message if available
     const errorMessage = authError.message || "Unable to sign in at this time.";
     throw new Error(
       authError.status 
@@ -379,11 +391,15 @@ export const loginParent = async ({
       authData.user.email ??
       "Parent";
 
+    // Generate family_code when repairing profile
+    const familyCode = await generateUniqueFamilyCode(supabase);
+
     parentRow = await insertParentProfile({
       supabase,
       authUserId,
-      email: authData.user.email ?? email,
+      email: authData.user.email ?? normalizedEmail,
       fullName: fallbackName,
+      familyCode, // Explicitly generate family_code
     });
   }
 
@@ -406,24 +422,25 @@ export const getParentByAuthUserId = async (
 
 /**
  * Gets a parent by family code
+ * Normalizes input to UPPERCASE
  */
 export const getParentByFamilyCode = async (
   familyCode: string
 ): Promise<Parent | null> => {
   const supabase = createBrowserClient();
+  const normalizedCode = normalizeCode(familyCode);
 
   const { data, error } = await supabase
     .from("users")
     .select()
     .eq("role", "parent")
-    .eq("child_code", familyCode.toUpperCase())
+    .eq("family_code", normalizedCode)
     .maybeSingle();
 
   if (error) {
     if (error.code === "PGRST116") {
-      return null; // Not found
+      return null;
     }
-    // Don't throw error if table doesn't exist - just return null
     if (error.message.includes("Could not find the table")) {
       console.warn("Table 'users' may not exist or schema is different:", error.message);
       return null;
@@ -437,54 +454,3 @@ export const getParentByFamilyCode = async (
 
   return mapParent(data as ParentTableRow);
 };
-
-/**
- * @deprecated This function is deprecated. Use /api/children/create API route instead.
- * 
- * Creates a new child for a parent via API route.
- * 
- * NOTE: This function is kept for backward compatibility but should not be used.
- * Use the API route /api/children/create instead which properly handles
- * RLS policies and does not create Auth users for children.
- * 
- * LEGACY: This function used to insert directly into the "children" table,
- * which is no longer used. All children are now stored in the "users" table
- * with role='child' and without Auth users.
- */
-export const createChild = async ({
-  parentId,
-  childName,
-}: {
-  parentId: string;
-  childName: string;
-}): Promise<Child> => {
-  console.warn(
-    "[DEPRECATED] createChild() is deprecated. Use /api/children/create API route instead."
-  );
-  
-  // Redirect to API route for proper handling
-  const response = await fetch("/api/children/create", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      name: childName.trim(),
-    }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ message: "Unknown error" }));
-    throw new Error(errorData.message || "Failed to create child");
-  }
-
-  const data = await response.json();
-
-  return {
-    id: data.id,
-    parent_id: parentId,
-    name: data.name,
-    created_at: data.created_at || new Date().toISOString(),
-  };
-};
-

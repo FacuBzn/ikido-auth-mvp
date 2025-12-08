@@ -1,77 +1,22 @@
 import { createBrowserClient } from "@/lib/supabaseClient";
-import { getParentByFamilyCode } from "./parentRepository";
-import type { Parent, Child } from "@/store/useSessionStore";
+import type { Child } from "@/store/useSessionStore";
 import type { Database } from "@/types/supabase";
+import { normalizeName, normalizeCode, type ChildProfile } from "@/lib/types/profiles";
 
 type UserRow = Database["public"]["Tables"]["users"]["Row"];
 
-// This file uses Supabase. For mock fallback, see lib/repositories/mock/childRepository.mock.ts
-
-/**
- * Joins a child to a family using family code
- * If child doesn't exist, creates it
- */
-export const joinChild = async ({
-  familyCode,
-  childName,
-}: {
-  familyCode: string;
-  childName: string;
-}): Promise<{ child: Child; parent: Parent }> => {
-  // Step 1: Find parent by family code
-  const parent = await getParentByFamilyCode(familyCode);
-
-  if (!parent) {
-    throw new Error("Invalid family code");
-  }
-
-  const supabase = createBrowserClient();
-
-  // Step 2: Check if child already exists in USERS table
-  const { data: existingChild, error: findError } = await supabase
-    .from("users")
-    .select()
-    .eq("role", "child")
-    .eq("parent_id", parent.id)
-    .eq("name", childName.trim())
-    .maybeSingle();
-
-  if (findError && findError.code !== "PGRST116") {
-    throw new Error(findError.message);
-  }
-
-  let child: Child;
-
-  if (existingChild) {
-    // Child exists, return it
-    const childData = existingChild as UserRow;
-    child = {
-      id: childData.id,
-      parent_id: childData.parent_id || "",
-      name: childData.name || "",
-      created_at: childData.created_at,
-    };
-  } else {
-    // Child doesn't exist, create via API
-    // This will create both auth user and users record
-    throw new Error("Child not found. Please ask parent to create your account first.");
-  }
-
-  return { child, parent };
-};
-
 /**
  * Gets all children for a parent
+ * Returns children with normalized data
  */
 export const getChildrenByParent = async (
   parentId: string
 ): Promise<Child[]> => {
   const supabase = createBrowserClient();
 
-  // Query USERS table instead of children table
   const { data, error } = await supabase
     .from("users")
-    .select()
+    .select("id, parent_id, name, child_code, family_code, points_balance, created_at")
     .eq("role", "child")
     .eq("parent_id", parentId)
     .order("created_at", { ascending: true });
@@ -90,8 +35,46 @@ export const getChildrenByParent = async (
       id: childRow.id,
       parent_id: childRow.parent_id || "",
       name: childRow.name || "",
+      child_code: childRow.child_code || undefined,
       created_at: childRow.created_at,
     };
   });
 };
 
+/**
+ * Gets a child by ID
+ */
+export const getChildById = async (
+  childId: string
+): Promise<ChildProfile | null> => {
+  const supabase = createBrowserClient();
+
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("id", childId)
+    .eq("role", "child")
+    .maybeSingle();
+
+  if (error) {
+    if (error.code === "PGRST116") {
+      return null;
+    }
+    throw new Error(error.message);
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  const childRow = data as UserRow;
+  return {
+    id: childRow.id,
+    parent_id: childRow.parent_id || "",
+    name: childRow.name || "",
+    family_code: childRow.family_code || "",
+    child_code: childRow.child_code || null,
+    points_balance: childRow.points_balance || 0,
+    created_at: childRow.created_at,
+  };
+};

@@ -27,16 +27,35 @@
 
 ### Child Routes (`/child/*`)
 
-- **Auth:** Zustand store (localStorage)
+- **Auth:** Zustand store (localStorage) + API validation
 - **Protection:** Client-side hooks (`useRequireChildAuth`)
 - **Session:** No usa Supabase Auth
+- **Login:** Via `/api/child/login` con `child_code` + `family_code`
 
 **Rutas principales:**
-- `/child/join` - Join con family code
+- `/child/join` - Login con child_code + family_code
 - `/child/dashboard` - Dashboard del child
 - `/child/rewards` - Premios disponibles
 
 **Layout:** `app/child/layout.tsx` - No hace auth check (solo wrapper)
+
+**Flujo de autenticación:**
+1. Child ingresa `child_code` + `family_code` en `/child/join`
+2. Frontend valida formato (family_code = 6 chars, child_code >= 3 chars)
+3. POST a `/api/child/login` con códigos normalizados (UPPERCASE)
+4. Backend valida:
+   - Existe parent con `family_code`
+   - Existe child con `child_code` asociado a ese parent
+5. Si válido, devuelve datos de child + parent
+6. Frontend guarda child en Zustand
+7. Navega a `/child/dashboard`
+
+**Importante:**
+- Children NO tienen Supabase Auth users
+- Children son identificados por `child_code` único (ej: `GERONIMO#3842`)
+- Parent debe crear el child primero vía `/api/children/create`
+
+Ver documentación completa: [docs/CHILD_LOGIN_FLOW.md](./CHILD_LOGIN_FLOW.md)
 
 ## Estado Global
 
@@ -174,11 +193,19 @@ Dashboard renderiza
 ### Child Join Flow
 
 ```
-Child submits join form
+Child submits join form con child_code + family_code
   ↓
-joinChild() busca parent por family code
+POST /api/child/login
   ↓
-Busca child en users table
+Backend normaliza inputs a UPPERCASE
+  ↓
+Busca parent por family_code
+  ↓
+Busca child por child_code + parent_id
+  ↓
+Valida relación parent-child
+  ↓
+Devuelve { child, parent }
   ↓
 setChild() actualiza Zustand
   ↓
@@ -192,6 +219,12 @@ useRequireChildAuth() valida
   ↓
 Dashboard renderiza
 ```
+
+**Importante:**
+- Child **NO** usa Supabase Auth
+- Validación 100% server-side en `/api/child/login`
+- Códigos normalizados a UPPERCASE automáticamente
+- Errores específicos: `INVALID_FAMILY_CODE`, `INVALID_CHILD_CODE`
 
 ## Mejores Prácticas
 

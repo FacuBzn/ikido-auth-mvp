@@ -25,34 +25,40 @@ export type Database = {
       users: {
         Row: {
           id: string;
-          auth_id: string;
-          email: string;
+          auth_id: string | null; // NULL for children, UUID for parents
+          email: string | null; // NULL for children (no Auth)
           name: string | null;
           role: DatabaseUserRole;
-          parent_id: string | null;
-          child_code: string | null; // Used as family code for parents, child code for children
+          parent_id: string | null; // Internal FK to parent's users.id
+          parent_auth_id: string | null; // auth.uid() of parent (for RLS)
+          child_code: string | null; // Unique code for children (e.g., GERONIMO#3842)
+          family_code: string | null; // Family code for parents (6 chars, e.g., ABC123)
           points_balance: number;
           created_at: string;
         };
         Insert: {
           id?: string;
-          auth_id: string;
-          email: string;
+          auth_id?: string | null; // Optional, NULL for children
+          email?: string | null; // Optional, NULL for children
           name?: string | null;
           role: DatabaseUserRole;
-          parent_id?: string | null;
-          child_code?: string | null; // Used as family code for parents, child code for children
+          parent_id?: string | null; // Internal FK to parent's users.id
+          parent_auth_id?: string | null; // auth.uid() of parent (for RLS)
+          child_code?: string | null; // Unique code for children
+          family_code?: string | null; // Family code for parents
           points_balance?: number;
           created_at?: string;
         };
         Update: {
           id?: string;
-          auth_id?: string;
-          email?: string;
+          auth_id?: string | null;
+          email?: string | null;
           name?: string | null;
           role?: DatabaseUserRole;
           parent_id?: string | null;
-          child_code?: string | null; // Used as family code for parents, child code for children
+          parent_auth_id?: string | null;
+          child_code?: string | null;
+          family_code?: string | null;
           points_balance?: number;
           created_at?: string;
         };
