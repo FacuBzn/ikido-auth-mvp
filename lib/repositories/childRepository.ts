@@ -1,7 +1,7 @@
 import { createBrowserClient } from "@/lib/supabaseClient";
 import type { Child } from "@/store/useSessionStore";
 import type { Database } from "@/types/supabase";
-import { normalizeName, normalizeCode, type ChildProfile } from "@/lib/types/profiles";
+import type { ChildProfile } from "@/lib/types/profiles";
 
 type UserRow = Database["public"]["Tables"]["users"]["Row"];
 

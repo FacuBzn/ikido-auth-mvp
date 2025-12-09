@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { validateFamilyCode } from "@/lib/generateFamilyCode";
 import { useSessionStore } from "@/store/useSessionStore";
 import { createBrowserClient } from "@/lib/supabaseClient";
-import type { Database } from "@/types/supabase";
 
 export const ChildJoinForm = () => {
   const [childCode, setChildCode] = useState("");
