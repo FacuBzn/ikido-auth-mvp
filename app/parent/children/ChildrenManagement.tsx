@@ -27,7 +27,11 @@ type CreateChildResponse = {
   login_hint: string;
 };
 
-export const ChildrenManagement = ({ parentId, initialChildren }: ChildrenManagementProps) => {
+export const ChildrenManagement = ({ 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  parentId: _parentId,
+  initialChildren 
+}: ChildrenManagementProps) => {
   const supabase = useMemo(() => createBrowserClient(), []);
   const { toast } = useToast();
   const [children, setChildren] = useState<ChildRecord[]>(initialChildren);

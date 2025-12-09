@@ -32,7 +32,7 @@ export function RoleSelection() {
           >
             <div className="flex items-center justify-center gap-3">
               <span className="text-2xl">👨‍👩‍👧‍👦</span>
-              <span>I'm a Parent</span>
+              <span>I&apos;m a Parent</span>
             </div>
           </button>
           
@@ -42,7 +42,7 @@ export function RoleSelection() {
           >
             <div className="flex items-center justify-center gap-3">
               <span className="text-2xl">👧</span>
-              <span>I'm a Child</span>
+              <span>I&apos;m a Child</span>
             </div>
           </button>
         </div>

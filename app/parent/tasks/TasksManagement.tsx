@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { Loader2, Plus, Trash2, Edit2, Check } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -33,12 +32,12 @@ type TasksManagementProps = {
 };
 
 export const TasksManagement = ({
-  parentId,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  parentId: _parentId,
   initialChildren,
 }: TasksManagementProps) => {
   const supabase = useMemo(() => createBrowserClient(), []);
   const { toast } = useToast();
-  const router = useRouter();
 
   const [children] = useState<ChildUser[]>(initialChildren);
   const [selectedChildId, setSelectedChildId] = useState<string>("");

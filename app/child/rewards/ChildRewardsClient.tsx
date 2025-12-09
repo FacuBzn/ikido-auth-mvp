@@ -8,6 +8,9 @@ export const ChildRewardsClient = () => {
   const child = useSessionStore((state) => state.child);
   const hydrated = useSessionStore((state) => state._hasHydrated);
 
+  // Hooks must be called unconditionally
+  useRequireChildAuth();
+
   // Show loader while Zustand hydrates
   if (!hydrated) {
     return (
@@ -19,9 +22,6 @@ export const ChildRewardsClient = () => {
       </div>
     );
   }
-
-  // After hydration, check auth
-  useRequireChildAuth();
 
   if (!child) {
     return null;
