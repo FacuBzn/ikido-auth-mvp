@@ -1,130 +1,131 @@
-## iKidO (GGPoints) – Auth MVP
+# Feature: iKidO Auth MVP
 
-Base project for the iKidO (GGPoints) MVP: a family web app where parents assign tasks, kids complete them, and both track GGPoints and rewards. This repository contains a production-ready authentication module built with Next.js 16, Supabase, TailwindCSS, and Zustand.
+Este módulo implementa la funcionalidad de **autenticación y gestión de códigos familiares para parents y children con dashboards diferenciados**.  
+Se apoya en Supabase (Auth + Postgres), Next.js y estado global con Zustand.
 
-### Features
-- Public landing page with role selection (Parent/Child)
-- Registration and login flows backed by Supabase Auth
-- Role-aware redirects (`Parent` / `Child`) and protected dashboards
-- Session persistence and global store with Zustand + real-time Supabase listeners
-- Nested layouts for route protection (Server Components)
-- Client-side hooks for child authentication
-- Minimal, responsive UI with TailwindCSS
-- Modular file structure prepared for future domain modules (tasks, rewards, etc.)
+---
 
-### Stack
-- **Next.js 16** (App Router) + TypeScript
-- **React 19**
-- **Supabase** (Auth + Postgres)
-- **TailwindCSS**
-- **Zustand** for client-side session state
+## 1. Tecnologías utilizadas
 
-### Project Structure
+- Node.js + TypeScript  
+- Next.js 16 (App Router)  
+- Supabase (Auth + Postgres)  
+- TailwindCSS  
+- Zustand para estado de sesión  
+- Modular architecture (services, repositories, providers, workers)
+
+---
+
+## 2. Estructura relevante del proyecto
+
 ```
 app/
-  layout.tsx                 # Root layout with SessionProvider
-  page.tsx                   # Landing page with role selection
-  parent/
-    layout.tsx              # Parent auth protection (Server Component)
-  login/
-    page.tsx
-      ParentLoginForm.tsx
-  register/
-    page.tsx
-      ParentRegisterForm.tsx
-    dashboard/
-      page.tsx
-      ParentDashboardClient.tsx
-    tasks/
-      page.tsx
-    children/
-      page.tsx
-  child/
-    layout.tsx              # Child wrapper (no auth check)
-    join/
-      page.tsx
-      ChildJoinForm.tsx
-  dashboard/
-      page.tsx
-      ChildDashboardClient.tsx
-    rewards/
-      page.tsx
-components/
-  SessionProvider.tsx        # Hydrates Zustand from Supabase
-  ProtectedRoute.tsx         # Server Component wrapper
-  Header.tsx
-hooks/
-  useRequireParentAuth.ts   # Client hook for parent routes
-  useRequireChildAuth.ts    # Client hook for child routes
+├─ layout.tsx
+├─ page.tsx
+├─ api/
+│  ├─ auth/signout/route.ts
+│  ├─ child/login/route.ts
+│  └─ children/create/route.ts
+├─ parent/
+│  ├─ (auth)/layout.tsx
+│  ├─ layout.tsx
+│  ├─ login/
+│  ├─ register/
+│  ├─ dashboard/
+│  ├─ tasks/
+│  └─ children/
+└─ child/
+   ├─ layout.tsx
+   ├─ join/
+   ├─ dashboard/
+   └─ rewards/
 lib/
-  repositories/
-    parentRepository.ts
-    childRepository.ts
-  supabase/
-    serverClient.ts
-    config.ts
-  supabaseClient.ts
+├─ repositories/
+├─ supabase/
+└─ generateFamilyCode.ts
 store/
-  useSessionStore.ts        # Zustand store with hydration flag
-types/
-  supabase.ts
+└─ useSessionStore.ts
 docs/
-  ARCHITECTURE.md           # Architecture documentation
-  ROUTE_PROTECTION_PATTERNS.md
+└─ ARCHITECTURE.md
 ```
 
-### Route Protection
+Cada módulo cumple una responsabilidad específica declarada en el análisis del code review.
 
-- **Parent routes** (`/parent/*`): Protected by Server Component layout
-- **Child routes** (`/child/*`): Protected by client-side hooks
-- See [docs/ROUTE_PROTECTION_PATTERNS.md](docs/ROUTE_PROTECTION_PATTERNS.md) for details
+---
 
-### Environment Variables
-- Copy `.env.example` to `.env.local`.
-- Fill in the Supabase credentials for your project:
+## 3. Instalación del repositorio
+
+### 3.1. Requisitos previos
+- Node.js LTS  
+- NPM (se incluye `package-lock.json`)  
+- Proyecto Supabase activo (Auth + Postgres)  
+- Variables de entorno correctas (archivo `.env.local`)
+
+### 3.2. Instalación
+```sh
+npm install
+```
+
+### 3.3. Migraciones
+No requiere Prisma; la base de datos se maneja vía Supabase.
+
+### 3.4. Generación de Prisma Client
+No aplica.
+
+---
+
+## 4. Variables de entorno
+
+Crear archivo `.env.local` con:
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-public-anon-key
+NEXT_PUBLIC_SUPABASE_URL="https://<project>.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="<supabase-anon-key>"
+SUPABASE_SERVICE_ROLE_KEY="<service-role>" # Solo para scripts de mantenimiento
 ```
 
-> The project currently relies on Supabase Auth and Postgres only; Prisma migrations are not required for this module.
+---
 
-### Development
+## 5. Comandos útiles
 
-1. Install dependencies with `npm install`.
-2. Duplicate `.env.example` into `.env.local` and add your Supabase keys.
-3. Run the development server with `npm run dev`.
+Servidor local:
+```sh
+npm run dev
+```
 
-Visit `http://localhost:3000` to access the app. Unauthenticated users land on the public home page, while authenticated users are redirected to their dashboard.
+Build:
+```sh
+npm run build
+```
 
-### Quality checks
-- `npm run lint` – ESLint via `next lint`.
-- `npm run typecheck` – TypeScript in no-emit mode.
-- `npm run build` – Production build of the Next.js app (outputs to `dist/`).
+Tests y chequeos:
+```sh
+npm run lint
+npm run typecheck
+```
 
-### Deployment
-- Configure a Vercel project pointing to this repository and set `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` in the dashboard for Development, Preview, and Production environments.
-- Optionally wire the build command to `npm run vercel-build` to enforce linting and type checking before `next build`.
-- Consider enabling Supabase email auto-confirmation for a frictionless signup on the MVP.
+Workers/colas:
+No se usan colas en este módulo.
 
-### Documentation
+---
 
-- **[Architecture](docs/ARCHITECTURE.md)** - Complete architecture overview
-- **[Route Protection Patterns](docs/ROUTE_PROTECTION_PATTERNS.md)** - How routes are protected
+## 6. Flujo Operacional de la Feature
 
-### Database Migration
+1. El landing (`/`) muestra la selección de rol.
+2. Parents usan `/parent/register` para alta (Supabase Auth) y `/parent/login` para sesión; el layout `(auth)` valida la sesión server-side.
+3. La creación de children se realiza vía `/api/children/create`, generando `child_code` y asociándolo al `family_code` del parent.
+4. Children acceden a `/child/join`, envían `child_code` + `family_code` a `/api/child/login`; el backend valida relaciones y retorna perfil para guardar en Zustand.
+5. El store `useSessionStore` persiste la sesión (parent o child) y permite `logout` limpiando credenciales, incluyendo sign out en Supabase para parents.
+6. `/api/auth/signout` cierra sesión global en Supabase y sincroniza cookies en la respuesta.
 
-The project uses a consolidated `users` table for both parents and children. If migrating from a legacy `children` table, see:
+---
 
-- `scripts/migration/01-backup-children.sql`
-- `scripts/migration/02-migrate-children-to-users.sql`
-- `scripts/migration/03-create-indexes.sql`
-- `scripts/migration/04-drop-children-table.sql`
+## 7. Resumen técnico acotado
 
-**IMPORTANT:** Always backup your database before running migration scripts.
+- Resuelve autenticación y acceso a dashboards diferenciados para parents y children.
+- Recibe entradas desde formularios de login/register y códigos familiares/child.
+- Devuelve sesiones de Supabase para parents y perfiles normalizados para children.
+- Interactúa con Supabase Auth y la tabla `users` en Postgres.
+- Involucra módulos `app/api/*`, `app/parent/*`, `app/child/*`, `lib/repositories`, `lib/supabase`, y `store/useSessionStore`.
 
-### Next Steps
-- Connect tasks and rewards to Supabase tables in dashboards
-- Add integration/e2e tests (Playwright / Cypress) for full auth coverage
-- Implement task completion and reward claiming flows
+Fin del README.
