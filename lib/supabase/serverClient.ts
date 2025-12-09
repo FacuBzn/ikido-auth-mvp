@@ -4,8 +4,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import type { Database } from "@/types/supabase";
 
-const { supabaseUrl, supabaseAnonKey } = getSupabaseConfig();
-
 const normalizeCookies = (entries: { name: string; value: string }[] | null) =>
   entries?.map(({ name, value }) => ({ name, value })) ?? null;
 
@@ -42,10 +40,8 @@ const applyCookies = (
   });
 };
 
-/**
- * Creates a Supabase client for Server Components / Route Handlers rendered on the server.
- */
-export const createServerClient = async () => {
+export const createSupabaseServerComponentClient = async () => {
+  const { supabaseUrl, supabaseAnonKey } = getSupabaseConfig();
   const cookieStore = await cookies();
   return createSupabaseServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -61,6 +57,7 @@ export const createServerClient = async () => {
 export const createServerActionClient = async (options?: {
   cookieOptions?: CookieOptions;
 }) => {
+  const { supabaseUrl, supabaseAnonKey } = getSupabaseConfig();
   const cookieStore = await cookies();
   return createSupabaseServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -71,10 +68,8 @@ export const createServerActionClient = async (options?: {
   });
 };
 
-/**
- * Creates a Supabase client for Route Handlers (app/api).
- */
-export const createRouteHandlerClient = (request: NextRequest) => {
+export const createSupabaseRouteHandlerClient = (request: NextRequest) => {
+  const { supabaseUrl, supabaseAnonKey } = getSupabaseConfig();
   const response = NextResponse.next({
     request: {
       headers: request.headers,
