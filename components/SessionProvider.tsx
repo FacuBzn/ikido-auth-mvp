@@ -1,131 +1,165 @@
 "use client";
 
-import { type ReactNode, useEffect, useMemo } from "react";
-import type { Session, User } from "@supabase/supabase-js";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browserClient";
+import { type ReactNode, useEffect, useMemo, useRef } from "react";
+import { createBrowserClient } from "@/lib/supabaseClient";
 import { useSessionStore } from "@/store/useSessionStore";
-import type { SessionProfile } from "@/store/useSessionStore";
-import {
-  fromDatabaseUserRole,
-  isUserRole,
-} from "@/types/supabase";
+import { getParentByAuthUserId } from "@/lib/repositories/parentRepository";
 
 type SessionProviderProps = {
   children: ReactNode;
 };
 
-type PartialProfilePayload = {
-  id?: string;
-  email?: string | null;
-  name?: string | null;
-  role?: string | null;
-};
-
-const buildProfile = (
-  user: User,
-  payload?: PartialProfilePayload
-): SessionProfile | null => {
-  const metadataRole = isUserRole(user.user_metadata?.role)
-    ? user.user_metadata?.role
-    : fromDatabaseUserRole(user.user_metadata?.role);
-
-  const payloadRole = fromDatabaseUserRole(payload?.role);
-  const resolvedRole = payloadRole ?? metadataRole;
-
-  if (!resolvedRole) {
-    return null;
-  }
-
-  return {
-    id: user.id,
-    email: user.email ?? payload?.email ?? "",
-    name:
-      payload?.name ??
-      (typeof user.user_metadata?.name === "string" ? user.user_metadata?.name : null),
-    role: resolvedRole,
-  };
-};
-
+/**
+ * SessionProvider - Hydrates Zustand store with Supabase session
+ * Uses onAuthStateChange to handle session refresh automatically
+ */
 export const SessionProvider = ({ children }: SessionProviderProps) => {
-  const setAuthState = useSessionStore((state) => state.setAuthState);
-  const reset = useSessionStore((state) => state.reset);
-  const setLoading = useSessionStore((state) => state.setLoading);
+  const setParent = useSessionStore((state) => state.setParent);
+  const logout = useSessionStore((state) => state.logout);
+  const currentParent = useSessionStore((state) => state.parent);
+  
+  // Refs to prevent duplicate syncs
+  const isInitializedRef = useRef(false);
+  const isHydratingRef = useRef(false);
+  const lastSyncedUserRef = useRef<string | null>(null);
 
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const supabase = useMemo(() => createBrowserClient(), []);
 
   useEffect(() => {
     let cancelled = false;
+    let subscription: ReturnType<typeof supabase.auth.onAuthStateChange> | null = null;
 
-    const resolveAuthState = async () => {
-      if (cancelled) {
+    const syncParentProfile = async (authUserId: string) => {
+      // Prevent multiple simultaneous syncs
+      if (isHydratingRef.current) {
+        console.debug("[SessionProvider] Sync already in progress, skipping");
         return;
       }
 
-      const [
-        { data: sessionResult, error: sessionError },
-        { data: userResult, error: userError },
-      ] = await Promise.all([supabase.auth.getSession(), supabase.auth.getUser()]);
+      // Skip if already synced for this exact user
+      if (lastSyncedUserRef.current === authUserId) {
+        console.debug("[SessionProvider] Already synced for this user:", authUserId);
+        return;
+      }
+
+      // Skip if current parent matches
+      if (currentParent?.auth_user_id === authUserId) {
+        console.debug("[SessionProvider] Parent already set for this user");
+        lastSyncedUserRef.current = authUserId;
+        return;
+      }
+
+      isHydratingRef.current = true;
+
+      try {
+        const parentData = await getParentByAuthUserId(authUserId);
+        if (cancelled) {
+          return;
+        }
+
+        if (parentData) {
+          // Only update if different
+          if (
+            !currentParent ||
+            currentParent.auth_user_id !== parentData.auth_user_id ||
+            currentParent.id !== parentData.id
+          ) {
+            console.debug("[SessionProvider] Setting parent:", parentData.id);
+          setParent(parentData);
+            lastSyncedUserRef.current = authUserId;
+          }
+        } else {
+          console.warn("[SessionProvider] No parent profile found", { authUserId });
+          if (currentParent?.auth_user_id === authUserId) {
+            // Clear if we had this parent but profile is gone
+            logout();
+          }
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("[SessionProvider] Failed to hydrate parent profile", {
+            message: error instanceof Error ? error.message : String(error),
+            authUserId,
+          });
+        }
+      } finally {
+        isHydratingRef.current = false;
+      }
+    };
+
+    const hydrateSession = async () => {
+      if (isInitializedRef.current) {
+        return; // Only hydrate once on mount
+      }
+
+      isInitializedRef.current = true;
+
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (cancelled) {
+        return;
+      }
 
       if (sessionError) {
-        console.error("[SessionProvider] Failed to read session", sessionError);
-      }
+        if (
+          sessionError.message?.includes("refresh") ||
+          sessionError.message?.includes("token") ||
+          sessionError.status === 400
+        ) {
+          console.debug("[SessionProvider] Refresh token invalid, clearing session");
+          if (!cancelled) {
+            logout();
+          }
+          return;
+        }
 
-      if (userError) {
-        console.error("[SessionProvider] Failed to validate user", userError);
-      }
-
-      const session: Session | null = sessionResult.session ?? null;
-      const user: User | null = userResult.user ?? null;
-
-      if (!session || !user || cancelled) {
-        reset();
+        console.debug("[SessionProvider] Session check error (non-fatal):", sessionError.message);
         return;
       }
 
-      const { data, error } = await supabase
-        .from("users")
-        .select("id, email, name, role")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error("[SessionProvider] Failed to load user profile", error);
+      if (!session || !session.user) {
+        if (!cancelled && currentParent) {
+          // Only logout if we had a parent but session is gone
+          logout();
+        }
+        return;
       }
 
+      await syncParentProfile(session.user.id);
+    };
+
+    subscription = supabase.auth.onAuthStateChange(async (event, session) => {
       if (cancelled) {
         return;
       }
 
-      const payload: PartialProfilePayload | undefined = data
-        ? {
-            id: data.id,
-            email: data.email,
-            name: data.name,
-            role: data.role,
-          }
-        : undefined;
+      console.debug("[SessionProvider] Auth state changed:", event);
 
-      const profile = buildProfile(user, payload);
-      setAuthState(session, profile);
-    };
+      if (event === "SIGNED_OUT" || !session) {
+        lastSyncedUserRef.current = null;
+        logout();
+        return;
+      }
 
-    const bootstrap = async () => {
-      setLoading(true);
-      await resolveAuthState();
-    };
-
-    const { data: listener } = supabase.auth.onAuthStateChange(async () => {
-      await resolveAuthState();
+      if (session?.user) {
+        await syncParentProfile(session.user.id);
+      }
     });
 
-    void bootstrap();
+    void hydrateSession();
 
     return () => {
       cancelled = true;
-      listener.subscription.unsubscribe();
+      isInitializedRef.current = false;
+      lastSyncedUserRef.current = null;
+      if (subscription) {
+        subscription.data.subscription.unsubscribe();
+      }
     };
-  }, [reset, setAuthState, setLoading, supabase]);
+  }, [supabase, setParent, logout, currentParent]);
 
-  return children;
+  return <>{children}</>;
 };
-

@@ -4,29 +4,27 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogOut, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
-import { getDashboardPathByRole, getLoginPathByRole } from "@/lib/authRoutes";
 import { cn } from "@/lib/utils";
-import { selectProfile, selectSession, useSessionStore } from "@/store/useSessionStore";
+import { useSessionStore } from "@/store/useSessionStore";
+import { createBrowserClient } from "@/lib/supabaseClient";
 
 export const Header = () => {
-  const session = useSessionStore(selectSession);
-  const profile = useSessionStore(selectProfile);
-  const resetSession = useSessionStore((state) => state.reset);
+  const parent = useSessionStore((state) => state.parent);
+  const child = useSessionStore((state) => state.child);
+  const logout = useSessionStore((state) => state.logout);
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const brandHref = useMemo(() => {
-    if (!session) {
-      return "/";
+    if (parent) {
+      return "/parent/dashboard";
     }
-
-    if (profile?.role) {
-      return getDashboardPathByRole(profile.role);
+    if (child) {
+      return "/child/dashboard";
     }
-
-    return "/parent/dashboard";
-  }, [profile?.role, session]);
+    return "/";
+  }, [parent, child]);
 
   const handleSignOut = async () => {
     if (isSigningOut) {
@@ -37,37 +35,27 @@ export const Header = () => {
     setError(null);
 
     try {
-      const response = await fetch("/api/auth/signout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        let message = "Failed to sign out.";
-        try {
-          const body = (await response.json()) as { error?: string };
-          if (body?.error) {
-            message = body.error;
-          }
-        } catch {
-          // ignore JSON parsing errors
-        }
-        throw new Error(message);
+      // If there's a parent, sign out from Supabase Auth
+      if (parent) {
+        const supabase = createBrowserClient();
+        await supabase.auth.signOut();
       }
+      
+      // Logout from store (clears both parent and child)
+      await logout();
+      
+      router.push("/");
+      // No need for refresh - navigation will handle it
     } catch (signOutError) {
       setError(signOutError instanceof Error ? signOutError.message : "Failed to sign out.");
       setIsSigningOut(false);
       return;
     }
 
-    resetSession();
-    const loginPath = profile?.role ? getLoginPathByRole(profile.role) : "/login-parent";
-    router.push(loginPath);
-    router.refresh();
     setIsSigningOut(false);
   };
+
+  const hasSession = parent || child;
 
   return (
     <header className="pointer-events-none absolute inset-x-0 top-0 z-50 flex justify-center px-4 py-6">
@@ -82,7 +70,7 @@ export const Header = () => {
           <span className="text-sm font-semibold tracking-[0.3em] uppercase">iKidO</span>
         </Link>
 
-        {session ? (
+        {hasSession ? (
           <button
             type="button"
             onClick={handleSignOut}
@@ -105,4 +93,3 @@ export const Header = () => {
     </header>
   );
 };
-

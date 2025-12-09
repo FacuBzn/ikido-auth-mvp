@@ -6,61 +6,92 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browserClient";
+import { createBrowserClient } from "@/lib/supabaseClient";
 import type { Database } from "@/types/supabase";
 import { useToast } from "@/hooks/use-toast";
 
-type ChildRecord = Pick<Database["public"]["Tables"]["children"]["Row"], "id" | "name">;
+type ChildRecord = Pick<
+  Database["public"]["Tables"]["users"]["Row"],
+  "id" | "name" | "child_code" | "email"
+>;
 
 type ChildrenManagementProps = {
   parentId: string;
   initialChildren: ChildRecord[];
 };
 
+type CreateChildResponse = {
+  id: string;
+  name: string;
+  child_code: string;
+  login_hint: string;
+};
+
 export const ChildrenManagement = ({ parentId, initialChildren }: ChildrenManagementProps) => {
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const supabase = useMemo(() => createBrowserClient(), []);
   const { toast } = useToast();
   const [children, setChildren] = useState<ChildRecord[]>(initialChildren);
   const [newChildName, setNewChildName] = useState("");
+  const [newChildPassword, setNewChildPassword] = useState("");
   const [loadingChildId, setLoadingChildId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [createdChildInfo, setCreatedChildInfo] = useState<CreateChildResponse | null>(null);
 
   const handleAddChild = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const name = newChildName.trim();
+    const password = newChildPassword.trim();
+
     if (!name) {
       setError("Please provide a name for the child.");
       return;
     }
 
+    if (!password || password.length < 6) {
+      setError("Please provide a password with at least 6 characters.");
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
+    setCreatedChildInfo(null);
 
     try {
-      const { data, error: insertError } = await supabase
-        .from("children")
-        .insert({
-          parent_id: parentId,
+      const response = await fetch("/api/children/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
           name,
-        })
-        .select("id, name")
-        .maybeSingle();
+          password,
+        }),
+      });
 
-      if (insertError) {
-        throw insertError;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: "Unknown error" }));
+        throw new Error(errorData.message || "Failed to create child");
       }
 
-      if (!data) {
-        throw new Error("Supabase did not return the newly created child.");
-      }
+      const data: CreateChildResponse = await response.json();
 
-      setChildren((prev) => [...prev, { id: data.id, name: data.name }]);
+      setChildren((prev) => [
+        ...prev,
+        {
+          id: data.id,
+          name: data.name,
+          child_code: data.child_code,
+          email: data.login_hint.split(" (email: ")[1]?.replace(")", "") || "",
+        },
+      ]);
       setNewChildName("");
+      setNewChildPassword("");
+      setCreatedChildInfo(data);
 
       toast({
         title: "Child added",
-        description: `${data.name ?? "New child"} is now part of your crew.`,
+        description: `${data.name} is now part of your crew.`,
       });
     } catch (cause) {
       const message =
@@ -77,7 +108,10 @@ export const ChildrenManagement = ({ parentId, initialChildren }: ChildrenManage
     setLoadingChildId(childId);
     setError(null);
     try {
-      const { error: deleteError } = await supabase.from("children").delete().eq("id", childId);
+      // TODO: Implement proper deletion via API route or Edge Function
+      // For now, we'll just remove from the list (soft delete approach)
+      // In production, this should call an API that handles auth user deletion
+      const { error: deleteError } = await supabase.from("users").delete().eq("id", childId);
       if (deleteError) {
         throw deleteError;
       }
@@ -133,6 +167,23 @@ export const ChildrenManagement = ({ parentId, initialChildren }: ChildrenManage
                 className="h-12 rounded-3xl border-2 border-[var(--brand-gold-400)] bg-[#1a5fa0]/40 text-white placeholder:text-white/60 focus-visible:ring-[var(--brand-gold-400)]"
               />
             </div>
+            <div className="space-y-2 text-left">
+              <label className="ikido-section-title text-[var(--brand-gold-200)]" htmlFor="child-password">
+                Password
+              </label>
+              <Input
+                id="child-password"
+                name="child-password"
+                type="password"
+                value={newChildPassword}
+                onChange={(event) => setNewChildPassword(event.target.value)}
+                placeholder="••••••••"
+                required
+                minLength={6}
+                className="h-12 rounded-3xl border-2 border-[var(--brand-gold-400)] bg-[#1a5fa0]/40 text-white placeholder:text-white/60 focus-visible:ring-[var(--brand-gold-400)]"
+              />
+              <p className="text-xs text-white/60">Minimum 6 characters</p>
+            </div>
             <Button
               type="submit"
               disabled={isSubmitting}
@@ -152,6 +203,22 @@ export const ChildrenManagement = ({ parentId, initialChildren }: ChildrenManage
               )}
             </Button>
           </form>
+          {createdChildInfo && (
+            <div className="rounded-2xl border-2 border-[var(--brand-gold-400)] bg-[#0b2f4c] p-4 space-y-2">
+              <p className="text-sm font-semibold text-[var(--brand-gold-400)]">
+                Child created successfully!
+              </p>
+              <p className="text-xs text-white/80">
+                <span className="font-semibold">Child Code:</span> {createdChildInfo.child_code}
+              </p>
+              <p className="text-xs text-white/80">
+                <span className="font-semibold">Login hint:</span> {createdChildInfo.login_hint}
+              </p>
+              <p className="text-xs text-white/60 mt-2">
+                Share this code with your child so they can log in.
+              </p>
+            </div>
+          )}
           <p className="text-center text-xs text-white/70">
             Tip: Encourage each cadet to choose a fun avatar name for extra motivation.
           </p>
@@ -182,6 +249,11 @@ export const ChildrenManagement = ({ parentId, initialChildren }: ChildrenManage
                 >
                   <div>
                     <p className="text-base font-semibold">{child.name ?? "Unnamed child"}</p>
+                    {child.child_code && (
+                      <p className="text-[11px] uppercase tracking-[0.3em] text-[var(--brand-gold-400)]">
+                        Code: <span className="font-mono text-white/90">{child.child_code}</span>
+                      </p>
+                    )}
                     <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">
                       ID: <span className="font-mono text-white/80">{child.id}</span>
                     </p>

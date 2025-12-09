@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint . --max-warnings=0 --ignore-pattern dist",
     "typecheck": "tsc --noEmit",
-    "vercel-build": "npm run lint && npm run typecheck && next build"
+    "vercel-build": "npm run lint && npm run typecheck && next build",
+    "repair-user": "tsx scripts/repairUser.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -69,11 +70,12 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "baseline-browser-mapping": "^2.9.4",
+    "baseline-browser-mapping": "^2.9.5",
     "eslint": "^9",
     "eslint-config-next": "16.0.1",
     "postcss": "^8.5.0",
     "tailwindcss": "^4",
+    "tsx": "^4.19.1",
     "tw-animate-css": "1.3.3",
     "typescript": "^5"
   }

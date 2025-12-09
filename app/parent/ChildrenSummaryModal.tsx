@@ -14,10 +14,10 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browserClient";
+import { createBrowserClient } from "@/lib/supabaseClient";
 import type { Database } from "@/types/supabase";
 
-type ChildrenRow = Database["public"]["Tables"]["children"]["Row"];
+type UsersRow = Database["public"]["Tables"]["users"]["Row"];
 type TasksRow = Database["public"]["Tables"]["tasks"]["Row"];
 type RewardsRow = Database["public"]["Tables"]["rewards"]["Row"];
 
@@ -40,7 +40,7 @@ export const ChildrenSummaryModal = ({ parentId }: ChildrenSummaryModalProps) =>
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<ChildSummary[]>([]);
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const supabase = useMemo(() => createBrowserClient(), []);
 
   useEffect(() => {
     if (!open) {
@@ -55,15 +55,16 @@ export const ChildrenSummaryModal = ({ parentId }: ChildrenSummaryModalProps) =>
 
       try {
         const { data: childrenData, error: childrenError } = await supabase
-          .from("children")
-          .select("id, name")
+          .from("users")
+          .select("id, name, points_balance")
+          .eq("role", "child")
           .eq("parent_id", parentId);
 
         if (childrenError) {
           throw childrenError;
         }
 
-        const typedChildren = (childrenData ?? []) as ChildrenRow[];
+        const typedChildren = (childrenData ?? []) as UsersRow[];
 
         if (typedChildren.length === 0) {
           if (!cancelled) {
@@ -78,14 +79,14 @@ export const ChildrenSummaryModal = ({ parentId }: ChildrenSummaryModalProps) =>
           childIds.length > 0
             ? supabase
                 .from("tasks")
-                .select("child_id, points, completed")
-                .in("child_id", childIds)
+                .select("child_user_id, points, completed")
+                .in("child_user_id", childIds)
             : Promise.resolve({ data: [] as TasksRow[], error: null }),
           childIds.length > 0
             ? supabase
                 .from("rewards")
-                .select("child_id, cost, claimed")
-                .in("child_id", childIds)
+                .select("child_user_id, cost, claimed")
+                .in("child_user_id", childIds)
             : Promise.resolve({ data: [] as RewardsRow[], error: null }),
         ]);
 
@@ -101,8 +102,8 @@ export const ChildrenSummaryModal = ({ parentId }: ChildrenSummaryModalProps) =>
         const rewards = (rewardsResult.data ?? []) as RewardsRow[];
 
         const computedSummary = typedChildren.map<ChildSummary>((child) => {
-          const childTasks = tasks.filter((task) => task.child_id === child.id);
-          const childRewards = rewards.filter((reward) => reward.child_id === child.id);
+          const childTasks = tasks.filter((task) => task.child_user_id === child.id);
+          const childRewards = rewards.filter((reward) => reward.child_user_id === child.id);
 
           const completedTasks = childTasks.filter((task) => task.completed).length;
           const earned = childTasks
@@ -114,12 +115,15 @@ export const ChildrenSummaryModal = ({ parentId }: ChildrenSummaryModalProps) =>
             .filter((reward) => reward.claimed)
             .reduce((acc, reward) => acc + (reward.cost ?? 0), 0);
 
+          // Use points_balance from users table if available, otherwise calculate
+          const balance = child.points_balance ?? earned - spent;
+
           return {
             id: child.id,
             name: child.name ?? "Unnamed child",
             earned,
             spent,
-            balance: earned - spent,
+            balance,
             completedTasks,
             claimedRewards,
           };

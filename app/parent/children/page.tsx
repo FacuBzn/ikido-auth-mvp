@@ -8,13 +8,17 @@ export const metadata: Metadata = {
   title: "Manage Children | iKidO (GGPoints)",
 };
 
-type ChildrenRow = Pick<Database["public"]["Tables"]["children"]["Row"], "id" | "name">;
+type ChildrenRow = Pick<
+  Database["public"]["Tables"]["users"]["Row"],
+  "id" | "name" | "child_code" | "email"
+>;
 
 const ParentChildrenManager = async ({ parentId }: { parentId: string }) => {
   const supabase = await createSupabaseServerComponentClient();
   const { data, error } = await supabase
-    .from("children")
-    .select("id, name")
+    .from("users")
+    .select("id, name, child_code, email")
+    .eq("role", "child")
     .eq("parent_id", parentId)
     .order("name", { ascending: true });
 

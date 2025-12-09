@@ -1,4 +1,4 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createServerClient as createSupabaseServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseConfig } from "@/lib/supabase/config";
@@ -43,7 +43,7 @@ const applyCookies = (
 export const createSupabaseServerComponentClient = async () => {
   const { supabaseUrl, supabaseAnonKey } = getSupabaseConfig();
   const cookieStore = await cookies();
-  return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
+  return createSupabaseServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll: () => normalizeCookies(cookieStore.getAll()),
       setAll: (cookiesToSet) => applyCookies(cookieStore, cookiesToSet),
@@ -51,12 +51,15 @@ export const createSupabaseServerComponentClient = async () => {
   });
 };
 
-export const createSupabaseServerActionClient = async (options?: {
+/**
+ * Creates a Supabase client for Server Actions executed via form submissions.
+ */
+export const createServerActionClient = async (options?: {
   cookieOptions?: CookieOptions;
 }) => {
   const { supabaseUrl, supabaseAnonKey } = getSupabaseConfig();
   const cookieStore = await cookies();
-  return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
+  return createSupabaseServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll: () => normalizeCookies(cookieStore.getAll()),
       setAll: (cookiesToSet) => applyCookies(cookieStore, cookiesToSet),
@@ -73,7 +76,7 @@ export const createSupabaseRouteHandlerClient = (request: NextRequest) => {
     },
   });
 
-  const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
+  const supabase = createSupabaseServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll: () => normalizeCookies(request.cookies.getAll()),
       setAll: (cookiesToSet) => {
@@ -88,5 +91,8 @@ export const createSupabaseRouteHandlerClient = (request: NextRequest) => {
   return { supabase, response };
 };
 
-export const createSupabaseMiddlewareClient = (request: NextRequest) =>
+/**
+ * Creates a Supabase client for middleware (app/proxy.ts).
+ */
+export const createMiddlewareClient = (request: NextRequest) =>
   createSupabaseRouteHandlerClient(request);
