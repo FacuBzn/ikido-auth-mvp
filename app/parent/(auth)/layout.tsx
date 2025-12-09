@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createServerClient } from "@/lib/supabase/serverClient";
+import { createSupabaseServerComponentClient } from "@/lib/supabase/serverClient";
 import type { ReactNode } from "react";
 import type { Database } from "@/types/supabase";
 
@@ -15,7 +15,7 @@ export default async function AuthenticatedParentLayout({
 }: {
   children: ReactNode;
 }) {
-  const supabase = await createServerClient();
+  const supabase = await createSupabaseServerComponentClient();
   const {
     data: { user },
     error: userError,

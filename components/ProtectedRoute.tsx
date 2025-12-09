@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { createServerClient } from "@/lib/supabase/serverClient";
+import { createSupabaseServerComponentClient } from "@/lib/supabase/serverClient";
 import type { UserRole } from "@/types/supabase";
 
 type ProtectedChildRenderer = (authUser: { profile: { role: UserRole; id: string } }) => ReactNode;
@@ -16,7 +16,7 @@ export default async function ProtectedRoute({
   children,
   allowedRoles = DEFAULT_ALLOWED_ROLES,
 }: ProtectedRouteProps) {
-  const supabase = await createServerClient();
+  const supabase = await createSupabaseServerComponentClient();
   const {
     data: { user },
     error: userError,

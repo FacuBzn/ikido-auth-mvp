@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@/lib/supabase/serverClient";
+import { createSupabaseRouteHandlerClient } from "@/lib/supabase/serverClient";
 import { getAuthenticatedUser } from "@/lib/authHelpers";
 import type { NextRequest } from "next/server";
 import { randomUUID } from "crypto";
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Child name is required" }, { status: 400 });
     }
 
-    const { supabase } = createRouteHandlerClient(request);
+    const { supabase } = createSupabaseRouteHandlerClient(request);
 
     // Get authenticated user's auth.uid() for parent_auth_id
     const { data: { user: authUserData }, error: authUserError } = await supabase.auth.getUser();

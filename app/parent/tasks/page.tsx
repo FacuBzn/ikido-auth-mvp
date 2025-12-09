@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { createServerClient } from "@/lib/supabase/serverClient";
+import { createSupabaseServerComponentClient } from "@/lib/supabase/serverClient";
 import type { Database } from "@/types/supabase";
 import { TasksManagement } from "./TasksManagement";
 
@@ -14,7 +14,7 @@ type ChildUser = Pick<
 >;
 
 const ParentTasksManager = async ({ parentId }: { parentId: string }) => {
-  const supabase = await createServerClient();
+  const supabase = await createSupabaseServerComponentClient();
   const { data, error } = await supabase
     .from("users")
     .select("id, name, child_code")

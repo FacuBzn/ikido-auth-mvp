@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
-import { createServerClient } from "@/lib/supabase/serverClient";
+import { createSupabaseServerComponentClient } from "@/lib/supabase/serverClient";
 import { getChildrenByParent } from "@/lib/repositories/childRepository";
 import { ParentDashboardClient } from "./ParentDashboardClient";
 import type { Child } from "@/store/useSessionStore";
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ParentDashboardPage() {
-  const supabase = await createServerClient();
+  const supabase = await createSupabaseServerComponentClient();
   
   // Use getUser() instead of getSession() for secure authentication
   const {

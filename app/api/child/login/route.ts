@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@/lib/supabase/serverClient";
+import { createSupabaseRouteHandlerClient } from "@/lib/supabase/serverClient";
 import type { NextRequest } from "next/server";
 import type { Database } from "@/types/supabase";
 import { normalizeName, normalizeCode } from "@/lib/types/profiles";
@@ -14,7 +14,7 @@ type ChildLoginRequest = {
 
 export async function POST(request: NextRequest) {
   try {
-    const { supabase } = createRouteHandlerClient(request);
+    const { supabase } = createSupabaseRouteHandlerClient(request);
 
     // Block child login if parent session is active
     const { data: { user } } = await supabase.auth.getUser();

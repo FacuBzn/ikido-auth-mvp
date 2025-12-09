@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { createServerClient } from "@/lib/supabase/serverClient";
+import { createSupabaseServerComponentClient } from "@/lib/supabase/serverClient";
 import type { Database } from "@/types/supabase";
 import { ChildrenManagement } from "./ChildrenManagement";
 
@@ -14,7 +14,7 @@ type ChildrenRow = Pick<
 >;
 
 const ParentChildrenManager = async ({ parentId }: { parentId: string }) => {
-  const supabase = await createServerClient();
+  const supabase = await createSupabaseServerComponentClient();
   const { data, error } = await supabase
     .from("users")
     .select("id, name, child_code, email")

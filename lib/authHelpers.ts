@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { getDashboardPathByRole, getLoginPathByRole } from "@/lib/authRoutes";
-import { createServerClient } from "@/lib/supabase/serverClient";
+import { createSupabaseServerComponentClient } from "@/lib/supabase/serverClient";
 import {
   fromDatabaseUserRole,
   isUserRole,
@@ -21,7 +21,7 @@ const isSessionMissingError = (error: unknown) => {
 
 export const getServerSession = cache(
   async (): Promise<{ session: Session; user: User } | null> => {
-  const supabase = await createServerClient();
+  const supabase = await createSupabaseServerComponentClient();
     const [
       { data: sessionResult, error: sessionError },
       { data: userResult, error: userError },
@@ -72,7 +72,7 @@ export const getAuthenticatedUser = cache(
     }
 
     const { user } = authState;
-    const supabase = await createServerClient();
+    const supabase = await createSupabaseServerComponentClient();
     const { data, error } = await supabase
       .from("users")
       .select("id, email, name, role, family_code, child_code, points_balance")
@@ -170,7 +170,7 @@ type UserInsert = Database["public"]["Tables"]["users"]["Insert"];
 export const upsertUserProfile = async (
   payload: UserInsert
 ): Promise<void> => {
-  const supabase = await createServerClient();
+  const supabase = await createSupabaseServerComponentClient();
   const { error } = await supabase.from("users").upsert(payload, {
     onConflict: "id",
   });

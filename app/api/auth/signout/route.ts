@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createRouteHandlerClient } from "@/lib/supabase/serverClient";
+import { createSupabaseRouteHandlerClient } from "@/lib/supabase/serverClient";
 
 const isSessionMissingError = (error: unknown) => {
   if (!error || typeof error !== "object") {
@@ -17,7 +17,7 @@ const mergeCookies = (source: NextResponse, target: NextResponse) => {
 };
 
 export async function POST(request: NextRequest) {
-    const { supabase, response } = createRouteHandlerClient(request);
+    const { supabase, response } = createSupabaseRouteHandlerClient(request);
 
   try {
     const { data: userResult, error: userError } = await supabase.auth.getUser();
