@@ -2,7 +2,7 @@ import type { SupabaseClient, User, Session } from "@supabase/supabase-js";
 import { createBrowserClient } from "@/lib/supabaseClient";
 import { generateFamilyCode } from "@/lib/generateFamilyCode";
 import type { Parent } from "@/store/useSessionStore";
-import { normalizeName, normalizeCode, type ParentProfile } from "@/lib/types/profiles";
+import { normalizeName, normalizeCode } from "@/lib/types/profiles";
 
 // This file uses Supabase. For mock fallback, see lib/repositories/mock/parentRepository.mock.ts
 

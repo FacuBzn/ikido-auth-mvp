@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/serverClient";
 import { getAuthenticatedUser } from "@/lib/authHelpers";
 import type { NextRequest } from "next/server";
+import type { Database } from "@/types/supabase";
 import { randomUUID } from "crypto";
 import { normalizeName, normalizeCode } from "@/lib/types/profiles";
 
@@ -179,7 +180,7 @@ export async function POST(request: NextRequest) {
     // Insert child record
     const { data: userData, error: userError } = await supabase
       .from("users")
-      .insert(insertPayload as any)
+      .insert(insertPayload as Database["public"]["Tables"]["users"]["Insert"])
       .select("id, name, child_code, parent_id, family_code, points_balance, created_at")
       .maybeSingle();
 

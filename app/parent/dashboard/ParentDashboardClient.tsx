@@ -210,7 +210,7 @@ export function ParentDashboardClient({
             {children.length === 0 ? (
               <div className="text-center py-8 text-white/70">
                 <p>No children added yet.</p>
-                <p className="text-sm mt-2">Click "Add Child" to get started!</p>
+                <p className="text-sm mt-2">Click &quot;Add Child&quot; to get started!</p>
               </div>
             ) : (
               <div className="space-y-3">
