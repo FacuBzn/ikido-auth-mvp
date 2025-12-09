@@ -6,8 +6,8 @@ export const DASHBOARD_ROUTE_BY_ROLE: Record<UserRole, string> = {
 };
 
 export const LOGIN_ROUTE_BY_ROLE: Record<UserRole, string> = {
-  Parent: "/login-parent",
-  Child: "/login-child",
+  Parent: "/parent/login",
+  Child: "/child/join",
 };
 
 export const getDashboardPathByRole = (role: UserRole) =>

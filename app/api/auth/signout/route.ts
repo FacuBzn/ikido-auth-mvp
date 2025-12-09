@@ -17,7 +17,7 @@ const mergeCookies = (source: NextResponse, target: NextResponse) => {
 };
 
 export async function POST(request: NextRequest) {
-  const { supabase, response } = createSupabaseRouteHandlerClient(request);
+    const { supabase, response } = createSupabaseRouteHandlerClient(request);
 
   try {
     const { data: userResult, error: userError } = await supabase.auth.getUser();

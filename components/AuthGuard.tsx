@@ -2,42 +2,36 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSessionStore, selectProfile, selectSession } from "@/store/useSessionStore";
-import { getDashboardPathByRole, getLoginPathByRole } from "@/lib/authRoutes";
-import type { UserRole } from "@/types/supabase";
+import { useSessionStore } from "@/store/useSessionStore";
 
 type AuthGuardProps = {
   children: React.ReactNode;
-  allowedRoles: UserRole[];
-  redirectTo?: string;
+  requiredRole?: "parent" | "child";
 };
 
-export const AuthGuard = ({ children, allowedRoles, redirectTo }: AuthGuardProps) => {
+export const AuthGuard = ({ children, requiredRole }: AuthGuardProps) => {
   const router = useRouter();
-  const session = useSessionStore(selectSession);
-  const profile = useSessionStore(selectProfile);
+  const parent = useSessionStore((state) => state.parent);
+  const child = useSessionStore((state) => state.child);
 
   useEffect(() => {
-    if (!session || !profile) {
-      const loginPath = redirectTo || getLoginPathByRole(allowedRoles[0] ?? "Parent");
-      router.push(loginPath);
+    if (requiredRole === "parent" && !parent) {
+      router.replace("/parent/login");
       return;
     }
-
-    if (!allowedRoles.includes(profile.role)) {
-      router.push(getDashboardPathByRole(profile.role));
+    if (requiredRole === "child" && !child) {
+      router.replace("/child/join");
       return;
     }
-  }, [session, profile, allowedRoles, redirectTo, router]);
+  }, [parent, child, requiredRole, router]);
 
-  if (!session || !profile) {
+  // Don't render children if not authenticated
+  if (requiredRole === "parent" && !parent) {
     return null;
   }
-
-  if (!allowedRoles.includes(profile.role)) {
+  if (requiredRole === "child" && !child) {
     return null;
   }
 
   return <>{children}</>;
 };
-

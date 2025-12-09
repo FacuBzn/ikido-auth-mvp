@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { DASHBOARD_ROUTE_BY_ROLE } from "@/lib/authRoutes";
-import { createSupabaseMiddlewareClient } from "@/lib/supabase/serverClient";
+import { createMiddlewareClient } from "@/lib/supabase/serverClient";
 import {
   fromDatabaseUserRole,
   isUserRole,
@@ -8,7 +8,7 @@ import {
 } from "@/types/supabase";
 
 export async function proxy(req: NextRequest) {
-  const { supabase, response } = createSupabaseMiddlewareClient(req);
+  const { supabase, response } = createMiddlewareClient(req);
   const [
     { data: sessionResult },
     { data: userResult, error: userError },

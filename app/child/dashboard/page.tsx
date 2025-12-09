@@ -1,16 +1,12 @@
 import type { Metadata } from "next";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import { ChildDashboardClient } from "../ChildDashboardClient";
+import { ChildDashboardClient } from "./ChildDashboardClient";
 
 export const metadata: Metadata = {
-  title: "Child Dashboard | iKidO (GGPoints)",
+  title: "Child Dashboard | iKidO",
 };
 
-export default function ChildDashboardPage() {
-  return (
-    <ProtectedRoute allowedRoles={["Child"]}>
-      {({ profile }) => <ChildDashboardClient profile={profile} />}
-    </ProtectedRoute>
-  );
+export default async function ChildDashboardPage() {
+  // No server-side auth for children
+  // ChildDashboardClient handles auth with useRequireChildAuth()
+  return <ChildDashboardClient />;
 }
-
