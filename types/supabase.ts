@@ -19,6 +19,13 @@ export const fromDatabaseUserRole = (
 export const toDatabaseUserRole = (role: UserRole): DatabaseUserRole =>
   role === "Parent" ? "parent" : "child";
 
+export type ChildTaskStatus =
+  | "pending"
+  | "in_progress"
+  | "completed"
+  | "approved"
+  | "rejected";
+
 export type Database = {
   public: {
     Tables: {
@@ -103,37 +110,141 @@ export type Database = {
           id: string;
           title: string;
           description: string | null;
-          points: number;
-          child_user_id: string;
-          completed: boolean;
-          completed_at: string | null;
+          points
+: number;
+          is_global: boolean;
+          created_by_parent_id: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           title: string;
           description?: string | null;
-          points: number;
-          child_user_id: string;
-          completed?: boolean;
-          completed_at?: string | null;
+          points
+: number;
+          is_global?: boolean;
+          created_by_parent_id?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
           title?: string;
           description?: string | null;
-          points?: number;
-          child_user_id?: string;
-          completed?: boolean;
-          completed_at?: string | null;
+          points
+?: number;
+          is_global?: boolean;
+          created_by_parent_id?: string | null;
           created_at?: string;
         };
         Relationships: [
           {
-            foreignKeyName: "tasks_child_user_id_fkey";
-            columns: ["child_user_id"];
+            foreignKeyName: "tasks_created_by_parent_id_fkey";
+            columns: ["created_by_parent_id"];
             referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      child_tasks: {
+        Row: {
+          id: string;
+          task_id: string;
+          child_id: string;
+          parent_id: string;
+          status: ChildTaskStatus;
+          points: number;
+          assigned_at: string;
+          completed_at: string | null;
+          approved_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          task_id: string;
+          child_id: string;
+          parent_id: string;
+          status?: ChildTaskStatus;
+          points: number;
+          assigned_at?: string;
+          completed_at?: string | null;
+          approved_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          task_id?: string;
+          child_id?: string;
+          parent_id?: string;
+          status?: ChildTaskStatus;
+          points?: number;
+          assigned_at?: string;
+          completed_at?: string | null;
+          approved_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "child_tasks_task_id_fkey";
+            columns: ["task_id"];
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "child_tasks_child_id_fkey";
+            columns: ["child_id"];
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "child_tasks_parent_id_fkey";
+            columns: ["parent_id"];
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      ggpoints_ledger: {
+        Row: {
+          id: string;
+          child_id: string;
+          parent_id: string;
+          child_task_id: string | null;
+          delta: number;
+          reason: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          child_id: string;
+          parent_id: string;
+          child_task_id?: string | null;
+          delta: number;
+          reason?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          child_id?: string;
+          parent_id?: string;
+          child_task_id?: string | null;
+          delta?: number;
+          reason?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ggpoints_ledger_child_id_fkey";
+            columns: ["child_id"];
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ggpoints_ledger_parent_id_fkey";
+            columns: ["parent_id"];
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ggpoints_ledger_child_task_id_fkey";
+            columns: ["child_task_id"];
+            referencedRelation: "child_tasks";
             referencedColumns: ["id"];
           },
         ];
@@ -177,7 +288,15 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      approve_child_task_and_add_points: {
+        Args: {
+          p_child_task_id: string;
+          p_parent_auth_id: string;
+        };
+        Returns: void;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

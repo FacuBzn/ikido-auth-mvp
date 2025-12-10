@@ -17,6 +17,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { createBrowserClient } from "@/lib/supabaseClient";
 import type { Database } from "@/types/supabase";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/use-toast";
 
 type ChildUser = Pick<
@@ -24,11 +25,108 @@ type ChildUser = Pick<
   "id" | "name" | "child_code"
 >;
 
-type Task = Database["public"]["Tables"]["tasks"]["Row"];
+type ChildTask = Database["public"]["Tables"]["child_tasks"]["Row"];
+type TaskTemplate = Database["public"]["Tables"]["tasks"]["Row"];
 
 type TasksManagementProps = {
   parentId: string;
   initialChildren: ChildUser[];
+};
+
+type TaskDisplayProps = {
+  task: ChildTask;
+  onEdit: () => void;
+  onDelete: () => void;
+  supabase: SupabaseClient<Database>;
+};
+
+const TaskDisplay = ({ task, onEdit, onDelete, supabase }: TaskDisplayProps) => {
+  const [taskTitle, setTaskTitle] = useState<string>("");
+  const [taskDescription, setTaskDescription] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadTaskTemplate = async () => {
+      const { data } = await supabase
+        .from("tasks")
+        .select("title, description")
+        .eq("id", task.task_id)
+        .maybeSingle();
+      
+      if (data) {
+        setTaskTitle(data.title);
+        setTaskDescription(data.description);
+      }
+      setLoading(false);
+    };
+
+    void loadTaskTemplate();
+  }, [task.task_id, supabase]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center gap-2 py-2">
+        <Loader2 className="size-4 animate-spin" />
+        <span className="text-sm text-white/70">Loading...</span>
+      </div>
+    );
+  }
+
+  const statusColors: Record<string, string> = {
+    pending: "text-yellow-400",
+    in_progress: "text-blue-400",
+    completed: "text-green-400",
+    approved: "text-green-500",
+    rejected: "text-red-400",
+  };
+
+  const statusLabels: Record<string, string> = {
+    pending: "○ Pending",
+    in_progress: "⏳ In Progress",
+    completed: "✓ Completed",
+    approved: "✓ Approved",
+    rejected: "✗ Rejected",
+  };
+
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div className="flex-1">
+        <p className="text-base font-semibold">{taskTitle}</p>
+        {taskDescription && (
+          <p className="mt-1 text-sm text-white/70">{taskDescription}</p>
+        )}
+        <div className="mt-2 flex items-center gap-4 text-xs text-white/60">
+          <span>
+            <span className="font-semibold text-[var(--brand-gold-400)]">
+              {task.points}
+            </span>{" "}
+            GGPoints
+          </span>
+          <span className={statusColors[task.status] || "text-yellow-400"}>
+            {statusLabels[task.status] || "○ Pending"}
+          </span>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        {task.status !== "approved" && task.status !== "rejected" && (
+          <Button
+            onClick={onEdit}
+            variant="ghost"
+            className="h-8 w-8 p-0"
+          >
+            <Edit2 className="size-4" />
+          </Button>
+        )}
+        <Button
+          onClick={onDelete}
+          variant="ghost"
+          className="h-8 w-8 p-0 text-red-400 hover:text-red-300"
+        >
+          <Trash2 className="size-4" />
+        </Button>
+      </div>
+    </div>
+  );
 };
 
 export const TasksManagement = ({
@@ -41,8 +139,13 @@ export const TasksManagement = ({
 
   const [children] = useState<ChildUser[]>(initialChildren);
   const [selectedChildId, setSelectedChildId] = useState<string>("");
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<ChildTask[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
+  
+  // Global tasks state
+  const [globalTasks, setGlobalTasks] = useState<TaskTemplate[]>([]);
+  const [loadingGlobalTasks, setLoadingGlobalTasks] = useState(false);
+  const [assigningTaskId, setAssigningTaskId] = useState<string | null>(null);
 
   // Task form state
   const [taskTitle, setTaskTitle] = useState("");
@@ -57,7 +160,33 @@ export const TasksManagement = ({
   const [editDescription, setEditDescription] = useState("");
   const [editPoints, setEditPoints] = useState(10);
 
-  // Load tasks when child is selected
+  // Load global tasks on mount
+  useEffect(() => {
+    const loadGlobalTasks = async () => {
+      setLoadingGlobalTasks(true);
+      try {
+        const response = await fetch("/api/parent/tasks/list");
+        if (!response.ok) {
+          throw new Error("Failed to load global tasks");
+        }
+        const data = await response.json();
+        setGlobalTasks(data || []);
+      } catch (cause) {
+        console.error("[tasks:loadGlobal] Error:", cause);
+        toast({
+          variant: "destructive",
+          title: "Error loading global tasks",
+          description: "Could not load available tasks.",
+        });
+      } finally {
+        setLoadingGlobalTasks(false);
+      }
+    };
+
+    void loadGlobalTasks();
+  }, [toast]);
+
+  // Load assigned tasks when child is selected
   useEffect(() => {
     if (!selectedChildId) {
       setTasks([]);
@@ -68,7 +197,7 @@ export const TasksManagement = ({
       setLoadingTasks(true);
       try {
         const { data, error: fetchError } = await supabase
-          .from("tasks")
+          .from("child_tasks")
           .select("*")
           .eq("child_user_id", selectedChildId)
           .order("created_at", { ascending: false });
@@ -77,7 +206,7 @@ export const TasksManagement = ({
           throw fetchError;
         }
 
-        setTasks((data ?? []) as Task[]);
+        setTasks((data ?? []) as ChildTask[]);
       } catch (cause) {
         console.error("[tasks:load] Error loading tasks:", cause);
         toast({
@@ -115,27 +244,65 @@ export const TasksManagement = ({
     setError(null);
 
     try {
-      const { data, error: insertError } = await supabase
+      // First create a custom task template
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData?.user) {
+        throw new Error("Not authenticated");
+      }
+
+      // Get parent id
+      const { data: parentData } = await supabase
+        .from("users")
+        .select("id")
+        .eq("auth_id", authData.user.id)
+        .eq("role", "parent")
+        .maybeSingle();
+
+      if (!parentData) {
+        throw new Error("Parent not found");
+      }
+
+      // Create task template
+      const { data: taskTemplate, error: templateError } = await supabase
         .from("tasks")
         .insert({
           title: taskTitle.trim(),
           description: taskDescription.trim() || null,
           points: taskPoints,
-          child_user_id: selectedChildId,
-          completed: false,
-        })
+          is_global: false,
+        } as any)
         .select()
         .maybeSingle();
 
-      if (insertError) {
-        throw insertError;
+      if (templateError || !taskTemplate) {
+        throw templateError || new Error("Failed to create task template");
       }
 
-      if (!data) {
-        throw new Error("Task was not created successfully.");
+      // Assign task to selected child using API
+      const assignResponse = await fetch("/api/parent/tasks/assign", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          task_id: taskTemplate.id,
+          child_user_id: selectedChildId,
+        }),
+      });
+
+      if (!assignResponse.ok) {
+        const errorData = await assignResponse.json();
+        throw new Error(errorData.message || "Failed to assign task");
       }
 
-      const newTask = data as Task;
+      const assignedTasks = await assignResponse.json();
+      const childTask = assignedTasks?.[0];
+
+      if (!childTask) {
+        throw new Error("Task was not assigned successfully.");
+      }
+
+      const newTask = childTask as ChildTask;
       setTasks((prev) => [newTask, ...prev]);
       setTaskTitle("");
       setTaskDescription("");
@@ -143,7 +310,7 @@ export const TasksManagement = ({
 
       toast({
         title: "Task created",
-        description: `Task "${newTask.title}" has been created.`,
+        description: `Task "${taskTitle.trim()}" has been created and assigned.`,
       });
     } catch (cause) {
       const message =
@@ -156,10 +323,17 @@ export const TasksManagement = ({
     }
   };
 
-  const handleStartEdit = (task: Task) => {
+  const handleStartEdit = async (task: ChildTask) => {
+    // Load task template to get title and description
+    const { data: taskTemplate } = await supabase
+      .from("tasks")
+      .select("title, description, points")
+      .eq("id", task.task_id)
+      .maybeSingle();
+
     setEditingTaskId(task.id);
-    setEditTitle(task.title);
-    setEditDescription(task.description || "");
+    setEditTitle(taskTemplate?.title || "");
+    setEditDescription(taskTemplate?.description || "");
     setEditPoints(task.points);
   };
 
@@ -182,11 +356,31 @@ export const TasksManagement = ({
     }
 
     try {
-      const { data, error: updateError } = await supabase
+      // Find the child task to get task_id
+      const currentTask = tasks.find((t) => t.id === taskId);
+      if (!currentTask) {
+        throw new Error("Task not found");
+      }
+
+      // Update task template
+      const { error: templateError } = await supabase
         .from("tasks")
         .update({
           title: editTitle.trim(),
           description: editDescription.trim() || null,
+          points
+: editPoints,
+        })
+        .eq("id", currentTask.task_id);
+
+      if (templateError) {
+        throw templateError;
+      }
+
+      // Update child_task points
+      const { data, error: updateError } = await supabase
+        .from("child_tasks")
+        .update({
           points: editPoints,
         })
         .eq("id", taskId)
@@ -201,7 +395,7 @@ export const TasksManagement = ({
         throw new Error("Task was not updated successfully.");
       }
 
-      const updatedTask = data as Task;
+      const updatedTask = data as ChildTask;
       setTasks((prev) =>
         prev.map((t) => (t.id === taskId ? updatedTask : t))
       );
@@ -209,7 +403,7 @@ export const TasksManagement = ({
 
       toast({
         title: "Task updated",
-        description: `Task "${updatedTask.title}" has been updated.`,
+        description: `Task "${editTitle.trim()}" has been updated.`,
       });
     } catch (cause) {
       const message =
@@ -220,14 +414,71 @@ export const TasksManagement = ({
     }
   };
 
+  const handleAssignGlobalTask = async (taskId: string) => {
+    if (!selectedChildId) {
+      setError("Please select a child first.");
+      return;
+    }
+
+    setAssigningTaskId(taskId);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/parent/tasks/assign", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          task_id: taskId,
+          child_user_id: selectedChildId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to assign task");
+      }
+
+      // Reload assigned tasks
+      const { data, error: fetchError } = await supabase
+        .from("child_tasks")
+        .select("*")
+        .eq("child_user_id", selectedChildId)
+        .order("created_at", { ascending: false });
+
+      if (!fetchError && data) {
+        setTasks((data ?? []) as ChildTask[]);
+      }
+
+      toast({
+        title: "Task assigned",
+        description: "The task has been assigned to your child.",
+      });
+    } catch (cause) {
+      const message =
+        cause instanceof Error
+          ? cause.message
+          : "Could not assign task. Please try again.";
+      setError(message);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: message,
+      });
+    } finally {
+      setAssigningTaskId(null);
+    }
+  };
+
   const handleDeleteTask = async (taskId: string) => {
-    if (!confirm("Are you sure you want to delete this task?")) {
+    if (!confirm("Are you sure you want to delete this task assignment?")) {
       return;
     }
 
     try {
       const { error: deleteError } = await supabase
-        .from("tasks")
+        .from("child_tasks")
         .delete()
         .eq("id", taskId);
 
@@ -238,8 +489,8 @@ export const TasksManagement = ({
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
 
       toast({
-        title: "Task deleted",
-        description: "The task has been removed.",
+        title: "Task assignment deleted",
+        description: "The task assignment has been removed.",
       });
     } catch (cause) {
       const message =
@@ -306,7 +557,91 @@ export const TasksManagement = ({
           </div>
 
           {selectedChildId && (
-            <form onSubmit={handleCreateTask} className="space-y-4">
+            <>
+              {/* Global Tasks Section */}
+              <div className="space-y-4">
+                <Label className="ikido-section-title text-[var(--brand-gold-200)] text-lg">
+                  Assign Global Tasks
+                </Label>
+                {loadingGlobalTasks ? (
+                  <div className="flex items-center justify-center gap-2 py-8 text-white/70">
+                    <Loader2 className="size-5 animate-spin" />
+                    <span>Loading available tasks...</span>
+                  </div>
+                ) : globalTasks.length === 0 ? (
+                  <div className="rounded-2xl bg-[#0b2f4c]/50 border border-white/10 p-6 text-center">
+                    <p className="text-white/60">No global tasks available.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {globalTasks.map((globalTask) => {
+                      const isAlreadyAssigned = tasks.some(
+                        (t) => t.task_id === globalTask.id
+                      );
+                      const isAssigning = assigningTaskId === globalTask.id;
+
+                      return (
+                        <div
+                          key={globalTask.id}
+                          className="rounded-2xl border-2 border-[var(--brand-gold-400)]/40 bg-[#0b2f4c] p-5 hover:border-[var(--brand-gold-400)]/60 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 space-y-2">
+                              <h3 className="text-lg font-bold text-white">
+                                {globalTask.title}
+                              </h3>
+                              {globalTask.description && (
+                                <p className="text-sm text-white/80 leading-relaxed">
+                                  {globalTask.description}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-2 pt-1">
+                                <span className="text-base font-bold text-[var(--brand-gold-400)]">
+                                  {globalTask.points}
+                                </span>
+                                <span className="text-sm text-[var(--brand-gold-400)]/80">
+                                  GGPoints
+                                </span>
+                              </div>
+                            </div>
+                            <Button
+                              onClick={() => handleAssignGlobalTask(globalTask.id)}
+                              disabled={isAlreadyAssigned || isAssigning}
+                              className={`ikido-button ikido-button--gold ikido-button--pill text-sm font-semibold px-6 py-3 min-w-[100px] ${
+                                isAlreadyAssigned
+                                  ? "bg-green-500/20 border-green-400/50 text-green-300 hover:bg-green-500/20 cursor-not-allowed"
+                                  : ""
+                              }`}
+                            >
+                              {isAssigning ? (
+                                <>
+                                  <Loader2 className="mr-2 size-4 animate-spin" />
+                                  Assigning...
+                                </>
+                              ) : isAlreadyAssigned ? (
+                                <>
+                                  <Check className="mr-2 size-4" />
+                                  Assigned
+                                </>
+                              ) : (
+                                "Assign"
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-white/10 pt-4">
+                <Label className="ikido-section-title text-[var(--brand-gold-200)] mb-4 block">
+                  Or Create Custom Task
+                </Label>
+              </div>
+
+              <form onSubmit={handleCreateTask} className="space-y-4">
               <div className="space-y-2">
                 <Label
                   htmlFor="task-title"
@@ -377,6 +712,7 @@ export const TasksManagement = ({
                 )}
               </Button>
             </form>
+            </>
           )}
         </section>
 
@@ -443,49 +779,12 @@ export const TasksManagement = ({
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <p className="text-base font-semibold">{task.title}</p>
-                          {task.description && (
-                            <p className="mt-1 text-sm text-white/70">{task.description}</p>
-                          )}
-                          <div className="mt-2 flex items-center gap-4 text-xs text-white/60">
-                            <span>
-                              <span className="font-semibold text-[var(--brand-gold-400)]">
-                                {task.points}
-                              </span>{" "}
-                              GGPoints
-                            </span>
-                            <span
-                              className={
-                                task.completed
-                                  ? "text-green-400"
-                                  : "text-yellow-400"
-                              }
-                            >
-                              {task.completed ? "✓ Completed" : "○ Pending"}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          {!task.completed && (
-                            <Button
-                              onClick={() => handleStartEdit(task)}
-                              variant="ghost"
-                              className="h-8 w-8 p-0"
-                            >
-                              <Edit2 className="size-4" />
-                            </Button>
-                          )}
-                          <Button
-                            onClick={() => handleDeleteTask(task.id)}
-                            variant="ghost"
-                            className="h-8 w-8 p-0 text-red-400 hover:text-red-300"
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </div>
-                      </div>
+                      <TaskDisplay
+                        task={task}
+                        onEdit={() => void handleStartEdit(task)}
+                        onDelete={() => handleDeleteTask(task.id)}
+                        supabase={supabase}
+                      />
                     )}
                   </div>
                 ))}
