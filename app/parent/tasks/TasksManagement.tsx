@@ -40,6 +40,64 @@ type TaskDisplayProps = {
   supabase: SupabaseClient<Database>;
 };
 
+type TaskCardProps = {
+  task: TaskTemplate;
+  isAlreadyAssigned: boolean;
+  isAssigning: boolean;
+  onAssign: (taskId: string) => void;
+};
+
+// TaskCard component for global tasks
+const TaskCard = ({
+  task,
+  isAlreadyAssigned,
+  isAssigning,
+  onAssign,
+}: TaskCardProps) => {
+  return (
+    <div className="flex flex-col rounded-xl border-2 border-[var(--brand-gold-400)]/40 bg-[#0b2f4c] p-4 shadow-md transition-all hover:border-[var(--brand-gold-400)]/60 hover:shadow-lg md:p-5">
+      <div className="flex flex-1 flex-col gap-3">
+        <h3 className="text-lg font-semibold text-white">{task.title}</h3>
+        {task.description && (
+          <p className="flex-1 text-sm text-white/70 leading-relaxed">
+            {task.description}
+          </p>
+        )}
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-yellow-400">
+            {task.points} GGPoints
+          </span>
+        </div>
+      </div>
+      <div className="mt-4 flex justify-end">
+        <Button
+          onClick={() => onAssign(task.id)}
+          disabled={isAlreadyAssigned || isAssigning}
+          className={`rounded-full px-6 py-2 text-sm font-semibold transition-all ${
+            isAlreadyAssigned
+              ? "bg-green-500/20 border border-green-400/50 text-green-300 hover:bg-green-500/20 cursor-not-allowed"
+              : "bg-yellow-400 text-blue-900 hover:bg-yellow-300"
+          }`}
+        >
+          {isAssigning ? (
+            <>
+              <Loader2 className="mr-2 size-4 animate-spin" />
+              Assigning...
+            </>
+          ) : isAlreadyAssigned ? (
+            <>
+              <Check className="mr-2 size-4" />
+              Assigned
+            </>
+          ) : (
+            "Assign"
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 const TaskDisplay = ({ task, onEdit, onDelete, supabase }: TaskDisplayProps) => {
   const [taskTitle, setTaskTitle] = useState<string>("");
   const [taskDescription, setTaskDescription] = useState<string | null>(null);
@@ -569,11 +627,11 @@ export const TasksManagement = ({
                     <span>Loading available tasks...</span>
                   </div>
                 ) : globalTasks.length === 0 ? (
-                  <div className="rounded-2xl bg-[#0b2f4c]/50 border border-white/10 p-6 text-center">
+                  <div className="rounded-xl bg-[#0b2f4c]/50 border border-white/10 p-6 text-center shadow-sm">
                     <p className="text-white/60">No global tasks available.</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {globalTasks.map((globalTask) => {
                       const isAlreadyAssigned = tasks.some(
                         (t) => t.task_id === globalTask.id
@@ -581,54 +639,13 @@ export const TasksManagement = ({
                       const isAssigning = assigningTaskId === globalTask.id;
 
                       return (
-                        <div
+                        <TaskCard
                           key={globalTask.id}
-                          className="rounded-2xl border-2 border-[var(--brand-gold-400)]/40 bg-[#0b2f4c] p-5 hover:border-[var(--brand-gold-400)]/60 transition-colors"
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1 space-y-2">
-                              <h3 className="text-lg font-bold text-white">
-                                {globalTask.title}
-                              </h3>
-                              {globalTask.description && (
-                                <p className="text-sm text-white/80 leading-relaxed">
-                                  {globalTask.description}
-                                </p>
-                              )}
-                              <div className="flex items-center gap-2 pt-1">
-                                <span className="text-base font-bold text-[var(--brand-gold-400)]">
-                                  {globalTask.points}
-                                </span>
-                                <span className="text-sm text-[var(--brand-gold-400)]/80">
-                                  GGPoints
-                                </span>
-                              </div>
-                            </div>
-                            <Button
-                              onClick={() => handleAssignGlobalTask(globalTask.id)}
-                              disabled={isAlreadyAssigned || isAssigning}
-                              className={`ikido-button ikido-button--gold ikido-button--pill text-sm font-semibold px-6 py-3 min-w-[100px] ${
-                                isAlreadyAssigned
-                                  ? "bg-green-500/20 border-green-400/50 text-green-300 hover:bg-green-500/20 cursor-not-allowed"
-                                  : ""
-                              }`}
-                            >
-                              {isAssigning ? (
-                                <>
-                                  <Loader2 className="mr-2 size-4 animate-spin" />
-                                  Assigning...
-                                </>
-                              ) : isAlreadyAssigned ? (
-                                <>
-                                  <Check className="mr-2 size-4" />
-                                  Assigned
-                                </>
-                              ) : (
-                                "Assign"
-                              )}
-                            </Button>
-                          </div>
-                        </div>
+                          task={globalTask}
+                          isAlreadyAssigned={isAlreadyAssigned}
+                          isAssigning={isAssigning}
+                          onAssign={handleAssignGlobalTask}
+                        />
                       );
                     })}
                   </div>
