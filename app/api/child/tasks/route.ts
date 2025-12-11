@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
 
     console.log("[child:tasks] Fetching tasks for child", {
       child_code: body.child_code,
+      family_code: body.family_code,
     });
 
     const tasks = await getTasksForChildByCodes({
@@ -60,23 +61,61 @@ export async function POST(request: NextRequest) {
 
     console.log("[child:tasks] Found tasks", {
       count: tasks.length,
+      task_ids: tasks.map(t => t.id),
     });
 
     // Transform tasks to the required format
-    const formattedTasks = tasks.map((task) => ({
-      child_task_id: task.id,
-      task_id: task.task_id,
-      title: task.task?.title || "Unknown Task",
-      description: task.task?.description || null,
-      points: task.task?.points || 0,
-      completed: task.completed,
-      completed_at: task.completed_at,
-      created_at: task.created_at,
-    }));
+    // Use points from child_tasks (assigned points) or fallback to task template points
+    const formattedTasks = tasks.map((task) => {
+      // Get points from child_task if available, otherwise from task template
+      // Note: child_task.points should be available from the query
+      const taskPoints = (task as any).points ?? task.task?.points ?? 0;
+      
+      return {
+        child_task_id: task.id,
+        task_id: task.task_id,
+        title: task.task?.title || "Unknown Task",
+        description: task.task?.description || null,
+        points: taskPoints,
+        completed: task.completed,
+        completed_at: task.completed_at,
+        created_at: task.created_at,
+      };
+    });
+    
+    console.log("[child:tasks] Formatted tasks", {
+      count: formattedTasks.length,
+      sample: formattedTasks[0],
+    });
+
+    // Get total points for the child
+    const { data: childData } = await adminClient
+      .from("users")
+      .select("id")
+      .eq("child_code", body.child_code.toUpperCase())
+      .eq("role", "child")
+      .single();
+
+    let totalPoints = 0;
+    if (childData) {
+      try {
+        const { getTotalPointsForChild } = await import(
+          "@/lib/repositories/childTaskRepository"
+        );
+        totalPoints = await getTotalPointsForChild({
+          childId: childData.id,
+          supabase: adminClient,
+        });
+      } catch (pointsError) {
+        console.error("[child:tasks] Failed to get total points:", pointsError);
+        // Continue without points if calculation fails
+      }
+    }
 
     return NextResponse.json(
       {
         tasks: formattedTasks,
+        ggpoints: totalPoints,
       },
       { status: 200 }
     );
@@ -101,15 +140,23 @@ export async function POST(request: NextRequest) {
     console.error("[child:tasks] Unexpected error", error);
 
     const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    // Handle schema/column errors specifically
     if (
+      errorMessage.includes("does not exist") ||
       errorMessage.includes("Could not find the table") ||
-      errorMessage.includes("does not exist")
+      errorMessage.includes("column")
     ) {
+      const missingColumn = errorMessage.match(/column\s+[\w.]+\.(\w+)\s+does not exist/i)?.[1] || "unknown";
+      console.error("[child:tasks] Schema error detected", {
+        missingColumn,
+        fullError: errorMessage,
+      });
+      
       return NextResponse.json(
         {
           error: "DATABASE_ERROR",
-          message:
-            "Database tables not found. Please ensure the SQL migrations have been executed in Supabase SQL Editor.",
+          message: `Database schema issue: Column '${missingColumn}' does not exist. Please verify the database schema matches the expected structure. Error: ${errorMessage}`,
         },
         { status: 500 }
       );
@@ -118,7 +165,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: "DATABASE_ERROR",
-        message: "Failed to list tasks for child",
+        message: `Failed to list tasks for child: ${errorMessage}`,
       },
       { status: 500 }
     );

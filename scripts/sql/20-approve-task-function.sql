@@ -24,6 +24,7 @@ DECLARE
   v_child_id uuid;
   v_task_id uuid;
   v_points integer;
+  v_status text;
 BEGIN
   -- Resolve parent internal id from auth user id
   SELECT u.id
@@ -39,8 +40,8 @@ BEGIN
   END IF;
 
   -- Lock the child_task row and validate ownership
-  SELECT ct.child_id, ct.task_id, ct.points
-  INTO v_child_id, v_task_id, v_points
+  SELECT ct.child_id, ct.task_id, ct.points, ct.status
+  INTO v_child_id, v_task_id, v_points, v_status
   FROM public.child_tasks ct
   WHERE ct.id = p_child_task_id
     AND ct.parent_id = v_parent_id
@@ -51,30 +52,46 @@ BEGIN
       USING ERRCODE = 'P0002';
   END IF;
 
-  -- Ensure non-negative points
-  IF v_points IS NULL OR v_points < 0 THEN
-    -- Fallback to task.points
- if points is invalid
-    SELECT t.points
+  -- Prevent duplicate approvals: only approve if status is 'completed'
+  IF v_status = 'approved' THEN
+    RAISE EXCEPTION 'Task is already approved. Points have already been added.'
+      USING ERRCODE = 'P0004';
+  END IF;
 
+  IF v_status != 'completed' THEN
+    RAISE EXCEPTION 'Task must be completed before approval. Current status: %', v_status
+      USING ERRCODE = 'P0005';
+  END IF;
+
+  -- Validate points: must be between 1 and 100
+  IF v_points IS NULL OR v_points < 1 OR v_points > 100 THEN
+    -- Fallback to task.points
+    SELECT t.points
     INTO v_points
     FROM public.tasks t
     WHERE t.id = v_task_id;
 
-    IF v_points IS NULL OR v_points < 0 THEN
-      RAISE EXCEPTION 'Invalid points configuration for child task %', p_child_task_id
+    IF v_points IS NULL OR v_points < 1 OR v_points > 100 THEN
+      RAISE EXCEPTION 'Invalid points configuration for child task %. Points must be between 1 and 100.', p_child_task_id
         USING ERRCODE = 'P0003';
     END IF;
   END IF;
 
   -- Transactional updates (will rollback entirely on any error)
 
-  -- 1) Approve child_task
+  -- 1) Approve child_task (only if status is 'completed')
   UPDATE public.child_tasks
   SET
     status = 'approved',
     approved_at = now()
-  WHERE id = p_child_task_id;
+  WHERE id = p_child_task_id
+    AND status = 'completed';
+  
+  -- Verify update succeeded
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Failed to approve task. Task may have been modified.'
+      USING ERRCODE = 'P0006';
+  END IF;
 
   -- 2) Insert ledger entry
   INSERT INTO public.ggpoints_ledger (

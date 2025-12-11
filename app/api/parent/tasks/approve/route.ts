@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
       if (error.code === "UNAUTHORIZED") status = 401;
       else if (error.code === "FORBIDDEN") status = 403;
       else if (error.code === "CHILD_TASK_NOT_FOUND") status = 404;
+      else if (error.code === "INVALID_POINTS" || error.code === "INVALID_STATUS") status = 400;
 
       return NextResponse.json(
         { error: error.code, message: error.message },

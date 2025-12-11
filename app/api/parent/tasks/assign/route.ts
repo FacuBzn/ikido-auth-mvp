@@ -51,6 +51,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate points if provided
+    if (body.points !== undefined) {
+      if (typeof body.points !== "number" || Number.isNaN(body.points)) {
+        return NextResponse.json(
+          {
+            error: "INVALID_POINTS",
+            message: "Points must be a number between 1 and 100.",
+          },
+          { status: 400 }
+        );
+      }
+      if (body.points < 1 || body.points > 100) {
+        return NextResponse.json(
+          {
+            error: "INVALID_POINTS",
+            message: "Points must be a number between 1 and 100.",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const childIds = Array.isArray(body.child_user_id)
       ? body.child_user_id
       : [body.child_user_id];
@@ -95,6 +117,7 @@ export async function POST(request: NextRequest) {
         error.code === "CHILD_TASK_NOT_FOUND"
       )
         status = 404;
+      else if (error.code === "INVALID_POINTS") status = 400;
 
       return NextResponse.json(
         { error: error.code, message: error.message },

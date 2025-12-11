@@ -21,6 +21,7 @@ export type TaskErrorCode =
   | "FORBIDDEN"
   | "TASK_NOT_FOUND"
   | "INVALID_INPUT"
+  | "INVALID_POINTS"
   | "DATABASE_ERROR";
 
 export class TaskError extends Error {
@@ -159,6 +160,27 @@ export async function getTaskById(
 }
 
 /**
+ * Validate points value (1-100)
+ */
+function validatePoints(points: unknown): number {
+  if (typeof points !== "number" || Number.isNaN(points)) {
+    throw new TaskError(
+      "INVALID_POINTS",
+      "Points must be a number between 1 and 100."
+    );
+  }
+
+  if (points < 1 || points > 100) {
+    throw new TaskError(
+      "INVALID_POINTS",
+      "Points must be a number between 1 and 100."
+    );
+  }
+
+  return points;
+}
+
+/**
  * CREATE CUSTOM TASK
  * Creates a new custom task for this parent
  */
@@ -175,16 +197,15 @@ export async function createCustomTask(params: {
     throw new TaskError("INVALID_INPUT", "Task title is required");
   }
 
-  if (points < 0) {
-    throw new TaskError("INVALID_INPUT", "Points must be non-negative");
-  }
+  // Validate points: must be number between 1 and 100
+  const validatedPoints = validatePoints(points);
 
   const parentId = await getParentIdFromAuthId(parentAuthId, supabase);
 
   console.log("[tasks:createCustomTask] Creating task", {
     parentId,
     title,
-    points,
+    points: validatedPoints,
   });
 
   const { data, error } = await supabase
@@ -192,7 +213,7 @@ export async function createCustomTask(params: {
     .insert({
       title: title.trim(),
       description: description?.trim() || null,
-      points,
+      points: validatedPoints,
       is_global: false,
     })
     .select()
@@ -248,10 +269,9 @@ export async function updateCustomTask(params: {
   if (description !== undefined)
     updates.description = description?.trim() || null;
   if (points !== undefined) {
-    if (points < 0) {
-      throw new TaskError("INVALID_INPUT", "Points must be non-negative");
-    }
-    updates.points = points;
+    // Validate points: must be number between 1 and 100
+    const validatedPoints = validatePoints(points);
+    updates.points = validatedPoints;
   }
 
   const { data, error } = await supabase

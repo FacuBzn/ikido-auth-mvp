@@ -20,6 +20,8 @@ export type PointsErrorCode =
   | "UNAUTHORIZED"
   | "FORBIDDEN"
   | "CHILD_TASK_NOT_FOUND"
+  | "INVALID_POINTS"
+  | "INVALID_STATUS"
   | "DATABASE_ERROR";
 
 export class PointsError extends Error {
@@ -115,6 +117,24 @@ export async function approveTaskAndAddPoints(params: {
       throw new PointsError(
         "CHILD_TASK_NOT_FOUND",
         "Task not found or doesn't belong to you"
+      );
+    }
+    if (
+      error.message.includes("Points must be between 1 and 100") ||
+      error.message.includes("Invalid points configuration")
+    ) {
+      throw new PointsError(
+        "INVALID_POINTS",
+        "Points must be a number between 1 and 100."
+      );
+    }
+    if (
+      error.message.includes("already approved") ||
+      error.message.includes("must be completed before approval")
+    ) {
+      throw new PointsError(
+        "INVALID_STATUS",
+        error.message || "Task cannot be approved in its current status"
       );
     }
 

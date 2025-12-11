@@ -29,6 +29,8 @@ export function ChildDashboardClient() {
   const [tasks, setTasks] = useState<TaskFromAPI[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
+  const [ggpoints, setGgpoints] = useState<number>(0);
+  const [loadingPoints, setLoadingPoints] = useState(false);
   const { toast } = useToast();
 
   // Hooks must be called unconditionally
@@ -92,6 +94,11 @@ export function ChildDashboardClient() {
 
         const data = await response.json();
         setTasks(data.tasks || []);
+        
+        // Update GGPoints if provided
+        if (data.ggpoints !== undefined) {
+          setGgpoints(data.ggpoints);
+        }
       } catch (error) {
         console.error("[child:dashboard] Failed to load tasks:", error);
         toast({
@@ -105,6 +112,38 @@ export function ChildDashboardClient() {
     };
 
     void loadTasks();
+    
+    // Load GGPoints separately
+    const loadPoints = async () => {
+      if (!child?.child_code || !child?.family_code) {
+        return;
+      }
+      
+      setLoadingPoints(true);
+      try {
+        const response = await fetch("/api/child/points", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            child_code: child.child_code,
+            family_code: child.family_code,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setGgpoints(data.ggpoints || 0);
+        }
+      } catch (error) {
+        console.error("[child:dashboard] Failed to load points:", error);
+      } finally {
+        setLoadingPoints(false);
+      }
+    };
+
+    void loadPoints();
   }, [child?.child_code, child?.family_code, toast]);
 
   const handleCompleteTask = async (taskId: string) => {
@@ -146,6 +185,28 @@ export function ChildDashboardClient() {
       if (reloadResponse.ok) {
         const reloadData = await reloadResponse.json();
         setTasks(reloadData.tasks || []);
+        if (reloadData.ggpoints !== undefined) {
+          setGgpoints(reloadData.ggpoints);
+        }
+      }
+      
+      // Also reload points separately
+      if (child?.child_code && child?.family_code) {
+        const pointsResponse = await fetch("/api/child/points", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            child_code: child.child_code,
+            family_code: child.family_code,
+          }),
+        });
+        
+        if (pointsResponse.ok) {
+          const pointsData = await pointsResponse.json();
+          setGgpoints(pointsData.ggpoints || 0);
+        }
       }
 
       toast({
@@ -223,9 +284,16 @@ export function ChildDashboardClient() {
         <Card className="bg-white/10 border-yellow-400/30 backdrop-blur">
           <CardContent className="p-6">
             <p className="text-white/70 text-sm mb-1">Your GGPoints</p>
-            <p className="text-4xl font-bold text-yellow-400">
-              {child.points_balance || 0}
-            </p>
+            {loadingPoints ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-6 h-6 text-yellow-400 animate-spin" />
+                <span className="text-white/70">Loading...</span>
+              </div>
+            ) : (
+              <p className="text-4xl font-bold text-yellow-400">
+                {ggpoints}
+              </p>
+            )}
           </CardContent>
         </Card>
 

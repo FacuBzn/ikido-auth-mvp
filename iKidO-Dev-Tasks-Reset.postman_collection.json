@@ -1,0 +1,303 @@
+{
+	"info": {
+		"_postman_id": "ikido-dev-tasks-reset",
+		"name": "iKidO - Dev Tasks Reset",
+		"description": "Development-only collection for resetting the tasks module.\n\n⚠️ **WARNING**: These endpoints are ONLY available in development mode.\n\n## Setup\n\n1. Create a Postman environment variable:\n   - Variable: `dev_admin_key`\n   - Value: Your `DEV_ADMIN_KEY` from `.env.local`\n\n2. Set the `base_url` variable:\n   - Variable: `base_url`\n   - Value: `http://localhost:3000` (or your dev server URL)\n\n## Usage\n\nRun the request to reset:\n- All child_task assignments\n- All children's points_balance to 0\n- All ggpoints_ledger entries\n- All custom tasks (preserves global tasks)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Reset Tasks Module",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Test response structure",
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response has success field\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('success');",
+							"    pm.expect(jsonData.success).to.be.true;",
+							"});",
+							"",
+							"pm.test(\"Response has deleted counts\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('deleted_child_tasks');",
+							"    pm.expect(jsonData).to.have.property('deleted_ledger_entries');",
+							"    pm.expect(jsonData).to.have.property('deleted_custom_tasks');",
+							"    pm.expect(jsonData).to.have.property('cleared_points');",
+							"});",
+							"",
+							"// Log response for debugging",
+							"console.log(\"Reset completed:\", pm.response.json());"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// Validate required environment variables",
+							"if (!pm.environment.get('dev_admin_key')) {",
+							"    console.warn('⚠️ Warning: dev_admin_key not set in environment');",
+							"    console.warn('Please set dev_admin_key in your Postman environment');",
+							"}",
+							"",
+							"if (!pm.environment.get('base_url')) {",
+							"    console.warn('⚠️ Warning: base_url not set, using default');",
+							"    pm.environment.set('base_url', 'http://localhost:3000');",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "x-admin-key",
+						"value": "{{dev_admin_key}}",
+						"type": "text",
+						"description": "Admin key from DEV_ADMIN_KEY environment variable"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/dev/tasks/reset",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"dev",
+						"tasks",
+						"reset"
+					]
+				},
+				"description": "Resets the entire tasks module for development testing.\n\n**Operations performed:**\n1. Delete all child_task assignments\n2. Reset all children's points_balance to 0\n3. Clear all ggpoints_ledger entries\n4. Delete all custom tasks (is_global = false)\n5. Preserve global tasks (is_global = true)\n\n**Security:**\n- Only works in development mode (NODE_ENV !== 'production')\n- Requires x-admin-key header with valid DEV_ADMIN_KEY\n\n**Expected Response (200 OK):**\n```json\n{\n  \"success\": true,\n  \"message\": \"Tasks, child assignments, and GGPoints have been fully reset for development testing.\",\n  \"deleted_child_tasks\": 15,\n  \"cleared_points\": true,\n  \"deleted_ledger_entries\": 23,\n  \"deleted_custom_tasks\": 5\n}\n```\n\n**Error Responses:**\n- **403 FORBIDDEN**: Endpoint accessed in production\n- **401 UNAUTHORIZED**: Missing or invalid admin key"
+			},
+			"response": [
+				{
+					"name": "Success - Reset Completed",
+					"originalRequest": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-admin-key",
+								"value": "{{dev_admin_key}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/dev/tasks/reset",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"dev",
+								"tasks",
+								"reset"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"success\": true,\n    \"message\": \"Tasks, child assignments, and GGPoints have been fully reset for development testing.\",\n    \"deleted_child_tasks\": 15,\n    \"cleared_points\": true,\n    \"deleted_ledger_entries\": 23,\n    \"deleted_custom_tasks\": 5\n}"
+				},
+				{
+					"name": "Error - Production Mode",
+					"originalRequest": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-admin-key",
+								"value": "{{dev_admin_key}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/dev/tasks/reset",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"dev",
+								"tasks",
+								"reset"
+							]
+						}
+					},
+					"status": "Forbidden",
+					"code": 403,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"error\": \"FORBIDDEN\",\n    \"message\": \"This endpoint is only available in development mode.\"\n}"
+				},
+				{
+					"name": "Error - Invalid API Key",
+					"originalRequest": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-admin-key",
+								"value": "wrong-key"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/dev/tasks/reset",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"dev",
+								"tasks",
+								"reset"
+							]
+						}
+					},
+					"status": "Unauthorized",
+					"code": 401,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"error\": \"UNAUTHORIZED\",\n    \"message\": \"Invalid admin key.\"\n}"
+				},
+				{
+					"name": "Error - Missing API Key",
+					"originalRequest": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/dev/tasks/reset",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"dev",
+								"tasks",
+								"reset"
+							]
+						}
+					},
+					"status": "Unauthorized",
+					"code": 401,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"error\": \"UNAUTHORIZED\",\n    \"message\": \"Missing x-admin-key header.\"\n}"
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "dev_admin_key",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
+

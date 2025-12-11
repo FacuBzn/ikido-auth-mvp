@@ -254,23 +254,51 @@ export const TasksManagement = ({
     const loadTasks = async () => {
       setLoadingTasks(true);
       try {
+        console.log("[tasks:load] Loading tasks for child", {
+          child_id: selectedChildId,
+          using_column: "child_id",
+        });
+        
         const { data, error: fetchError } = await supabase
           .from("child_tasks")
           .select("*")
-          .eq("child_user_id", selectedChildId)
-          .order("created_at", { ascending: false });
+          .eq("child_id", selectedChildId)
+          .order("assigned_at", { ascending: false });
 
         if (fetchError) {
+          console.error("[tasks:load] Supabase error:", {
+            error: fetchError,
+            errorCode: fetchError.code,
+            errorMessage: fetchError.message,
+            errorDetails: fetchError.details,
+            errorHint: fetchError.hint,
+            query_column: "child_id",
+            selectedChildId,
+          });
           throw fetchError;
         }
+
+        console.log("[tasks:load] Tasks loaded successfully", {
+          count: data?.length || 0,
+          child_id: selectedChildId,
+        });
 
         setTasks((data ?? []) as ChildTask[]);
       } catch (cause) {
         console.error("[tasks:load] Error loading tasks:", cause);
+        
+        const errorMessage = cause instanceof Error ? cause.message : String(cause);
+        const isSchemaError = 
+          errorMessage.includes("child_user_id does not exist") ||
+          errorMessage.includes("child_id does not exist") ||
+          errorMessage.includes("column") && errorMessage.includes("does not exist");
+        
         toast({
           variant: "destructive",
           title: "Error loading tasks",
-          description: "Could not load tasks. Please try again.",
+          description: isSchemaError
+            ? "Database schema issue. Please run scripts/sql/23-fix-child-tasks-schema.sql in Supabase SQL Editor."
+            : "Could not load tasks. Please try again.",
         });
       } finally {
         setLoadingTasks(false);
@@ -499,13 +527,28 @@ export const TasksManagement = ({
       }
 
       // Reload assigned tasks
+      console.log("[tasks:assignGlobal] Reloading tasks for child", {
+        child_id: selectedChildId,
+        using_column: "child_id",
+      });
+      
       const { data, error: fetchError } = await supabase
         .from("child_tasks")
         .select("*")
-        .eq("child_user_id", selectedChildId)
-        .order("created_at", { ascending: false });
+        .eq("child_id", selectedChildId)
+        .order("assigned_at", { ascending: false });
 
-      if (!fetchError && data) {
+      if (fetchError) {
+        console.error("[tasks:assignGlobal] Reload error:", {
+          error: fetchError,
+          errorCode: fetchError.code,
+          errorMessage: fetchError.message,
+        });
+      } else if (data) {
+        console.log("[tasks:assignGlobal] Tasks reloaded", {
+          count: data.length,
+          child_id: selectedChildId,
+        });
         setTasks((data ?? []) as ChildTask[]);
       }
 
