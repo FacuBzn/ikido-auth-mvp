@@ -18,7 +18,7 @@ import { createBrowserClient } from "@/lib/supabaseClient";
 import type { Database } from "@/types/supabase";
 
 type UsersRow = Database["public"]["Tables"]["users"]["Row"];
-type TasksRow = Database["public"]["Tables"]["tasks"]["Row"];
+type ChildTasksRow = Database["public"]["Tables"]["child_tasks"]["Row"];
 type RewardsRow = Database["public"]["Tables"]["rewards"]["Row"];
 
 type ChildSummary = {
@@ -75,13 +75,13 @@ export const ChildrenSummaryModal = ({ parentId }: ChildrenSummaryModalProps) =>
 
         const childIds = typedChildren.map((child) => child.id);
 
-        const [tasksResult, rewardsResult] = await Promise.all([
+        const [childTasksResult, rewardsResult] = await Promise.all([
           childIds.length > 0
             ? supabase
-                .from("tasks")
-                .select("child_user_id, points, completed")
-                .in("child_user_id", childIds)
-            : Promise.resolve({ data: [] as TasksRow[], error: null }),
+                .from("child_tasks")
+                .select("child_id, points, status")
+                .in("child_id", childIds)
+            : Promise.resolve({ data: [] as ChildTasksRow[], error: null }),
           childIds.length > 0
             ? supabase
                 .from("rewards")
@@ -90,24 +90,29 @@ export const ChildrenSummaryModal = ({ parentId }: ChildrenSummaryModalProps) =>
             : Promise.resolve({ data: [] as RewardsRow[], error: null }),
         ]);
 
-        if (tasksResult.error) {
-          throw tasksResult.error;
+        if (childTasksResult.error) {
+          throw childTasksResult.error;
         }
 
         if (rewardsResult.error) {
           throw rewardsResult.error;
         }
 
-        const tasks = (tasksResult.data ?? []) as TasksRow[];
+        const childTasks = (childTasksResult.data ?? []) as ChildTasksRow[];
         const rewards = (rewardsResult.data ?? []) as RewardsRow[];
 
         const computedSummary = typedChildren.map<ChildSummary>((child) => {
-          const childTasks = tasks.filter((task) => task.child_user_id === child.id);
+          const tasksForChild = childTasks.filter((task) => task.child_id === child.id);
           const childRewards = rewards.filter((reward) => reward.child_user_id === child.id);
 
-          const completedTasks = childTasks.filter((task) => task.completed).length;
-          const earned = childTasks
-            .filter((task) => task.completed)
+          // Count completed tasks (status = 'completed' or 'approved')
+          const completedTasks = tasksForChild.filter(
+            (task) => task.status === "completed" || task.status === "approved"
+          ).length;
+          
+          // Calculate earned points from approved tasks only
+          const earned = tasksForChild
+            .filter((task) => task.status === "approved")
             .reduce((acc, task) => acc + (task.points ?? 0), 0);
 
           const claimedRewards = childRewards.filter((reward) => reward.claimed).length;

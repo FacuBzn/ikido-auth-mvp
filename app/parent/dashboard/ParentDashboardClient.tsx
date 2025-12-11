@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { useSessionStore, type Parent, type Child } from "@/store/useSessionStore";
-import { Copy, Plus, LogOut } from "lucide-react";
+import { Copy, Plus, LogOut, CheckSquare } from "lucide-react";
+import Link from "next/link";
 
 type ParentDashboardClientProps = {
   parent: Parent;
@@ -139,6 +140,30 @@ export function ParentDashboardClient({
               >
                 <Copy className="w-4 h-4 mr-2" />
                 {copied ? "Copied!" : "Copy"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tasks Management Card */}
+        <Card className="bg-white/10 border-yellow-400/30 backdrop-blur">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-white mb-2">Manage Tasks</h2>
+                <p className="text-white/70 text-sm">
+                  Assign tasks to your children and track their progress
+                </p>
+              </div>
+              <Button
+                asChild
+                size="lg"
+                className="bg-yellow-400 text-[#0F4C7D] hover:bg-yellow-300"
+              >
+                <Link href="/parent/tasks">
+                  <CheckSquare className="w-5 h-5 mr-2" />
+                  Go to Tasks
+                </Link>
               </Button>
             </div>
           </CardContent>
