@@ -14,7 +14,6 @@ import type { Database } from "@/types/supabase";
 
 type Db = Database["public"]["Tables"];
 type TaskRow = Db["tasks"]["Row"];
-type UserRow = Db["users"]["Row"];
 
 export type TaskErrorCode =
   | "UNAUTHORIZED"

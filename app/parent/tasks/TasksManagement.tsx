@@ -356,7 +356,7 @@ export const TasksManagement = ({
           description: taskDescription.trim() || null,
           points: taskPoints,
           is_global: false,
-        } as any)
+        })
         .select()
         .maybeSingle();
 

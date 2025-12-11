@@ -24,6 +24,11 @@ type Db = Database["public"]["Tables"];
 type ChildTaskRow = Db["child_tasks"]["Row"];
 type TaskRow = Db["tasks"]["Row"];
 
+// Type for child_tasks query result with joined tasks
+type ChildTaskRowWithTask = ChildTaskRow & {
+  tasks?: TaskRow | null;
+};
+
 export type ChildTaskErrorCode =
   | "UNAUTHORIZED"
   | "FORBIDDEN"
@@ -44,7 +49,7 @@ export class ChildTaskError extends Error {
 }
 
 const mapChildTaskRow = (
-  row: ChildTaskRow | any,
+  row: ChildTaskRow | ChildTaskRowWithTask,
   task?: TaskRow
 ): ChildTaskInstance => {
   // Map from database schema to domain model
@@ -367,7 +372,7 @@ export async function getTasksForChild(params: {
   });
 
   return (
-    data?.map((row: any) => mapChildTaskRow(row, row.tasks || undefined)) || []
+    data?.map((row: ChildTaskRowWithTask) => mapChildTaskRow(row, row.tasks || undefined)) || []
   );
 }
 
@@ -473,21 +478,21 @@ export async function getTasksForChildByCodes(params: {
     found_count: data?.length || 0,
     has_data: !!data,
     first_task: data && Array.isArray(data) && data.length > 0 ? {
-      id: (data[0] as any).id,
-      child_id: (data[0] as any).child_id,
-      task_id: (data[0] as any).task_id,
-      status: (data[0] as any).status,
-      points: (data[0] as any).points,
-      assigned_at: (data[0] as any).assigned_at,
-      completed_at: (data[0] as any).completed_at,
-      task_title: (data[0] as any).tasks?.title,
-      has_task_join: !!(data[0] as any).tasks,
+      id: (data[0] as ChildTaskRowWithTask).id,
+      child_id: (data[0] as ChildTaskRowWithTask).child_id,
+      task_id: (data[0] as ChildTaskRowWithTask).task_id,
+      status: (data[0] as ChildTaskRowWithTask).status,
+      points: (data[0] as ChildTaskRowWithTask).points,
+      assigned_at: (data[0] as ChildTaskRowWithTask).assigned_at,
+      completed_at: (data[0] as ChildTaskRowWithTask).completed_at,
+      task_title: (data[0] as ChildTaskRowWithTask).tasks?.title,
+      has_task_join: !!(data[0] as ChildTaskRowWithTask).tasks,
     } : null,
     schema_columns_used: schemaColumns,
   });
 
   return (
-    data?.map((row: any) => mapChildTaskRow(row, row.tasks || undefined)) || []
+    data?.map((row: ChildTaskRowWithTask) => mapChildTaskRow(row, row.tasks || undefined)) || []
   );
 }
 
@@ -568,7 +573,7 @@ export async function markTaskCompleted(params: {
   }
 
   // 3. Verify task is not already completed or approved
-  const taskData = childTask as any;
+  const taskData = childTask as ChildTaskRowWithTask;
   const currentStatus = taskData.status || "pending";
   if (currentStatus === "completed" || currentStatus === "approved") {
     throw new ChildTaskError(
@@ -631,7 +636,7 @@ export async function markTaskCompleted(params: {
     );
   }
 
-  return mapChildTaskRow(data, (childTask as any).tasks || undefined);
+  return mapChildTaskRow(data, (childTask as ChildTaskRowWithTask).tasks || undefined);
 }
 
 /**

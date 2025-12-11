@@ -69,7 +69,8 @@ export async function POST(request: NextRequest) {
     const formattedTasks = tasks.map((task) => {
       // Get points from child_task if available, otherwise from task template
       // Note: child_task.points should be available from the query
-      const taskPoints = (task as any).points ?? task.task?.points ?? 0;
+      // ChildTaskInstance doesn't have points directly, so we get it from task
+      const taskPoints = task.task?.points ?? 0;
       
       return {
         child_task_id: task.id,

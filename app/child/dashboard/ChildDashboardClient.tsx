@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useSessionStore } from "@/store/useSessionStore";
 import { useRequireChildAuth } from "@/hooks/useRequireChildAuth";
 import { createBrowserClient } from "@/lib/supabaseClient";
-import { LogOut, Loader2, CheckCircle2, Circle } from "lucide-react";
+import { LogOut, Loader2, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 type TaskFromAPI = {
   child_task_id: string;
