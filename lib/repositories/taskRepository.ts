@@ -214,6 +214,7 @@ export async function createCustomTask(params: {
       description: description?.trim() || null,
       points: validatedPoints,
       is_global: false,
+      created_by_parent_id: parentId,
     })
     .select()
     .single();

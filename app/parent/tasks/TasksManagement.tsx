@@ -356,6 +356,7 @@ export const TasksManagement = ({
           description: taskDescription.trim() || null,
           points: taskPoints,
           is_global: false,
+          created_by_parent_id: parentData.id,
         })
         .select()
         .maybeSingle();
