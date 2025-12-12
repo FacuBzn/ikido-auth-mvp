@@ -2,7 +2,7 @@
  * POST /api/child/tasks
  * 
  * Lists tasks assigned to a child
- * Body: { child_code: string, family_code: string }
+ * Requires: Child session cookie (set by /api/child/login)
  * 
  * Returns:
  * {
@@ -17,7 +17,8 @@
  *       completed_at: string | null,
  *       created_at: string
  *     }
- *   ]
+ *   ],
+ *   ggpoints: number
  * }
  */
 
@@ -25,26 +26,16 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/adminClient";
 import {
-  getTasksAndPointsForChildByCodes,
+  getTasksForChildByCodes,
+  getTotalPointsForChild,
   ChildTaskError,
 } from "@/lib/repositories/childTaskRepository";
+import { requireChildSession } from "@/lib/auth/childSession";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as {
-      child_code?: string;
-      family_code?: string;
-    };
-
-    if (!body.child_code || !body.family_code) {
-      return NextResponse.json(
-        {
-          error: "INVALID_INPUT",
-          message: "child_code and family_code are required",
-        },
-        { status: 400 }
-      );
-    }
+    // Get child session from cookie
+    const session = await requireChildSession(request);
 
     let adminClient;
     try {
@@ -61,21 +52,51 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("[child:tasks] Fetching tasks for child", {
-      child_code: body.child_code,
-      family_code: body.family_code,
+      child_id: session.child_id,
+      family_code: session.family_code,
     });
 
-    // OPTIMIZED: Single query gets tasks + total points + child_id
-    const { tasks, totalPoints, childId } = await getTasksAndPointsForChildByCodes({
-      childCode: body.child_code,
-      familyCode: body.family_code,
+    // Get child_code from database for backward compatibility with repository
+    const { data: childData, error: childError } = await adminClient
+      .from("users")
+      .select("child_code")
+      .eq("id", session.child_id)
+      .eq("role", "child")
+      .single();
+
+    if (childError || !childData || !childData.child_code) {
+      console.error("[child:tasks] Failed to get child_code:", childError);
+      return NextResponse.json(
+        {
+          error: "DATABASE_ERROR",
+          message: "Failed to resolve child code",
+        },
+        { status: 500 }
+      );
+    }
+
+    const tasks = await getTasksForChildByCodes({
+      childCode: childData.child_code,
+      familyCode: session.family_code,
       supabase: adminClient,
     });
+
+    // Get total points for the child
+    let totalPoints = 0;
+    try {
+      totalPoints = await getTotalPointsForChild({
+        childId: session.child_id,
+        supabase: adminClient,
+      });
+    } catch (pointsError) {
+      console.error("[child:tasks] Failed to get total points:", pointsError);
+      // Continue without points if calculation fails
+    }
 
     console.log("[child:tasks] Found tasks", {
       count: tasks.length,
       total_points: totalPoints,
-      child_id: childId,
+      child_id: session.child_id,
     });
 
     // Transform tasks to the required format
@@ -107,6 +128,17 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
+    // Handle unauthorized (missing session)
+    if (error instanceof Error && error.message.includes("UNAUTHORIZED")) {
+      return NextResponse.json(
+        {
+          error: "UNAUTHORIZED",
+          message: "Child session required. Please log in first.",
+        },
+        { status: 401 }
+      );
+    }
+
     if (error instanceof ChildTaskError) {
       console.error("[child:tasks] Error", {
         code: error.code,
