@@ -500,6 +500,102 @@ export async function getTasksForChildByCodes(params: {
 }
 
 /**
+ * OPTIMIZED: Get tasks and total points for child in a single operation
+ * This replaces getTasksForChildByCodes + getTotalPointsForChild with 1 query
+ */
+export async function getTasksAndPointsForChildByCodes(params: {
+  childCode: string;
+  familyCode: string;
+  supabase: SupabaseClient<Database>;
+}): Promise<{
+  tasks: ChildTaskInstance[];
+  totalPoints: number;
+  childId: string;
+}> {
+  const { childCode, familyCode, supabase } = params;
+
+  console.log("[child_tasks:getTasksAndPointsForChildByCodes] Fetching tasks + points", {
+    childCode,
+    familyCode,
+  });
+
+  // Find child by codes
+  const { data: child, error: childError } = await supabase
+    .from("users")
+    .select("id, parent_id, family_code")
+    .eq("child_code", childCode.toUpperCase())
+    .eq("role", "child")
+    .single();
+
+  if (childError || !child) {
+    throw new ChildTaskError("UNAUTHORIZED", "Invalid child credentials");
+  }
+
+  // Verify family_code matches
+  if (child.family_code !== familyCode.toUpperCase()) {
+    throw new ChildTaskError("UNAUTHORIZED", "Invalid family code");
+  }
+
+  // Single query to fetch all child_tasks with joined task data
+  const { data, error } = await supabase
+    .from("child_tasks")
+    .select(
+      `
+      id,
+      child_id,
+      task_id,
+      parent_id,
+      status,
+      points,
+      completed_at,
+      assigned_at,
+      tasks!task_id (
+        id,
+        title,
+        description,
+        points,
+        is_global
+      )
+    `
+    )
+    .eq("child_id", child.id)
+    .order("assigned_at", { ascending: false });
+
+  if (error) {
+    console.error("[child_tasks:getTasksAndPointsForChildByCodes] Error:", error);
+    throw new ChildTaskError("DATABASE_ERROR", `Failed to fetch tasks: ${error.message}`);
+  }
+
+  // Calculate total points from completed/approved tasks IN MEMORY
+  // This is faster than a separate DB query when we already have the data
+  const totalPoints = (data || [])
+    .filter((task) => {
+      const status = task.status || "pending";
+      return status === "completed" || status === "approved";
+    })
+    .reduce((sum, task) => {
+      const points = task.points || 0;
+      return sum + (typeof points === "number" && !Number.isNaN(points) ? points : 0);
+    }, 0);
+
+  const tasks = (data || []).map((row: ChildTaskRowWithTask) =>
+    mapChildTaskRow(row, row.tasks || undefined)
+  );
+
+  console.log("[child_tasks:getTasksAndPointsForChildByCodes] Result", {
+    child_id: child.id,
+    tasks_count: tasks.length,
+    total_points: totalPoints,
+  });
+
+  return {
+    tasks,
+    totalPoints,
+    childId: child.id,
+  };
+}
+
+/**
  * MARK TASK AS COMPLETED (by child)
  * Sets completed = true and completed_at timestamp
  */
