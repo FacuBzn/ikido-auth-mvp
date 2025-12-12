@@ -2,7 +2,7 @@
  * POST /api/child/tasks
  * 
  * Lists tasks assigned to a child
- * Body: { child_code: string, family_code: string }
+ * Requires: Child session cookie (set by /api/child/login)
  * 
  * Returns:
  * {
@@ -17,7 +17,8 @@
  *       completed_at: string | null,
  *       created_at: string
  *     }
- *   ]
+ *   ],
+ *   ggpoints: number
  * }
  */
 
@@ -26,25 +27,15 @@ import type { NextRequest } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/adminClient";
 import {
   getTasksForChildByCodes,
+  getTotalPointsForChild,
   ChildTaskError,
 } from "@/lib/repositories/childTaskRepository";
+import { requireChildSession } from "@/lib/auth/childSession";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as {
-      child_code?: string;
-      family_code?: string;
-    };
-
-    if (!body.child_code || !body.family_code) {
-      return NextResponse.json(
-        {
-          error: "INVALID_INPUT",
-          message: "child_code and family_code are required",
-        },
-        { status: 400 }
-      );
-    }
+    // Get child session from cookie
+    const session = await requireChildSession(request);
 
     let adminClient;
     try {
@@ -61,13 +52,32 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("[child:tasks] Fetching tasks for child", {
-      child_code: body.child_code,
-      family_code: body.family_code,
+      child_id: session.child_id,
+      family_code: session.family_code,
     });
 
+    // Get child_code from database for backward compatibility with repository
+    const { data: childData, error: childError } = await adminClient
+      .from("users")
+      .select("child_code")
+      .eq("id", session.child_id)
+      .eq("role", "child")
+      .single();
+
+    if (childError || !childData || !childData.child_code) {
+      console.error("[child:tasks] Failed to get child_code:", childError);
+      return NextResponse.json(
+        {
+          error: "DATABASE_ERROR",
+          message: "Failed to resolve child code",
+        },
+        { status: 500 }
+      );
+    }
+
     const tasks = await getTasksForChildByCodes({
-      childCode: body.child_code,
-      familyCode: body.family_code,
+      childCode: childData.child_code,
+      familyCode: session.family_code,
       supabase: adminClient,
     });
 
@@ -77,11 +87,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Transform tasks to the required format
-    // Use points from child_tasks (assigned points) or fallback to task template points
     const formattedTasks = tasks.map((task) => {
-      // Get points from child_task if available, otherwise from task template
-      // Note: child_task.points should be available from the query
-      // ChildTaskInstance doesn't have points directly, so we get it from task
       const taskPoints = task.task?.points ?? 0;
       
       return {
@@ -102,27 +108,15 @@ export async function POST(request: NextRequest) {
     });
 
     // Get total points for the child
-    const { data: childData } = await adminClient
-      .from("users")
-      .select("id")
-      .eq("child_code", body.child_code.toUpperCase())
-      .eq("role", "child")
-      .single();
-
     let totalPoints = 0;
-    if (childData) {
-      try {
-        const { getTotalPointsForChild } = await import(
-          "@/lib/repositories/childTaskRepository"
-        );
-        totalPoints = await getTotalPointsForChild({
-          childId: childData.id,
-          supabase: adminClient,
-        });
-      } catch (pointsError) {
-        console.error("[child:tasks] Failed to get total points:", pointsError);
-        // Continue without points if calculation fails
-      }
+    try {
+      totalPoints = await getTotalPointsForChild({
+        childId: session.child_id,
+        supabase: adminClient,
+      });
+    } catch (pointsError) {
+      console.error("[child:tasks] Failed to get total points:", pointsError);
+      // Continue without points if calculation fails
     }
 
     return NextResponse.json(
@@ -133,6 +127,17 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
+    // Handle unauthorized (missing session)
+    if (error instanceof Error && error.message.includes("UNAUTHORIZED")) {
+      return NextResponse.json(
+        {
+          error: "UNAUTHORIZED",
+          message: "Child session required. Please log in first.",
+        },
+        { status: 401 }
+      );
+    }
+
     if (error instanceof ChildTaskError) {
       console.error("[child:tasks] Error", {
         code: error.code,
