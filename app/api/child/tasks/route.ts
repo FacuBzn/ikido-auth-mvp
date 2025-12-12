@@ -26,6 +26,7 @@ import type { NextRequest } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/adminClient";
 import {
   getTasksForChildByCodes,
+  getTotalPointsForChild,
   ChildTaskError,
 } from "@/lib/repositories/childTaskRepository";
 
@@ -46,7 +47,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const adminClient = getSupabaseAdminClient();
+    let adminClient;
+    try {
+      adminClient = getSupabaseAdminClient();
+    } catch (envError) {
+      console.error("[child:tasks] Environment configuration error:", envError);
+      return NextResponse.json(
+        {
+          error: "CONFIGURATION_ERROR",
+          message: envError instanceof Error ? envError.message : "Server configuration error. Please check environment variables.",
+        },
+        { status: 500 }
+      );
+    }
 
     console.log("[child:tasks] Fetching tasks for child", {
       child_code: body.child_code,
@@ -100,9 +113,6 @@ export async function POST(request: NextRequest) {
     let totalPoints = 0;
     if (childData) {
       try {
-        const { getTotalPointsForChild } = await import(
-          "@/lib/repositories/childTaskRepository"
-        );
         totalPoints = await getTotalPointsForChild({
           childId: childData.id,
           supabase: adminClient,
