@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { useSessionStore, type Parent, type Child } from "@/store/useSessionStore";
-import { Copy, Plus, LogOut } from "lucide-react";
+import type { Parent, Child } from "@/store/useSessionStore";
+import { Copy, Plus, CheckSquare } from "lucide-react";
+import Link from "next/link";
 
 type ParentDashboardClientProps = {
   parent: Parent;
@@ -18,8 +18,6 @@ export function ParentDashboardClient({
   parent,
   initialChildren,
 }: ParentDashboardClientProps) {
-  const router = useRouter();
-  const logout = useSessionStore((state) => state.logout);
   const [children, setChildren] = useState<Child[]>(initialChildren);
   const [showAddChild, setShowAddChild] = useState(false);
   const [childName, setChildName] = useState("");
@@ -91,30 +89,15 @@ export function ParentDashboardClient({
     }
   };
 
-  const handleLogout = async () => {
-    await logout();
-    router.push("/");
-  };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-[#0F4C7D] to-[#1A5FA0] p-4">
+    <main className="min-h-screen bg-gradient-to-b from-[#0F4C7D] to-[#1A5FA0] p-4 page-content">
       <div className="max-w-2xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white">iKidO</h1>
-            <p className="text-yellow-300 font-semibold mt-1">
-              Welcome, {parent.full_name}
-            </p>
-          </div>
-          <Button
-            onClick={handleLogout}
-            variant="outline"
-            className="text-white border-white/30 hover:bg-white/10"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
+        {/* Welcome Section */}
+        <div>
+          <p className="text-yellow-300 font-semibold text-lg">
+            Welcome, {parent.full_name}
+          </p>
         </div>
 
         {/* Family Code Card */}
@@ -135,10 +118,34 @@ export function ParentDashboardClient({
               <Button
                 onClick={handleCopyFamilyCode}
                 size="sm"
-                className="bg-yellow-400 text-[#0F4C7D] hover:bg-yellow-300"
+                className="bg-yellow-400 text-[#0F4C7D] hover:bg-yellow-300 flex-shrink-0"
               >
                 <Copy className="w-4 h-4 mr-2" />
                 {copied ? "Copied!" : "Copy"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tasks Management Card */}
+        <Card className="bg-white/10 border-yellow-400/30 backdrop-blur">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-white mb-2">Manage Tasks</h2>
+                <p className="text-white/70 text-sm">
+                  Assign tasks to your children and track their progress
+                </p>
+              </div>
+              <Button
+                asChild
+                size="lg"
+                className="bg-yellow-400 text-[#0F4C7D] hover:bg-yellow-300 flex-shrink-0"
+              >
+                <Link href="/parent/tasks">
+                  <CheckSquare className="w-5 h-5 mr-2" />
+                  Go to Tasks
+                </Link>
               </Button>
             </div>
           </CardContent>
@@ -213,38 +220,38 @@ export function ParentDashboardClient({
                 <p className="text-sm mt-2">Click &quot;Add Child&quot; to get started!</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {children.map((child) => (
                   <Card key={child.id} className="bg-white/5 border-yellow-400/20">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <p className="font-semibold text-white text-lg">{child.name}</p>
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-white text-lg mb-3">{child.name}</p>
                           {child.child_code && (
-                            <div className="mt-2 space-y-1">
-                              <Label className="text-yellow-300 font-semibold text-xs">
+                            <div className="space-y-2">
+                              <Label className="text-yellow-300 font-semibold text-xs block">
                                 Child Code
                               </Label>
-                              <div className="flex items-center gap-2">
-                                <code className="text-sm font-mono text-white bg-white/10 px-2 py-1 rounded border border-yellow-400/30">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <code className="text-sm font-mono text-white bg-white/10 px-3 py-1.5 rounded border border-yellow-400/30">
                                   {child.child_code}
                                 </code>
                                 <Button
                                   onClick={() => handleCopyChildCode(child.child_code!)}
                                   size="sm"
                                   variant="ghost"
-                                  className="h-7 px-2 text-yellow-300 hover:text-yellow-400 hover:bg-white/10"
+                                  className="h-8 px-3 text-yellow-300 hover:text-yellow-400 hover:bg-white/10 text-xs"
                                 >
                                   <Copy className="w-3 h-3 mr-1" />
                                   {copiedChildCode === child.child_code ? "Copied!" : "Copy"}
                                 </Button>
                               </div>
-                              <p className="text-xs text-white/60 mt-1">
+                              <p className="text-xs text-white/60 mt-2">
                                 Share this code + Family Code ({parent.family_code}) with {child.name}
                               </p>
                             </div>
                           )}
-                          <p className="text-xs text-white/50 mt-2">
+                          <p className="text-xs text-white/50 mt-3">
                             Joined: {new Date(child.created_at).toLocaleDateString()}
                           </p>
                         </div>

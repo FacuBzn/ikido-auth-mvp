@@ -14,15 +14,13 @@ export function RoleSelection() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #0F4C7D 0%, #1A5FA0 100%)' }}>
+    <div className="min-h-screen flex items-center justify-center p-4 page-content" style={{ background: 'linear-gradient(135deg, #0F4C7D 0%, #1A5FA0 100%)' }}>
       <div className="w-full max-w-md">
         <div className="text-center mb-12">
           <div className="mb-4">
-            <div className="text-6xl font-bold text-white mb-2">iKidO</div>
-            <div className="h-1 w-16 bg-yellow-400 mx-auto rounded-full"></div>
+            <p className="text-yellow-300 text-lg font-semibold">Family Tasks & Rewards</p>
+            <p className="text-white/70 text-sm mt-2">Manage chores and rewards together</p>
           </div>
-          <p className="text-yellow-300 text-lg font-semibold">Family Tasks & Rewards</p>
-          <p className="text-white/70 text-sm mt-2">Manage chores and rewards together</p>
         </div>
 
         <div className="space-y-3 mb-8">

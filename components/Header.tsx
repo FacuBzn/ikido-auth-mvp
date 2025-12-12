@@ -58,7 +58,7 @@ export const Header = () => {
   const hasSession = parent || child;
 
   return (
-    <header className="pointer-events-none absolute inset-x-0 top-0 z-50 flex justify-center px-4 py-6">
+    <header className="pointer-events-none absolute inset-x-0 top-0 z-50 flex justify-center px-4 py-6" style={{ height: 'var(--header-height)' }}>
       <div className="flex w-full max-w-5xl items-center justify-between">
         <Link
           href={brandHref}

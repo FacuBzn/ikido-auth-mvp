@@ -61,3 +61,51 @@ GROUP BY role;
 - ✅ `family_code` existe y está poblado para parents y children existentes
 - ✅ Política `parent_can_insert_child` existe y está activa
 
+---
+
+### 4. Tasks & GGPoints schema y reglas
+
+**Archivo:** `scripts/sql/18-tasks-schema.sql`  
+**Propósito:** Crear tablas `tasks`, `child_tasks` y `ggpoints_ledger` con índices y seed data de tareas globales.
+
+**Archivo:** `scripts/sql/19-tasks-rls-policies.sql`  
+**Propósito:** Definir políticas RLS para `tasks`, `child_tasks` y `ggpoints_ledger` que permiten a padres gestionar sus tareas y asignaciones.
+
+**Archivo:** `scripts/sql/20-approve-task-function.sql`  
+**Propósito:** Crear función RPC `approve_child_task_and_add_points` para aprobar tareas y actualizar puntos de forma atómica.
+
+**Orden recomendado (después de las migraciones existentes):**
+
+1. `18-tasks-schema.sql` - Crear tablas e índices
+2. `19-tasks-rls-policies.sql` - Habilitar RLS y crear políticas
+3. `20-approve-task-function.sql` - Crear función RPC para aprobación atómica
+
+**Verificación post-migración:**
+
+```sql
+-- Verificar tablas creadas
+SELECT table_name 
+FROM information_schema.tables 
+WHERE table_schema = 'public' 
+  AND table_name IN ('tasks', 'child_tasks', 'ggpoints_ledger');
+
+-- Verificar seed data
+SELECT COUNT(*) as global_tasks_count
+FROM public.tasks
+WHERE is_global = true;
+
+-- Verificar función RPC
+SELECT routine_name
+FROM information_schema.routines
+WHERE routine_schema = 'public'
+  AND routine_name = 'approve_child_task_and_add_points';
+```
+
+**Resultado esperado:**
+
+- ✅ Tablas `tasks`, `child_tasks`, `ggpoints_ledger` creadas con índices
+- ✅ 8 tareas globales insertadas en `tasks`
+- ✅ RLS habilitado en las tres tablas
+- ✅ Políticas RLS creadas para padres autenticados
+- ✅ Función `approve_child_task_and_add_points` disponible
+

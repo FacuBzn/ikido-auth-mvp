@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/navigation/BackButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { loginParent } from "@/lib/repositories/parentRepository";
@@ -92,12 +93,7 @@ export const ParentLoginForm = () => {
 
   return (
     <div className="space-y-4">
-      <Link
-        href="/"
-        className="inline-flex items-center text-white font-semibold hover:text-yellow-300 transition-colors"
-      >
-        ← Back
-      </Link>
+      <BackButton href="/" />
       <form onSubmit={handleLogin} className="space-y-4">
         {serverError && (
           <div className="bg-red-500/20 border-2 border-red-500 text-white text-sm p-3 rounded-lg flex items-start gap-2">
@@ -146,10 +142,10 @@ export const ParentLoginForm = () => {
         </Button>
 
         <div className="text-center mt-6">
-          <p className="text-white/70 text-sm mb-3">Don&apos;t have an account?</p>
+          <p className="text-white/70 text-sm mb-2">Don&apos;t have an account?</p>
           <Link
             href="/parent/register"
-            className="text-yellow-300 font-semibold hover:text-yellow-200 transition-colors underline"
+            className="text-yellow-300/90 text-sm font-medium hover:text-yellow-200 transition-colors underline underline-offset-2"
           >
             Create one now
           </Link>
