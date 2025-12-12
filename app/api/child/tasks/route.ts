@@ -81,10 +81,22 @@ export async function POST(request: NextRequest) {
       supabase: adminClient,
     });
 
+    // Get total points for the child
+    let totalPoints = 0;
+    try {
+      totalPoints = await getTotalPointsForChild({
+        childId: session.child_id,
+        supabase: adminClient,
+      });
+    } catch (pointsError) {
+      console.error("[child:tasks] Failed to get total points:", pointsError);
+      // Continue without points if calculation fails
+    }
+
     console.log("[child:tasks] Found tasks", {
       count: tasks.length,
       total_points: totalPoints,
-      child_id: childId,
+      child_id: session.child_id,
     });
 
     // Transform tasks to the required format
@@ -107,18 +119,6 @@ export async function POST(request: NextRequest) {
       count: formattedTasks.length,
       sample: formattedTasks[0],
     });
-
-    // Get total points for the child
-    let totalPoints = 0;
-    try {
-      totalPoints = await getTotalPointsForChild({
-        childId: session.child_id,
-        supabase: adminClient,
-      });
-    } catch (pointsError) {
-      console.error("[child:tasks] Failed to get total points:", pointsError);
-      // Continue without points if calculation fails
-    }
 
     return NextResponse.json(
       {

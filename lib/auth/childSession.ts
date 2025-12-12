@@ -39,7 +39,15 @@ export async function createChildSession(
 ): Promise<void> {
   const secret = getJWTSecret();
   
-  const token = await new SignJWT(session)
+  // Convert ChildSession to JWTPayload-compatible object
+  const payload = {
+    child_id: session.child_id,
+    parent_id: session.parent_id,
+    family_code: session.family_code,
+    role: session.role,
+  };
+  
+  const token = await new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${COOKIE_MAX_AGE}s`)

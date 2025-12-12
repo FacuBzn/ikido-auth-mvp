@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     });
 
     console.log("[child:points] Total points calculated", {
-      child_id: child.id,
+      child_id: session.child_id,
       total_points: totalPoints,
     });
 
