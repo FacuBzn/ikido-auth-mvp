@@ -83,7 +83,8 @@ export async function POST(request: NextRequest) {
 
     console.log("[child:tasks] Found tasks", {
       count: tasks.length,
-      task_ids: tasks.map(t => t.id),
+      total_points: totalPoints,
+      child_id: childId,
     });
 
     // Transform tasks to the required format

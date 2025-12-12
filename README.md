@@ -76,13 +76,21 @@ No aplica.
 
 ## 4. Variables de entorno
 
-Crear archivo `.env.local` con:
+1. Copiar el archivo de ejemplo:
+```sh
+cp .env.example .env.local
+```
+
+2. Completar las variables en `.env.local` con tus valores de Supabase:
 
 ```
 NEXT_PUBLIC_SUPABASE_URL="https://<project>.supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY="<supabase-anon-key>"
-SUPABASE_SERVICE_ROLE_KEY="<service-role>" # Solo para scripts de mantenimiento
+SUPABASE_SERVICE_ROLE_KEY="<service-role>" # Requerido para operaciones admin en API routes
+DEV_ADMIN_KEY="<dev-admin-key>" # Solo para desarrollo (endpoints /api/dev/*)
 ```
+
+**Nota:** El archivo `.env.local` está en `.gitignore` y no se subirá al repositorio. Usa `.env.example` como referencia.
 
 ---
 
