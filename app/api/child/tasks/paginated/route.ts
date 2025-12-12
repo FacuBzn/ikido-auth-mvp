@@ -1,23 +1,24 @@
 /**
- * POST /api/child/tasks
+ * POST /api/child/tasks/paginated
  * 
- * Lists tasks assigned to a child
- * Body: { child_code: string, family_code: string }
+ * OPTIMIZED: Lists tasks assigned to a child with pagination
+ * Use this instead of /api/child/tasks for better performance with large task lists
+ * 
+ * Body: {
+ *   child_code: string,
+ *   family_code: string,
+ *   limit?: number (default: 20),
+ *   cursor?: string (assigned_at timestamp for pagination),
+ *   filter?: "all" | "pending" | "completed" | "approved"
+ * }
  * 
  * Returns:
  * {
- *   tasks: [
- *     {
- *       child_task_id: string,
- *       task_id: string,
- *       title: string,
- *       description: string | null,
- *       points: number,
- *       completed: boolean,
- *       completed_at: string | null,
- *       created_at: string
- *     }
- *   ]
+ *   tasks: [...],
+ *   ggpoints: number,
+ *   nextCursor?: string,
+ *   hasMore: boolean,
+ *   totalCount: number
  * }
  */
 
@@ -25,15 +26,18 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/adminClient";
 import {
-  getTasksAndPointsForChildByCodes,
+  getTasksAndPointsForChildByCodesPaginated,
   ChildTaskError,
-} from "@/lib/repositories/childTaskRepository";
+} from "@/lib/repositories/childTaskRepository.paginated";
 
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as {
       child_code?: string;
       family_code?: string;
+      limit?: number;
+      cursor?: string;
+      filter?: "all" | "pending" | "completed" | "approved";
     };
 
     if (!body.child_code || !body.family_code) {
@@ -50,32 +54,43 @@ export async function POST(request: NextRequest) {
     try {
       adminClient = getSupabaseAdminClient();
     } catch (envError) {
-      console.error("[child:tasks] Environment configuration error:", envError);
+      const errorMessage = envError instanceof Error ? envError.message : "Server configuration error. Please check environment variables.";
+      console.error("[child:tasks:paginated] Environment configuration error:", envError);
       return NextResponse.json(
         {
           error: "CONFIGURATION_ERROR",
-          message: envError instanceof Error ? envError.message : "Server configuration error. Please check environment variables.",
+          message: errorMessage,
         },
         { status: 500 }
       );
     }
 
-    console.log("[child:tasks] Fetching tasks for child", {
+    console.log("[child:tasks:paginated] Fetching tasks for child", {
       child_code: body.child_code,
       family_code: body.family_code,
+      limit: body.limit,
+      cursor: body.cursor,
+      filter: body.filter,
     });
 
-    // OPTIMIZED: Single query gets tasks + total points + child_id
-    const { tasks, totalPoints, childId } = await getTasksAndPointsForChildByCodes({
-      childCode: body.child_code,
-      familyCode: body.family_code,
-      supabase: adminClient,
-    });
+    // OPTIMIZED: Single query with pagination
+    const { tasks, totalPoints, childId, nextCursor, hasMore, totalCount } = 
+      await getTasksAndPointsForChildByCodesPaginated({
+        childCode: body.child_code,
+        familyCode: body.family_code,
+        supabase: adminClient,
+        limit: body.limit,
+        cursor: body.cursor,
+        filter: body.filter,
+      });
 
-    console.log("[child:tasks] Found tasks", {
+    console.log("[child:tasks:paginated] Found tasks", {
       count: tasks.length,
       total_points: totalPoints,
       child_id: childId,
+      has_more: hasMore,
+      next_cursor: nextCursor,
+      total_count: totalCount,
     });
 
     // Transform tasks to the required format
@@ -93,22 +108,20 @@ export async function POST(request: NextRequest) {
         created_at: task.created_at,
       };
     });
-    
-    console.log("[child:tasks] Formatted tasks", {
-      count: formattedTasks.length,
-      sample: formattedTasks[0],
-    });
 
     return NextResponse.json(
       {
         tasks: formattedTasks,
         ggpoints: totalPoints,
+        nextCursor,
+        hasMore,
+        totalCount,
       },
       { status: 200 }
     );
   } catch (error) {
     if (error instanceof ChildTaskError) {
-      console.error("[child:tasks] Error", {
+      console.error("[child:tasks:paginated] Error", {
         code: error.code,
         message: error.message,
       });
@@ -124,30 +137,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.error("[child:tasks] Unexpected error", error);
-
     const errorMessage = error instanceof Error ? error.message : String(error);
-    
-    // Handle schema/column errors specifically
-    if (
-      errorMessage.includes("does not exist") ||
-      errorMessage.includes("Could not find the table") ||
-      errorMessage.includes("column")
-    ) {
-      const missingColumn = errorMessage.match(/column\s+[\w.]+\.(\w+)\s+does not exist/i)?.[1] || "unknown";
-      console.error("[child:tasks] Schema error detected", {
-        missingColumn,
-        fullError: errorMessage,
-      });
-      
-      return NextResponse.json(
-        {
-          error: "DATABASE_ERROR",
-          message: `Database schema issue: Column '${missingColumn}' does not exist. Please verify the database schema matches the expected structure. Error: ${errorMessage}`,
-        },
-        { status: 500 }
-      );
-    }
+    console.error("[child:tasks:paginated] Unexpected error", error);
 
     return NextResponse.json(
       {
