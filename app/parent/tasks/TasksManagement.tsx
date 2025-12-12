@@ -2,8 +2,9 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { Loader2, Plus, Trash2, Edit2, Check } from "lucide-react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { ScrollToTopButton } from "@/components/common/ScrollToTopButton";
+import { BackButton } from "@/components/navigation/BackButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -55,8 +56,8 @@ const TaskCard = ({
   onAssign,
 }: TaskCardProps) => {
   return (
-    <div className="flex flex-col rounded-xl border-2 border-[var(--brand-gold-400)]/40 bg-[#0b2f4c] p-4 shadow-md transition-all hover:border-[var(--brand-gold-400)]/60 hover:shadow-lg md:p-5">
-      <div className="flex flex-1 flex-col gap-3">
+    <div className="flex flex-col rounded-xl border-2 border-[var(--brand-gold-400)]/40 bg-[#0b2f4c] p-5 shadow-md transition-all hover:border-[var(--brand-gold-400)]/60 hover:shadow-lg">
+      <div className="flex flex-1 flex-col gap-3 mb-4">
         <h3 className="text-lg font-semibold text-white">{task.title}</h3>
         {task.description && (
           <p className="flex-1 text-sm text-white/70 leading-relaxed">
@@ -69,13 +70,13 @@ const TaskCard = ({
           </span>
         </div>
       </div>
-      <div className="mt-4 flex justify-end">
+      <div className="mt-auto pt-2 flex justify-end">
         <Button
           onClick={() => onAssign(task.id)}
           disabled={isAlreadyAssigned || isAssigning}
           className={`rounded-full px-6 py-2 text-sm font-semibold transition-all ${
             isAlreadyAssigned
-              ? "bg-green-500/20 border border-green-400/50 text-green-300 hover:bg-green-500/20 cursor-not-allowed"
+              ? "bg-green-600/80 border-2 border-green-400 text-white hover:bg-green-600/80 cursor-not-allowed shadow-md"
               : "bg-yellow-400 text-blue-900 hover:bg-yellow-300"
           }`}
         >
@@ -147,11 +148,11 @@ const TaskDisplay = ({ task, onEdit, onDelete, supabase }: TaskDisplayProps) => 
   };
 
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex-1">
-        <p className="text-base font-semibold">{taskTitle}</p>
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex-1 min-w-0">
+        <p className="text-base font-semibold break-words">{taskTitle}</p>
         {taskDescription && (
-          <p className="mt-1 text-sm text-white/70">{taskDescription}</p>
+          <p className="mt-1 text-sm text-white/70 break-words">{taskDescription}</p>
         )}
         <div className="mt-2 flex items-center gap-4 text-xs text-white/60">
           <span>
@@ -165,12 +166,13 @@ const TaskDisplay = ({ task, onEdit, onDelete, supabase }: TaskDisplayProps) => 
           </span>
         </div>
       </div>
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2 flex-shrink-0">
         {task.status !== "approved" && task.status !== "rejected" && (
           <Button
             onClick={onEdit}
             variant="ghost"
-            className="h-8 w-8 p-0"
+            className="h-9 w-9 p-0 min-w-[36px] min-h-[36px] inline-flex items-center justify-center rounded-full hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-gold-400)]"
+            aria-label="Edit task"
           >
             <Edit2 className="size-4" />
           </Button>
@@ -178,7 +180,8 @@ const TaskDisplay = ({ task, onEdit, onDelete, supabase }: TaskDisplayProps) => 
         <Button
           onClick={onDelete}
           variant="ghost"
-          className="h-8 w-8 p-0 text-red-400 hover:text-red-300"
+          className="h-9 w-9 p-0 min-w-[36px] min-h-[36px] inline-flex items-center justify-center rounded-full text-red-400 hover:text-red-300 hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+          aria-label="Delete task"
         >
           <Trash2 className="size-4" />
         </Button>
@@ -321,8 +324,8 @@ export const TasksManagement = ({
       return;
     }
 
-    if (taskPoints < 1) {
-      setError("Points must be at least 1.");
+    if (taskPoints < 1 || taskPoints > 100) {
+      setError("GGPoints must be between 1 and 100.");
       return;
     }
 
@@ -437,8 +440,8 @@ export const TasksManagement = ({
       return;
     }
 
-    if (editPoints < 1) {
-      setError("Points must be at least 1.");
+    if (editPoints < 1 || editPoints > 100) {
+      setError("GGPoints must be between 1 and 100.");
       return;
     }
 
@@ -610,15 +613,11 @@ export const TasksManagement = ({
   const selectedChild = children.find((c) => c.id === selectedChildId);
 
   return (
-    <main className="screen-shell text-white">
+    <main className="screen-shell text-white page-content">
       <div className="screen-card w-full max-w-2xl space-y-8 px-8 py-10">
-        <Button
-          variant="ghost"
-          asChild
-          className="w-fit self-start rounded-full bg-[#0d3a5c]/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-white shadow-[0_12px_24px_-18px_rgba(0,0,0,0.6)] backdrop-blur"
-        >
-          <Link href="/parent/dashboard">← Back</Link>
-        </Button>
+        <div className="mb-4">
+          <BackButton href="/parent/dashboard" />
+        </div>
 
         <header className="space-y-2 text-center">
           <h1 className="text-2xl font-semibold tracking-tight">Manage Tasks</h1>
@@ -662,7 +661,7 @@ export const TasksManagement = ({
             <>
               {/* Global Tasks Section */}
               <div className="space-y-4">
-                <Label className="ikido-section-title text-[var(--brand-gold-200)] text-lg">
+                <Label className="ikido-section-title text-[var(--brand-gold-200)] text-base tracking-normal">
                   Assign Global Tasks
                 </Label>
                 {loadingGlobalTasks ? (
@@ -742,17 +741,41 @@ export const TasksManagement = ({
                   htmlFor="task-points"
                   className="ikido-section-title text-[var(--brand-gold-200)]"
                 >
-                  GGPoints
+                  GGPoints (1-100)
                 </Label>
                 <Input
                   id="task-points"
                   type="number"
                   min="1"
+                  max="100"
                   value={taskPoints}
-                  onChange={(e) => setTaskPoints(Number.parseInt(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const value = Number.parseInt(e.target.value) || 0;
+                    if (value >= 1 && value <= 100) {
+                      setTaskPoints(value);
+                      setError(null);
+                    } else if (value > 100) {
+                      setTaskPoints(100);
+                    } else if (value < 1 && e.target.value !== "") {
+                      setTaskPoints(1);
+                    }
+                  }}
                   required
-                  className="h-12 rounded-3xl border-2 border-[var(--brand-gold-400)] bg-[#1a5fa0]/40 text-white"
+                  className={`h-12 rounded-3xl border-2 bg-[#1a5fa0]/40 text-white ${
+                    taskPoints < 1 || taskPoints > 100
+                      ? "border-red-400 focus:border-red-400"
+                      : "border-[var(--brand-gold-400)]"
+                  }`}
                 />
+                {taskPoints < 1 || taskPoints > 100 ? (
+                  <p className="text-xs text-red-300 mt-1">
+                    GGPoints must be between 1 and 100
+                  </p>
+                ) : (
+                  <p className="text-xs text-white/60 mt-1">
+                    Enter a value between 1 and 100
+                  </p>
+                )}
               </div>
 
               <Button
@@ -797,7 +820,7 @@ export const TasksManagement = ({
                 {tasks.map((task) => (
                   <div
                     key={task.id}
-                    className="rounded-2xl border-2 border-[var(--brand-gold-400)] bg-[#0b2f4c] p-4"
+                    className="rounded-2xl border-2 border-[var(--brand-gold-400)] bg-[#0b2f4c] p-5"
                   >
                     {editingTaskId === task.id ? (
                       <div className="space-y-3">
@@ -816,11 +839,25 @@ export const TasksManagement = ({
                           <Input
                             type="number"
                             min="1"
+                            max="100"
                             value={editPoints}
-                            onChange={(e) => setEditPoints(Number.parseInt(e.target.value) || 0)}
-                            className="h-10 w-24 rounded-2xl border-2 border-[var(--brand-gold-400)] bg-[#1a5fa0]/40 text-white"
+                            onChange={(e) => {
+                              const value = Number.parseInt(e.target.value) || 0;
+                              if (value >= 1 && value <= 100) {
+                                setEditPoints(value);
+                              } else if (value > 100) {
+                                setEditPoints(100);
+                              } else if (value < 1 && e.target.value !== "") {
+                                setEditPoints(1);
+                              }
+                            }}
+                            className={`h-10 w-24 rounded-2xl border-2 bg-[#1a5fa0]/40 text-white ${
+                              editPoints < 1 || editPoints > 100
+                                ? "border-red-400"
+                                : "border-[var(--brand-gold-400)]"
+                            }`}
                           />
-                          <span className="text-sm text-white/70">GGPoints</span>
+                          <span className="text-sm text-white/70">GGPoints (1-100)</span>
                         </div>
                         <div className="flex gap-2">
                           <Button
@@ -854,6 +891,7 @@ export const TasksManagement = ({
           </section>
         )}
       </div>
+      <ScrollToTopButton />
     </main>
   );
 };

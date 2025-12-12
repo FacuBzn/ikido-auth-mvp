@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useSessionStore } from "@/store/useSessionStore";
 import { useRequireChildAuth } from "@/hooks/useRequireChildAuth";
-import { createBrowserClient } from "@/lib/supabaseClient";
-import { LogOut, Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ChildSummaryCard } from "@/components/child/ChildSummaryCard";
 type TaskFromAPI = {
   child_task_id: string;
   task_id: string;
@@ -21,11 +20,8 @@ type TaskFromAPI = {
 };
 
 export function ChildDashboardClient() {
-  const router = useRouter();
   const child = useSessionStore((state) => state.child);
   const hydrated = useSessionStore((state) => state._hasHydrated);
-  const logout = useSessionStore((state) => state.logout);
-  const [parentName, setParentName] = useState<string | null>(null);
   const [tasks, setTasks] = useState<TaskFromAPI[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
@@ -36,36 +32,6 @@ export function ChildDashboardClient() {
   // Hooks must be called unconditionally
   useRequireChildAuth();
 
-  useEffect(() => {
-    if (child) {
-      // Fetch parent name
-      const fetchParent = async () => {
-        try {
-          const supabase = createBrowserClient();
-          const { data, error } = await supabase
-            .from("users")
-            .select("name")
-            .eq("id", child.parent_id)
-            .eq("role", "parent")
-            .maybeSingle();
-
-          if (error) {
-            console.error("Failed to fetch parent:", error);
-            return;
-          }
-
-          if (data) {
-            const parentData = data as { name: string | null };
-            setParentName(parentData.name || "");
-          }
-        } catch (error) {
-          console.error("Failed to fetch parent:", error);
-        }
-      };
-
-      fetchParent();
-    }
-  }, [child]);
 
   // Load tasks for the child
   useEffect(() => {
@@ -228,10 +194,6 @@ export function ChildDashboardClient() {
     }
   };
 
-  const handleLogout = async () => {
-    await logout();
-    router.push("/");
-  };
 
   // Show loader while Zustand hydrates from localStorage
   if (!hydrated) {
@@ -250,52 +212,15 @@ export function ChildDashboardClient() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-[#0F4C7D] to-[#1A5FA0] p-4">
+    <main className="min-h-screen bg-gradient-to-b from-[#0F4C7D] to-[#1A5FA0] p-4 page-content">
       <div className="max-w-2xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white">iKidO</h1>
-            <p className="text-yellow-300 font-semibold mt-1">
-              Welcome, {child.name}!
-            </p>
-          </div>
-          <Button
-            onClick={handleLogout}
-            variant="outline"
-            className="text-white border-white/30 hover:bg-white/10"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
-        </div>
 
-        {/* Parent Info */}
-        {parentName && (
-          <Card className="bg-white/10 border-yellow-400/30 backdrop-blur">
-            <CardContent className="p-6">
-              <p className="text-white/70 text-sm mb-1">Parent</p>
-              <p className="text-xl font-bold text-white">{parentName}</p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* GGPoints Balance */}
-        <Card className="bg-white/10 border-yellow-400/30 backdrop-blur">
-          <CardContent className="p-6">
-            <p className="text-white/70 text-sm mb-1">Your GGPoints</p>
-            {loadingPoints ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="w-6 h-6 text-yellow-400 animate-spin" />
-                <span className="text-white/70">Loading...</span>
-              </div>
-            ) : (
-              <p className="text-4xl font-bold text-yellow-400">
-                {ggpoints}
-              </p>
-            )}
-          </CardContent>
-        </Card>
+        {/* Child Summary Card (Name + GGPoints) */}
+        <ChildSummaryCard
+          childName={child.name}
+          totalPoints={ggpoints}
+          loadingPoints={loadingPoints}
+        />
 
         {/* Tasks */}
         <Card className="bg-white/10 border-yellow-400/30 backdrop-blur">
@@ -316,61 +241,65 @@ export function ChildDashboardClient() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {tasks.map((task) => (
                   <div
                     key={task.child_task_id}
-                    className="bg-white/5 border border-yellow-400/20 rounded-lg p-4"
+                    className="bg-white/5 border border-yellow-400/20 rounded-lg p-5"
                   >
                     <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-white mb-1">
-                          {task.title || "Task"}
-                        </h3>
-                        {task.description && (
-                          <p className="text-white/70 text-sm mb-2">
-                            {task.description}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-4 text-sm">
-                          <span className="text-yellow-400 font-semibold">
-                            {task.points || 0} GGPoints
-                          </span>
-                          <span
-                            className={
-                              task.completed
-                                ? "text-green-400"
-                                : "text-yellow-400"
-                            }
-                          >
-                            {task.completed
-                              ? "✓ Completed"
-                              : "○ Pending"}
-                          </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start gap-3 mb-2">
+                          {task.completed && (
+                            <div className="flex items-center text-green-400 mt-0.5 flex-shrink-0">
+                              <CheckCircle2 className="w-5 h-5" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-lg font-semibold text-white mb-1 break-words line-clamp-2">
+                              {task.title || "Task"}
+                            </h3>
+                            {task.description && (
+                              <p className="text-white/70 text-sm mb-3 break-words line-clamp-2">
+                                {task.description}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-4 text-sm flex-wrap">
+                              <span className="text-yellow-400 font-semibold">
+                                {task.points || 0} GGPoints
+                              </span>
+                              <span
+                                className={
+                                  task.completed
+                                    ? "text-green-400 font-medium"
+                                    : "text-yellow-400"
+                                }
+                              >
+                                {task.completed
+                                  ? "✓ Completed"
+                                  : "○ Pending"}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      {!task.completed ? (
+                      {!task.completed && (
                         <Button
                           onClick={() => handleCompleteTask(task.child_task_id)}
                           disabled={completingTaskId === task.child_task_id}
-                          className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold"
+                          className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold flex-shrink-0 min-w-[120px] h-[40px] inline-flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed relative"
                         >
-                          {completingTaskId === task.child_task_id ? (
-                            <>
+                          <span className={completingTaskId === task.child_task_id ? "opacity-0" : "opacity-100 inline-flex items-center"}>
+                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                            Complete
+                          </span>
+                          {completingTaskId === task.child_task_id && (
+                            <span className="absolute inset-0 flex items-center justify-center">
                               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Completing...
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle2 className="w-4 h-4 mr-2" />
-                              Complete
-                            </>
+                              <span>Completing...</span>
+                            </span>
                           )}
                         </Button>
-                      ) : (
-                        <div className="flex items-center text-green-400">
-                          <CheckCircle2 className="w-5 h-5" />
-                        </div>
                       )}
                     </div>
                   </div>
