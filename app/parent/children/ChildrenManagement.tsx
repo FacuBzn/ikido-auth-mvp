@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/navigation/BackButton";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { createBrowserClient } from "@/lib/supabaseClient";
@@ -140,13 +140,7 @@ export const ChildrenManagement = ({
     <main className="screen-shell text-white page-content">
       <div className="screen-card w-full max-w-md space-y-8 px-8 py-10">
         <div className="mb-4">
-          <Button
-            variant="ghost"
-            asChild
-            className="w-fit rounded-full bg-[#0d3a5c]/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-white shadow-[0_12px_24px_-18px_rgba(0,0,0,0.6)] backdrop-blur hover:bg-[#0d3a5c]/90"
-          >
-            <Link href="/parent/dashboard">← Back</Link>
-          </Button>
+          <BackButton href="/parent/dashboard" />
         </div>
 
         <header className="space-y-2 text-center">

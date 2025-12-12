@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/navigation/BackButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { validateFamilyCode } from "@/lib/generateFamilyCode";
@@ -106,12 +107,7 @@ export const ChildJoinForm = () => {
 
   return (
     <div className="space-y-5">
-      <Link
-        href="/"
-        className="inline-flex items-center text-white font-semibold hover:text-yellow-300 transition-colors"
-      >
-        ← Back
-      </Link>
+      <BackButton href="/" />
 
       <form onSubmit={handleJoin} className="space-y-5">
         {serverError && (

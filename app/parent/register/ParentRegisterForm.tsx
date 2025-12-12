@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { BackButton } from "@/components/navigation/BackButton";
 import { registerParent } from "@/lib/repositories/parentRepository";
 import { useSessionStore } from "@/store/useSessionStore";
 
@@ -152,13 +152,9 @@ export const ParentRegisterForm = () => {
 
   return (
     <div className="w-full max-w-md">
-      <Link
-        href="/parent/login"
-        className="flex items-center text-white mb-4 font-semibold hover:text-yellow-300 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Login
-      </Link>
+      <div className="mb-4">
+        <BackButton href="/parent/login" label="Back to Login" />
+      </div>
 
       <div className="rounded-3xl bg-white/95 backdrop-blur border border-gray-100 shadow-2xl p-8 space-y-6">
         <div className="text-center space-y-2">
