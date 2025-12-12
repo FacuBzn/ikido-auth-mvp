@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { useSessionStore, type Parent, type Child } from "@/store/useSessionStore";
+import type { Parent, Child } from "@/store/useSessionStore";
 import { Copy, Plus, CheckSquare } from "lucide-react";
 import Link from "next/link";
 
@@ -19,7 +18,6 @@ export function ParentDashboardClient({
   parent,
   initialChildren,
 }: ParentDashboardClientProps) {
-  const router = useRouter();
   const [children, setChildren] = useState<Child[]>(initialChildren);
   const [showAddChild, setShowAddChild] = useState(false);
   const [childName, setChildName] = useState("");

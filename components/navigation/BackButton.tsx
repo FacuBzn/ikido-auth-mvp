@@ -17,6 +17,8 @@ export function BackButton({
   label = "Back",
   href,
   className,
+  // variant is reserved for future use
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- reserved for future variants
   variant = "pill",
 }: BackButtonProps) {
   const router = useRouter();

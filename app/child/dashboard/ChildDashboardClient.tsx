@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useSessionStore } from "@/store/useSessionStore";
@@ -21,10 +20,8 @@ type TaskFromAPI = {
 };
 
 export function ChildDashboardClient() {
-  const router = useRouter();
   const child = useSessionStore((state) => state.child);
   const hydrated = useSessionStore((state) => state._hasHydrated);
-  const logout = useSessionStore((state) => state.logout);
   const [tasks, setTasks] = useState<TaskFromAPI[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);

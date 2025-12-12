@@ -147,7 +147,8 @@ function toast({ variant = 'default', duration, ...props }: Toast) {
   const id = genId()
 
   // Calculate duration: use provided duration, or default based on variant
-  const toastDuration = duration ?? TOAST_DURATIONS[variant] ?? TOAST_DURATIONS.default
+  const variantKey = variant ?? 'default'
+  const toastDuration = duration ?? TOAST_DURATIONS[variantKey as keyof typeof TOAST_DURATIONS] ?? TOAST_DURATIONS.default
 
   const update = (next: ToasterToast) =>
     dispatch({
