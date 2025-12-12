@@ -13,7 +13,8 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
-import { ChildTaskError, type ChildTaskInstance } from "@/lib/types/tasks";
+import type { ChildTaskInstance } from "@/lib/types/tasks";
+import { ChildTaskError } from "@/lib/repositories/childTaskRepository";
 
 type Db = Database["public"]["Tables"];
 type ChildTaskRow = Db["child_tasks"]["Row"];
@@ -258,3 +259,5 @@ export async function getTaskStatsByChildCodes(params: {
   return stats;
 }
 
+// Re-export ChildTaskError for convenience
+export { ChildTaskError };

@@ -48,11 +48,12 @@ export async function POST(request: NextRequest) {
     try {
       adminClient = getSupabaseAdminClient();
     } catch (envError) {
+      const errorMessage = envError instanceof Error ? envError.message : "Server configuration error";
       console.error("[child:tasks:stats] Environment configuration error:", envError);
       return NextResponse.json(
         {
           error: "CONFIGURATION_ERROR",
-          message: envError instanceof Error ? envError.message : "Server configuration error",
+          message: errorMessage,
         },
         { status: 500 }
       );
@@ -89,9 +90,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.error("[child:tasks:stats] Unexpected error", error);
-
     const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[child:tasks:stats] Unexpected error", error);
 
     return NextResponse.json(
       {
@@ -102,4 +102,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
