@@ -46,7 +46,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const adminClient = getSupabaseAdminClient();
+    let adminClient;
+    try {
+      adminClient = getSupabaseAdminClient();
+    } catch (envError) {
+      console.error("[child:tasks] Environment configuration error:", envError);
+      return NextResponse.json(
+        {
+          error: "CONFIGURATION_ERROR",
+          message: envError instanceof Error ? envError.message : "Server configuration error. Please check environment variables.",
+        },
+        { status: 500 }
+      );
+    }
 
     console.log("[child:tasks] Fetching tasks for child", {
       child_code: body.child_code,
