@@ -23,8 +23,14 @@ export const getSupabaseAdminClient = (): SupabaseClient<Database> => {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {
+    const missingVars: string[] = [];
+    if (!supabaseUrl) missingVars.push("NEXT_PUBLIC_SUPABASE_URL");
+    if (!serviceRoleKey) missingVars.push("SUPABASE_SERVICE_ROLE_KEY");
+    
     throw new Error(
-      "Missing Supabase environment variables for admin client. Ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are defined on the server."
+      `Missing Supabase environment variables for admin client: ${missingVars.join(", ")}. ` +
+      `Ensure these variables are defined in your .env.local file (development) or environment settings (production). ` +
+      `See .env.example for reference.`
     );
   }
 
