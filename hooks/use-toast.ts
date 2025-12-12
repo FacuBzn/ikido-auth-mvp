@@ -137,8 +137,17 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, 'id'>
 
-function toast({ ...props }: Toast) {
+// Duration constants based on toast type
+const TOAST_DURATIONS = {
+  default: 2000, // success/info
+  destructive: 3500, // error
+} as const
+
+function toast({ variant = 'default', duration, ...props }: Toast) {
   const id = genId()
+
+  // Calculate duration: use provided duration, or default based on variant
+  const toastDuration = duration ?? TOAST_DURATIONS[variant] ?? TOAST_DURATIONS.default
 
   const update = (next: ToasterToast) =>
     dispatch({
@@ -146,13 +155,22 @@ function toast({ ...props }: Toast) {
       toast: { ...next, id },
     })
 
-  const dismiss = () =>
+  const dismiss = () => {
+    // Clear auto-dismiss timeout if exists
+    const timeout = toastTimeouts.get(id)
+    if (timeout) {
+      clearTimeout(timeout)
+      toastTimeouts.delete(id)
+    }
     dispatch({ type: ACTION_TYPES.DISMISS_TOAST, toastId: id })
+  }
 
   dispatch({
     type: ACTION_TYPES.ADD_TOAST,
     toast: {
       ...props,
+      variant,
+      duration: toastDuration,
       id,
       open: true,
       onOpenChange: (open) => {
@@ -160,6 +178,14 @@ function toast({ ...props }: Toast) {
       },
     },
   })
+
+  // Auto-dismiss after duration
+  const timeout = setTimeout(() => {
+    dismiss()
+  }, toastDuration)
+
+  // Store timeout to allow manual dismissal
+  toastTimeouts.set(id, timeout)
 
   return {
     id,
