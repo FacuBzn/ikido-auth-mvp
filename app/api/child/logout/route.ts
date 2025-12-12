@@ -9,7 +9,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { clearChildSession } from "@/lib/auth/childSession";
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const response = NextResponse.json({
       success: true,
