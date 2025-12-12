@@ -6,13 +6,11 @@ import { Button } from "@/components/ui/button";
 import { BackButton } from "@/components/navigation/BackButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { validateFamilyCode } from "@/lib/generateFamilyCode";
 import { useSessionStore } from "@/store/useSessionStore";
 import { createBrowserClient } from "@/lib/supabaseClient";
 
 export const ChildJoinForm = () => {
   const [childCode, setChildCode] = useState("");
-  const [familyCode, setFamilyCode] = useState("");
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
@@ -24,14 +22,7 @@ export const ChildJoinForm = () => {
     setIsSubmitting(true);
 
     try {
-      const familyCodeNormalized = familyCode.trim().toUpperCase();
       const childCodeNormalized = childCode.trim().toUpperCase();
-
-      if (!validateFamilyCode(familyCodeNormalized)) {
-        setServerError("Family code must be exactly 6 alphanumeric characters");
-        setIsSubmitting(false);
-        return;
-      }
 
       if (!childCodeNormalized || childCodeNormalized.length < 3) {
         setServerError("Child code must be at least 3 characters");
@@ -43,7 +34,7 @@ export const ChildJoinForm = () => {
       const supabase = createBrowserClient();
       await supabase.auth.signOut();
 
-      // Call API endpoint with child_code + family_code
+      // Call API endpoint with only child_code (family_code is resolved automatically)
       const response = await fetch("/api/child/login", {
         method: "POST",
         headers: {
@@ -51,7 +42,6 @@ export const ChildJoinForm = () => {
         },
         body: JSON.stringify({
           child_code: childCodeNormalized,
-          family_code: familyCodeNormalized,
         }),
       });
 
@@ -61,8 +51,6 @@ export const ChildJoinForm = () => {
         // Handle specific error codes
         if (data.error === "PARENT_LOGGED_IN") {
           setServerError("A parent is logged in. Please log out before entering child mode.");
-        } else if (data.error === "INVALID_FAMILY_CODE") {
-          setServerError("Invalid family code. Please check with your parent.");
         } else if (data.error === "INVALID_CHILD_CODE") {
           setServerError("Invalid child code. Make sure your parent created your account.");
         } else {
@@ -100,9 +88,7 @@ export const ChildJoinForm = () => {
   const isSubmitDisabled =
     isSubmitting ||
     !childCode.trim() ||
-    childCode.trim().length < 3 ||
-    familyCode.length !== 6 ||
-    !validateFamilyCode(familyCode.toUpperCase());
+    childCode.trim().length < 3;
 
   return (
     <div className="space-y-5">
@@ -133,27 +119,6 @@ export const ChildJoinForm = () => {
           <p className="text-white/60 text-xs mt-2">Ask your parent for your unique child code</p>
         </div>
 
-        <div>
-          <Label htmlFor="family-code" className="block text-white text-sm font-semibold mb-2">
-            Family Code
-          </Label>
-          <div className="bg-white/5 p-4 rounded-lg border-2 border-yellow-400/30 mb-3">
-            <Input
-              id="family-code"
-              type="text"
-              value={familyCode.toUpperCase()}
-              onChange={(e) =>
-                setFamilyCode(e.target.value.replace(/[^A-Z0-9]/g, "").slice(0, 6))
-              }
-              placeholder="XXXXXX"
-              maxLength={6}
-              required
-              className="w-full bg-transparent text-white placeholder-white/50 focus:outline-none text-center tracking-widest text-3xl font-bold border-0"
-            />
-          </div>
-          <p className="text-white/60 text-xs">Ask your parent for the family code</p>
-        </div>
-
         <Button
           type="submit"
           disabled={isSubmitDisabled}
@@ -167,9 +132,9 @@ export const ChildJoinForm = () => {
         <div className="flex items-start gap-3">
           <span className="text-2xl">💡</span>
           <div>
-            <p className="text-white font-semibold text-sm">Need your codes?</p>
+            <p className="text-white font-semibold text-sm">Need your code?</p>
             <p className="text-white/70 text-xs mt-1">
-              Ask your parent for your child code and the family code!
+              Ask your parent for your unique child code!
             </p>
           </div>
         </div>

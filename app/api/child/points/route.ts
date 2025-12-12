@@ -2,7 +2,7 @@
  * GET /api/child/points
  * 
  * Returns total GGPoints for a child
- * Body: { child_code: string, family_code: string }
+ * Requires: Child session cookie (set by /api/child/login)
  * 
  * Returns:
  * {
@@ -17,23 +17,12 @@ import {
   getTotalPointsForChild,
   ChildTaskError,
 } from "@/lib/repositories/childTaskRepository";
+import { requireChildSession } from "@/lib/auth/childSession";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as {
-      child_code?: string;
-      family_code?: string;
-    };
-
-    if (!body.child_code || !body.family_code) {
-      return NextResponse.json(
-        {
-          error: "INVALID_INPUT",
-          message: "child_code and family_code are required",
-        },
-        { status: 400 }
-      );
-    }
+    // Get child session from cookie
+    const session = await requireChildSession(request);
 
     let adminClient;
     try {
@@ -50,45 +39,17 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("[child:points] Fetching total points for child", {
-      child_code: body.child_code,
+      child_id: session.child_id,
     });
-
-    // Find child by codes
-    const { data: child, error: childError } = await adminClient
-      .from("users")
-      .select("id, family_code")
-      .eq("child_code", body.child_code.toUpperCase())
-      .eq("role", "child")
-      .single();
-
-    if (childError || !child) {
-      return NextResponse.json(
-        {
-          error: "UNAUTHORIZED",
-          message: "Invalid child credentials",
-        },
-        { status: 401 }
-      );
-    }
-
-    if (child.family_code !== body.family_code.toUpperCase()) {
-      return NextResponse.json(
-        {
-          error: "UNAUTHORIZED",
-          message: "Invalid family code",
-        },
-        { status: 401 }
-      );
-    }
 
     // Get total points
     const totalPoints = await getTotalPointsForChild({
-      childId: child.id,
+      childId: session.child_id,
       supabase: adminClient,
     });
 
     console.log("[child:points] Total points calculated", {
-      child_id: child.id,
+      child_id: session.child_id,
       total_points: totalPoints,
     });
 
@@ -99,6 +60,17 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
+    // Handle unauthorized (missing session)
+    if (error instanceof Error && error.message.includes("UNAUTHORIZED")) {
+      return NextResponse.json(
+        {
+          error: "UNAUTHORIZED",
+          message: "Child session required. Please log in first.",
+        },
+        { status: 401 }
+      );
+    }
+
     if (error instanceof ChildTaskError) {
       console.error("[child:points] Error", {
         code: error.code,

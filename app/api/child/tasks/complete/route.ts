@@ -2,9 +2,9 @@
  * POST /api/child/tasks/complete
  * 
  * Marks a task as completed by child
- * Body: { child_task_id: string, child_code: string, family_code: string }
+ * Requires: Child session cookie (set by /api/child/login)
+ * Body: { child_task_id: string }
  * 
- * No authentication required - uses admin client with SERVICE_ROLE
  * Does NOT add points - parent must approve first
  */
 
@@ -15,20 +15,22 @@ import {
   markTaskCompleted,
   ChildTaskError,
 } from "@/lib/repositories/childTaskRepository";
+import { requireChildSession } from "@/lib/auth/childSession";
 
 export async function POST(request: NextRequest) {
   try {
+    // Get child session from cookie
+    const session = await requireChildSession(request);
+
     const body = (await request.json()) as {
       child_task_id?: string;
-      child_code?: string;
-      family_code?: string;
     };
 
-    if (!body.child_task_id || !body.child_code || !body.family_code) {
+    if (!body.child_task_id) {
       return NextResponse.json(
         {
           error: "INVALID_INPUT",
-          message: "child_task_id, child_code, and family_code are required",
+          message: "child_task_id is required",
         },
         { status: 400 }
       );
@@ -36,15 +38,34 @@ export async function POST(request: NextRequest) {
 
     const adminClient = getSupabaseAdminClient();
 
+    // Get child_code from database for backward compatibility with repository
+    const { data: childData, error: childError } = await adminClient
+      .from("users")
+      .select("child_code")
+      .eq("id", session.child_id)
+      .eq("role", "child")
+      .single();
+
+    if (childError || !childData || !childData.child_code) {
+      console.error("[child:tasks:complete] Failed to get child_code:", childError);
+      return NextResponse.json(
+        {
+          error: "DATABASE_ERROR",
+          message: "Failed to resolve child code",
+        },
+        { status: 500 }
+      );
+    }
+
     console.log("[child:tasks:complete] Marking task complete", {
       child_task_id: body.child_task_id,
-      child_code: body.child_code,
+      child_id: session.child_id,
     });
 
     const updatedTask = await markTaskCompleted({
       childTaskId: body.child_task_id,
-      childCode: body.child_code,
-      familyCode: body.family_code,
+      childCode: childData.child_code,
+      familyCode: session.family_code,
       supabase: adminClient,
     });
 
@@ -54,6 +75,17 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(updatedTask, { status: 200 });
   } catch (error) {
+    // Handle unauthorized (missing session)
+    if (error instanceof Error && error.message.includes("UNAUTHORIZED")) {
+      return NextResponse.json(
+        {
+          error: "UNAUTHORIZED",
+          message: "Child session required. Please log in first.",
+        },
+        { status: 401 }
+      );
+    }
+
     if (error instanceof ChildTaskError) {
       console.error("[child:tasks:complete] Error", {
         code: error.code,
