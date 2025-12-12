@@ -146,10 +146,10 @@ export const ParentLoginForm = () => {
         </Button>
 
         <div className="text-center mt-6">
-          <p className="text-white/70 text-sm mb-3">Don&apos;t have an account?</p>
+          <p className="text-white/70 text-sm mb-2">Don&apos;t have an account?</p>
           <Link
             href="/parent/register"
-            className="text-yellow-300 font-semibold hover:text-yellow-200 transition-colors underline"
+            className="text-yellow-300/90 text-sm font-medium hover:text-yellow-200 transition-colors underline underline-offset-2"
           >
             Create one now
           </Link>

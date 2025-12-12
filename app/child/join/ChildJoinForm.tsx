@@ -162,7 +162,7 @@ export const ChildJoinForm = () => {
         <Button
           type="submit"
           disabled={isSubmitDisabled}
-          className="w-full bg-yellow-400 text-[#0F4C7D] font-bold py-3 rounded-lg hover:bg-yellow-300 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+          className="w-full bg-yellow-400 text-[#0F4C7D] font-bold py-3 rounded-lg hover:bg-yellow-300 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl disabled:hover:bg-yellow-400 disabled:hover:shadow-lg"
         >
           {isSubmitting ? "⏳ Entering..." : "🎮 Enter Game"}
         </Button>

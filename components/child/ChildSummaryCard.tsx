@@ -15,37 +15,39 @@ export function ChildSummaryCard({
   loadingPoints = false,
 }: ChildSummaryCardProps) {
   return (
-    <Card className="bg-white/10 border-yellow-400/30 backdrop-blur">
+    <Card className="bg-[rgb(0,39,96)] border-[rgb(7,81,170)]/40 backdrop-blur shadow-lg">
       <CardContent className="p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
+        <div className="flex flex-col gap-6">
           {/* Child Name Section */}
           <div className="flex-1 min-w-0">
-            <p className="text-white/70 text-sm mb-1">Hello,</p>
-            <p className="text-2xl font-bold text-white truncate">{childName}</p>
+            <p className="text-white/60 text-sm mb-1">Hello,</p>
+            <p className="text-2xl font-bold text-white break-words">{childName}</p>
           </div>
 
-          {/* GGPoints Section */}
-          <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
+          {/* GGPoints Section - Finance Card Style */}
+          <div className="flex flex-col gap-2">
             {loadingPoints ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="w-6 h-6 text-yellow-400 animate-spin" />
-                <span className="text-white/70 text-sm">Loading...</span>
+              <div className="flex items-center gap-3 py-2">
+                <Loader2 className="w-5 h-5 text-[rgb(249,165,17)] animate-spin" />
+                <span className="text-white/70 text-sm">Loading balance...</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 sm:gap-3">
-                <Coins className="w-7 h-7 sm:w-8 sm:h-8 text-yellow-400 flex-shrink-0" />
-                <div className="flex flex-col min-w-0">
-                  <p className="text-white/70 text-xs uppercase tracking-wide mb-0.5">
-                    GGPoints
-                  </p>
-                  <p
-                    className="text-3xl sm:text-4xl font-bold leading-none"
-                    style={{ color: "rgb(249, 165, 17)" }}
-                  >
-                    {totalPoints}
+              <>
+                {/* Label with coin icon */}
+                <div className="flex items-center gap-2 mb-1">
+                  <Coins className="w-4 h-4 text-[rgb(249,165,17)] flex-shrink-0" />
+                  <p className="text-white/50 text-[10px] uppercase tracking-[0.15em] font-medium">
+                    GGPOINTS
                   </p>
                 </div>
-              </div>
+                {/* Large number */}
+                <p
+                  className="text-5xl sm:text-6xl font-extrabold leading-none tracking-tight"
+                  style={{ color: "rgb(249, 165, 17)" }}
+                >
+                  {totalPoints.toLocaleString()}
+                </p>
+              </>
             )}
           </div>
         </div>
