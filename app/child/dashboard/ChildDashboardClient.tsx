@@ -9,6 +9,7 @@ import { useRequireChildAuth } from "@/hooks/useRequireChildAuth";
 import { createBrowserClient } from "@/lib/supabaseClient";
 import { LogOut, Loader2, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ChildSummaryCard } from "@/components/child/ChildSummaryCard";
 type TaskFromAPI = {
   child_task_id: string;
   task_id: string;
@@ -25,7 +26,6 @@ export function ChildDashboardClient() {
   const child = useSessionStore((state) => state.child);
   const hydrated = useSessionStore((state) => state._hasHydrated);
   const logout = useSessionStore((state) => state.logout);
-  const [parentName, setParentName] = useState<string | null>(null);
   const [tasks, setTasks] = useState<TaskFromAPI[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
@@ -36,36 +36,6 @@ export function ChildDashboardClient() {
   // Hooks must be called unconditionally
   useRequireChildAuth();
 
-  useEffect(() => {
-    if (child) {
-      // Fetch parent name
-      const fetchParent = async () => {
-        try {
-          const supabase = createBrowserClient();
-          const { data, error } = await supabase
-            .from("users")
-            .select("name")
-            .eq("id", child.parent_id)
-            .eq("role", "parent")
-            .maybeSingle();
-
-          if (error) {
-            console.error("Failed to fetch parent:", error);
-            return;
-          }
-
-          if (data) {
-            const parentData = data as { name: string | null };
-            setParentName(parentData.name || "");
-          }
-        } catch (error) {
-          console.error("Failed to fetch parent:", error);
-        }
-      };
-
-      fetchParent();
-    }
-  }, [child]);
 
   // Load tasks for the child
   useEffect(() => {
@@ -254,12 +224,7 @@ export function ChildDashboardClient() {
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white">iKidO</h1>
-            <p className="text-yellow-300 font-semibold mt-1">
-              Welcome, {child.name}!
-            </p>
-          </div>
+          <h1 className="text-3xl font-bold text-white">iKidO</h1>
           <Button
             onClick={handleLogout}
             variant="outline"
@@ -270,32 +235,12 @@ export function ChildDashboardClient() {
           </Button>
         </div>
 
-        {/* Parent Info */}
-        {parentName && (
-          <Card className="bg-white/10 border-yellow-400/30 backdrop-blur">
-            <CardContent className="p-6">
-              <p className="text-white/70 text-sm mb-1">Parent</p>
-              <p className="text-xl font-bold text-white">{parentName}</p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* GGPoints Balance */}
-        <Card className="bg-white/10 border-yellow-400/30 backdrop-blur">
-          <CardContent className="p-6">
-            <p className="text-white/70 text-sm mb-1">Your GGPoints</p>
-            {loadingPoints ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="w-6 h-6 text-yellow-400 animate-spin" />
-                <span className="text-white/70">Loading...</span>
-              </div>
-            ) : (
-              <p className="text-4xl font-bold text-yellow-400">
-                {ggpoints}
-              </p>
-            )}
-          </CardContent>
-        </Card>
+        {/* Child Summary Card (Name + GGPoints) */}
+        <ChildSummaryCard
+          childName={child.name}
+          totalPoints={ggpoints}
+          loadingPoints={loadingPoints}
+        />
 
         {/* Tasks */}
         <Card className="bg-white/10 border-yellow-400/30 backdrop-blur">

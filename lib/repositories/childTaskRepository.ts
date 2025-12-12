@@ -25,8 +25,11 @@ type ChildTaskRow = Db["child_tasks"]["Row"];
 type TaskRow = Db["tasks"]["Row"];
 
 // Type for child_tasks query result with joined tasks
-type ChildTaskRowWithTask = ChildTaskRow & {
-  tasks?: TaskRow | null;
+// NOTE: approved_at is NOT included in queries, so it's optional here
+// tasks is a partial TaskRow since we only select specific fields
+type ChildTaskRowWithTask = Omit<ChildTaskRow, 'approved_at'> & {
+  approved_at?: string | null;
+  tasks?: Pick<TaskRow, 'id' | 'title' | 'description' | 'points' | 'is_global'> | null;
 };
 
 export type ChildTaskErrorCode =
@@ -50,7 +53,7 @@ export class ChildTaskError extends Error {
 
 const mapChildTaskRow = (
   row: ChildTaskRow | ChildTaskRowWithTask,
-  task?: TaskRow
+  task?: Pick<TaskRow, 'id' | 'title' | 'description' | 'points' | 'is_global'>
 ): ChildTaskInstance => {
   // Map from database schema to domain model
   // Database uses: child_id, status, assigned_at
@@ -72,7 +75,7 @@ const mapChildTaskRow = (
     task_id: row.task_id,
     completed,
     completed_at: row.completed_at,
-    created_at: row.assigned_at || row.created_at, // Use assigned_at as created_at
+    created_at: row.assigned_at, // Use assigned_at as created_at (created_at doesn't exist in schema)
     task: task
       ? {
           id: task.id,
