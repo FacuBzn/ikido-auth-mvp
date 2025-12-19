@@ -1,19 +1,15 @@
 /**
- * GET /api/parent/tasks/list
+ * GET /api/parent/child-tasks/list
  * 
- * Lists all available tasks for parent:
- * - Global task templates
- * - Parent's custom task templates
+ * Lists child_tasks for a specific child (server-side, no CORS issues)
+ * Replaces direct browser calls to Supabase REST API
  */
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/serverClient";
 import { getAuthenticatedUser } from "@/lib/authHelpers";
-import {
-  listAvailableTasksForParent,
-  TaskError,
-} from "@/lib/repositories/taskRepository";
+import { getTasksForChild, ChildTaskError } from "@/lib/repositories/childTaskRepository";
 
 // Force dynamic rendering to prevent caching
 export const dynamic = "force-dynamic";
@@ -31,52 +27,49 @@ export async function GET(request: NextRequest) {
 
     if (authUser.profile.role !== "Parent") {
       return NextResponse.json(
-        { error: "FORBIDDEN", message: "Only parents can access tasks" },
+        { error: "FORBIDDEN", message: "Only parents can access child tasks" },
         { status: 403 }
       );
     }
 
-    // Get pagination params and childId from query
+    // Get child_id from query params
     const { searchParams } = new URL(request.url);
-    const limit = Math.min(parseInt(searchParams.get("limit") || "5", 10), 100); // Max 100, default 5
-    const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
-    const childId = searchParams.get("childId") || undefined;
+    const childId = searchParams.get("child_id");
+
+    if (!childId || typeof childId !== "string") {
+      return NextResponse.json(
+        { error: "INVALID_INPUT", message: "child_id is required" },
+        { status: 400 }
+      );
+    }
 
     const { supabase } = createSupabaseRouteHandlerClient(request);
 
-    console.log("[api:parent:tasks:list] GET Fetching available tasks", {
+    console.log("[api:parent:child-tasks:list] GET Fetching child tasks", {
       parentAuthId: authUser.user.id,
-      childId: childId || "none (all children)",
-      limit,
-      offset,
+      childId,
     });
 
-    // Get all tasks (repository handles hidden tasks filtering per child)
-    const allTasks = await listAvailableTasksForParent(
-      authUser.user.id,
+    // Use repository function to get tasks
+    const tasks = await getTasksForChild({
+      parentAuthId: authUser.user.id,
+      childId,
       supabase,
-      childId ? { childId } : undefined
-    );
+    });
 
-    // Apply pagination in memory (after filtering hidden tasks)
-    const total = allTasks.length;
-    const tasks = allTasks.slice(offset, offset + limit);
-
-    console.log("[api:parent:tasks:list] GET Found tasks", {
+    console.log("[api:parent:child-tasks:list] GET Found tasks", {
       count: tasks.length,
-      total,
-      limit,
-      offset,
+      childId,
     });
 
     return NextResponse.json(
-      { tasks, total, limit, offset },
+      { data: tasks, count: tasks.length },
       { status: 200 }
     );
   } catch (error) {
 
-    if (error instanceof TaskError) {
-      console.error("[api:parent:tasks:list] GET TaskError", {
+    if (error instanceof ChildTaskError) {
+      console.error("[api:parent:child-tasks:list] GET ChildTaskError", {
         code: error.code,
         message: error.message,
       });
@@ -84,6 +77,7 @@ export async function GET(request: NextRequest) {
       let status = 400;
       if (error.code === "UNAUTHORIZED") status = 401;
       else if (error.code === "FORBIDDEN") status = 403;
+      else if (error.code === "CHILD_TASK_NOT_FOUND" || error.code === "TASK_NOT_FOUND") status = 404;
       else if (error.code === "DATABASE_ERROR") status = 503; // Service unavailable for DB errors
 
       return NextResponse.json(
@@ -95,7 +89,7 @@ export async function GET(request: NextRequest) {
     // Handle timeout/network errors
     if (error instanceof Error) {
       if (error.message.includes("timeout") || error.message.includes("fetch failed")) {
-        console.error("[api:parent:tasks:list] GET Timeout/Network error", error);
+        console.error("[api:parent:child-tasks:list] GET Timeout/Network error", error);
         return NextResponse.json(
           { error: "TIMEOUT", message: "Connection timeout. Please try again." },
           { status: 503 }
@@ -103,9 +97,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    console.error("[api:parent:tasks:list] GET Unexpected error", error);
+    console.error("[api:parent:child-tasks:list] GET Unexpected error", error);
     return NextResponse.json(
-      { error: "DATABASE_ERROR", message: "Failed to fetch tasks" },
+      { error: "DATABASE_ERROR", message: "Failed to fetch child tasks" },
       { status: 500 }
     );
   }

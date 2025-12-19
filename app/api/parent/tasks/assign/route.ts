@@ -83,19 +83,79 @@ export async function POST(request: NextRequest) {
 
     const { supabase } = createSupabaseRouteHandlerClient(request);
 
+    // Part A: Get parent_id DIRECTLY from authenticated session (NEVER from client)
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    const hasUser = !!authData?.user;
+    const userId = authData?.user?.id ? `${authData.user.id.substring(0, 8)}...` : "none";
+
+    console.log("[tasks:assign] Auth check", {
+      hasUser,
+      userId,
+      authError: authError ? { message: authError.message, status: authError.status } : null,
+    });
+
+    if (!hasUser || authError || !authData.user) {
+      console.error("[tasks:assign] Authentication failed", {
+        hasUser,
+        authError,
+      });
+      return NextResponse.json(
+        { error: "UNAUTHORIZED", message: "Authentication failed" },
+        { status: 401 }
+      );
+    }
+
+    // Get parent_id from session - NEVER trust client
+    const parentAuthId = authData.user.id; // This is auth.uid()
+
+    // Get parent internal id from auth_id
+    const { data: parentData, error: parentError } = await supabase
+      .from("users")
+      .select("id")
+      .eq("auth_id", parentAuthId)
+      .eq("role", "parent")
+      .single();
+
+    if (parentError || !parentData) {
+      console.error("[tasks:assign] Parent not found", {
+        parentAuthId,
+        parentError,
+      });
+      return NextResponse.json(
+        { error: "FORBIDDEN", message: "Parent not found" },
+        { status: 403 }
+      );
+    }
+
+    const parentId = parentData.id; // Internal id from session, NOT from client
+
     console.log("[tasks:assign] Parent assigning task", {
-      parent_id: authUser.user.id,
+      parent_auth_id: parentAuthId,
+      parent_internal_id: parentId,
       task_id: body.task_id,
       child_ids: childIds,
       points: body.points,
     });
 
     const childTasks = await assignTaskToChildren({
-      parentAuthId: authUser.user.id,
+      parentAuthId,
+      parentId, // Pass internal id from session
       taskId: body.task_id,
       childIds,
       supabase,
     });
+
+    // Fix: Don't return 201 if no tasks were assigned (error handling bug)
+    if (childTasks.length === 0) {
+      console.error("[tasks:assign] No tasks assigned", {
+        childIds,
+        taskId: body.task_id,
+      });
+      return NextResponse.json(
+        { error: "DATABASE_ERROR", message: "Failed to assign task to any child" },
+        { status: 500 }
+      );
+    }
 
     console.log("[tasks:assign] Assignment successful", {
       assigned_count: childTasks.length,
