@@ -2,7 +2,8 @@
  * POST /api/parent/tasks/delete
  * 
  * Deletes or hides a task based on its type:
- * - Global tasks (is_global = true): Hidden (soft delete visual) via parent_hidden_tasks
+ * - Global tasks (is_global = true): Hidden (soft delete visual) via child_hidden_tasks (per child)
+ *   Requires childId in request body
  * - Custom tasks (is_global = false, created_by_parent_id = auth.uid()): Hard delete
  */
 
@@ -11,7 +12,7 @@ import type { NextRequest } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/serverClient";
 import { getAuthenticatedUser } from "@/lib/authHelpers";
 import {
-  hideGlobalTask,
+  hideGlobalTaskForChild,
   deleteCustomTask,
   getTaskById,
   TaskError,
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
     const { supabase } = createSupabaseRouteHandlerClient(request);
 
     const body = await request.json();
-    const { taskId } = body;
+    const { taskId, childId } = body;
 
     if (!taskId || typeof taskId !== "string") {
       return NextResponse.json(
@@ -49,6 +50,7 @@ export async function POST(request: NextRequest) {
 
     console.log("[api:parent:tasks:delete] POST Deleting/hiding task", {
       taskId,
+      childId: childId || "none",
       parentAuthId: authUser.user.id,
     });
 
@@ -62,22 +64,31 @@ export async function POST(request: NextRequest) {
 
     // Branch based on task type
     if (task.is_global) {
-      // Global task: Hide it (soft delete visual)
-      await hideGlobalTask({
+      // Global task: Hide it for the specific child (soft delete visual per child)
+      if (!childId || typeof childId !== "string") {
+        return NextResponse.json(
+          { error: "INVALID_INPUT", message: "childId is required for hiding global tasks" },
+          { status: 400 }
+        );
+      }
+
+      await hideGlobalTaskForChild({
         parentAuthId: authUser.user.id,
+        childId,
         taskId,
         supabase,
       });
 
-      console.log("[api:parent:tasks:delete] Task hidden successfully", {
+      console.log("[api:parent:tasks:delete] Task hidden successfully for child", {
         taskId,
+        childId,
       });
 
       return NextResponse.json(
         {
           success: true,
           action: "hidden",
-          message: "Task has been hidden from your catalog",
+          message: "Task has been hidden for this child",
         },
         { status: 200 }
       );

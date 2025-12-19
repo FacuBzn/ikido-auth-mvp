@@ -18,23 +18,11 @@ import {
 // Force dynamic rendering to prevent caching
 export const dynamic = "force-dynamic";
 
-// Timeout configuration (10 seconds)
-const REQUEST_TIMEOUT = 10000;
-
 export async function GET(request: NextRequest) {
-  // Set timeout for the request
-  const timeoutId = setTimeout(() => {
-    return NextResponse.json(
-      { error: "TIMEOUT", message: "Request timeout. Please try again." },
-      { status: 503 }
-    );
-  }, REQUEST_TIMEOUT);
-
   try {
     const authUser = await getAuthenticatedUser();
 
     if (!authUser) {
-      clearTimeout(timeoutId);
       return NextResponse.json(
         { error: "UNAUTHORIZED", message: "Authentication required" },
         { status: 401 }
@@ -42,37 +30,37 @@ export async function GET(request: NextRequest) {
     }
 
     if (authUser.profile.role !== "Parent") {
-      clearTimeout(timeoutId);
       return NextResponse.json(
         { error: "FORBIDDEN", message: "Only parents can access tasks" },
         { status: 403 }
       );
     }
 
-    // Get pagination params from query
+    // Get pagination params and childId from query
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get("limit") || "5", 10), 100); // Max 100, default 5
     const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
+    const childId = searchParams.get("childId") || undefined;
 
     const { supabase } = createSupabaseRouteHandlerClient(request);
 
     console.log("[api:parent:tasks:list] GET Fetching available tasks", {
       parentAuthId: authUser.user.id,
+      childId: childId || "none (all children)",
       limit,
       offset,
     });
 
-    // Get all tasks (repository handles hidden tasks filtering)
+    // Get all tasks (repository handles hidden tasks filtering per child)
     const allTasks = await listAvailableTasksForParent(
       authUser.user.id,
-      supabase
+      supabase,
+      childId ? { childId } : undefined
     );
 
     // Apply pagination in memory (after filtering hidden tasks)
     const total = allTasks.length;
     const tasks = allTasks.slice(offset, offset + limit);
-
-    clearTimeout(timeoutId);
 
     console.log("[api:parent:tasks:list] GET Found tasks", {
       count: tasks.length,
@@ -86,7 +74,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    clearTimeout(timeoutId);
 
     if (error instanceof TaskError) {
       console.error("[api:parent:tasks:list] GET TaskError", {

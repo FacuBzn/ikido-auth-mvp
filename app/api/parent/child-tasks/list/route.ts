@@ -57,8 +57,6 @@ export async function GET(request: NextRequest) {
       supabase,
     });
 
-    clearTimeout(timeoutId);
-
     console.log("[api:parent:child-tasks:list] GET Found tasks", {
       count: tasks.length,
       childId,
@@ -69,7 +67,6 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    clearTimeout(timeoutId);
 
     if (error instanceof ChildTaskError) {
       console.error("[api:parent:child-tasks:list] GET ChildTaskError", {

@@ -99,32 +99,68 @@ export async function getGlobalTasks(
 }
 
 /**
- * LIST ALL AVAILABLE TASKS FOR PARENT
- * Returns all global tasks EXCEPT those hidden by this parent
+ * LIST ALL AVAILABLE TASKS FOR PARENT (optionally filtered by child)
+ * Returns all global tasks EXCEPT those hidden for the specified child
+ * If childId is not provided, returns all global tasks (backward compatibility)
  */
 export async function listAvailableTasksForParent(
   parentAuthId: string,
-  supabase: SupabaseClient<Database>
+  supabase: SupabaseClient<Database>,
+  options?: { childId?: string }
 ): Promise<TaskTemplate[]> {
+  const { childId } = options || {};
+  
   console.log("[tasks:listAvailableTasksForParent] Fetching tasks", {
     parentAuthId,
+    childId: childId || "none (all children)",
   });
 
   const parentId = await getParentIdFromAuthId(parentAuthId, supabase);
 
-  // First, get list of hidden task IDs for this parent
-  // Note: parent_hidden_tasks table may not be in types yet, so we use type assertion
-  const { data: hiddenTasks, error: hiddenError } = await (supabase
-    .from("parent_hidden_tasks" as any)
-    .select("task_id")
-    .eq("parent_id", parentId) as any);
+  // If childId is provided, filter by child_hidden_tasks
+  // Otherwise, return all global tasks (backward compatibility)
+  let hiddenTaskIds: string[] = [];
 
-  if (hiddenError) {
-    console.error("[tasks:listAvailableTasksForParent] Error fetching hidden tasks:", hiddenError);
-    // Continue anyway - if table doesn't exist yet, just return all tasks
+  if (childId) {
+    // Verify child belongs to parent
+    const { data: child, error: childError } = await supabase
+      .from("users")
+      .select("id, parent_id, role")
+      .eq("id", childId)
+      .eq("role", "child")
+      .single();
+
+    if (childError || !child) {
+      throw new TaskError("TASK_NOT_FOUND", "Child not found");
+    }
+
+    if (child.parent_id !== parentId) {
+      throw new TaskError(
+        "FORBIDDEN",
+        "This child does not belong to you"
+      );
+    }
+
+    // Get list of hidden task IDs for this parent and child
+    // Note: child_hidden_tasks table may not be in types yet, so we use type assertion
+    const { data: hiddenTasks, error: hiddenError } = await (supabase
+      .from("child_hidden_tasks" as any)
+      .select("task_id")
+      .eq("parent_id", parentId)
+      .eq("child_id", childId) as any);
+
+    if (hiddenError) {
+      // If table doesn't exist (PGRST205), just return all tasks (graceful degradation)
+      if (hiddenError.code === "PGRST205" || hiddenError.message?.includes("does not exist")) {
+        console.warn("[tasks:listAvailableTasksForParent] child_hidden_tasks table does not exist yet. Returning all tasks.");
+      } else {
+        console.error("[tasks:listAvailableTasksForParent] Error fetching hidden tasks:", hiddenError);
+      }
+      // Continue anyway - if table doesn't exist yet, just return all tasks
+    } else {
+      hiddenTaskIds = (hiddenTasks as { task_id: string }[] | null)?.map((h) => h.task_id) || [];
+    }
   }
-
-  const hiddenTaskIds = (hiddenTasks as { task_id: string }[] | null)?.map((h) => h.task_id) || [];
 
   // Query global tasks, excluding hidden ones
   // If there are hidden tasks, filter them out
@@ -315,22 +351,43 @@ export async function updateCustomTask(params: {
 }
 
 /**
- * HIDE GLOBAL TASK (Soft delete visual)
- * Adds task to parent_hidden_tasks to hide it from this parent's view
+ * HIDE GLOBAL TASK FOR CHILD (Soft delete visual per child)
+ * Adds task to child_hidden_tasks to hide it from this child's view
  */
-export async function hideGlobalTask(params: {
+export async function hideGlobalTaskForChild(params: {
   parentAuthId: string;
+  childId: string;
   taskId: string;
   supabase: SupabaseClient<Database>;
 }): Promise<void> {
-  const { parentAuthId, taskId, supabase } = params;
+  const { parentAuthId, childId, taskId, supabase } = params;
 
   const parentId = await getParentIdFromAuthId(parentAuthId, supabase);
 
-  console.log("[tasks:hideGlobalTask] Hiding task", {
+  console.log("[tasks:hideGlobalTaskForChild] Hiding task for child", {
     parentId,
+    childId,
     taskId,
   });
+
+  // Verify child belongs to parent
+  const { data: child, error: childError } = await supabase
+    .from("users")
+    .select("id, parent_id, role")
+    .eq("id", childId)
+    .eq("role", "child")
+    .single();
+
+  if (childError || !child) {
+    throw new TaskError("TASK_NOT_FOUND", "Child not found");
+  }
+
+  if (child.parent_id !== parentId) {
+    throw new TaskError(
+      "FORBIDDEN",
+      "This child does not belong to you"
+    );
+  }
 
   // Verify task exists and is global
   const { data: task } = await supabase
@@ -350,29 +407,31 @@ export async function hideGlobalTask(params: {
     );
   }
 
-  // Upsert into parent_hidden_tasks (ignore if already hidden)
-  // Note: parent_hidden_tasks table may not be in types yet, so we use type assertion
+  // Upsert into child_hidden_tasks (ignore if already hidden)
+  // Note: child_hidden_tasks table may not be in types yet, so we use type assertion
   const { error } = await (supabase
-    .from("parent_hidden_tasks" as any)
+    .from("child_hidden_tasks" as any)
     .upsert(
       {
         parent_id: parentId,
+        child_id: childId,
         task_id: taskId,
       },
       {
-        onConflict: "parent_id,task_id",
+        onConflict: "parent_id,child_id,task_id",
         ignoreDuplicates: false, // Update if exists, insert if not
       }
     ) as any);
 
   if (error) {
-    console.error("[tasks:hideGlobalTask] Error:", {
+    console.error("[tasks:hideGlobalTaskForChild] Error:", {
       error,
       errorCode: error.code,
       errorMessage: error.message,
       errorDetails: error.details,
       errorHint: error.hint,
       parentId,
+      childId,
       taskId,
     });
     
@@ -380,7 +439,7 @@ export async function hideGlobalTask(params: {
     if (error.code === "PGRST205" || error.message?.includes("does not exist")) {
       throw new TaskError(
         "DATABASE_ERROR",
-        "The hidden_tasks table does not exist. Please run the migration SQL script first."
+        "The child_hidden_tasks table does not exist. Please run the migration SQL script first."
       );
     }
     

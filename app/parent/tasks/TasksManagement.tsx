@@ -236,16 +236,28 @@ export const TasksManagement = ({
   const [editPoints, setEditPoints] = useState<string>("10");
 
   // Load global tasks function (reusable with cache busting and pagination)
-  const loadGlobalTasks = useCallback(async (options?: { cacheBust?: boolean; limit?: number; offset?: number }) => {
+  const loadGlobalTasks = useCallback(async (options?: { cacheBust?: boolean; limit?: number; offset?: number; childId?: string }) => {
     setLoadingGlobalTasks(true);
     try {
       const limit = options?.limit ?? 5; // Default 5 items
       const offset = options?.offset ?? 0;
+      const childId = options?.childId || selectedChildId || undefined;
       
-      // Add cache busting query param if requested
-      const url = options?.cacheBust
-        ? `/api/parent/tasks/list?limit=${limit}&offset=${offset}&t=${Date.now()}`
-        : `/api/parent/tasks/list?limit=${limit}&offset=${offset}`;
+      // Build URL with query params
+      const params = new URLSearchParams({
+        limit: String(limit),
+        offset: String(offset),
+      });
+      
+      if (childId) {
+        params.append("childId", childId);
+      }
+      
+      if (options?.cacheBust) {
+        params.append("t", String(Date.now()));
+      }
+      
+      const url = `/api/parent/tasks/list?${params.toString()}`;
       
       const response = await fetch(url, {
         cache: "no-store", // Always prevent caching
@@ -267,6 +279,7 @@ export const TasksManagement = ({
         total,
         limit,
         offset,
+        childId: childId || "none",
         cacheBust: options?.cacheBust || false,
       });
       
@@ -281,7 +294,7 @@ export const TasksManagement = ({
     } finally {
       setLoadingGlobalTasks(false);
     }
-  }, [toast]);
+  }, [toast, selectedChildId]);
 
   // Load global tasks on mount
   useEffect(() => {
@@ -755,6 +768,16 @@ export const TasksManagement = ({
         currentCount: globalTasks.length,
       });
 
+      // Validate child is selected
+      if (!selectedChildId) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Please select a child first",
+        });
+        return;
+      }
+
       // Optimistic update: Remove from UI immediately BEFORE API call
       setGlobalTasks((prev) => {
         const filtered = prev.filter((t) => t.id !== taskId);
@@ -762,17 +785,18 @@ export const TasksManagement = ({
           beforeCount: prev.length,
           afterCount: filtered.length,
           removedTaskId: taskId,
+          childId: selectedChildId,
         });
         return filtered;
       });
 
-      // Call API to handle delete/hide
+      // Call API to handle delete/hide (with childId for global tasks)
       const response = await fetch("/api/parent/tasks/delete", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ taskId }),
+        body: JSON.stringify({ taskId, childId: selectedChildId }),
       });
 
       if (!response.ok) {
@@ -787,22 +811,26 @@ export const TasksManagement = ({
           });
           
           // Re-fetch to check if the delete actually succeeded on the backend
-          await loadGlobalTasks({ limit: 5, cacheBust: true });
+          await loadGlobalTasks({ limit: 5, childId: selectedChildId, cacheBust: true });
           
           // If the task is still in the list, it means the delete failed - show error
           try {
-            const checkResponse = await fetch("/api/parent/tasks/list?limit=5", { cache: "no-store" });
+            const checkParams = new URLSearchParams({
+              limit: "5",
+              childId: selectedChildId,
+            });
+            const checkResponse = await fetch(`/api/parent/tasks/list?${checkParams.toString()}`, { cache: "no-store" });
             if (checkResponse.ok) {
               const checkData = await checkResponse.json();
               const currentTasks = checkData.tasks || checkData || [];
               
               if (currentTasks.some((t: TaskTemplate) => t.id === taskId)) {
                 // Task still exists, revert optimistic update
-                await loadGlobalTasks({ limit: 5, cacheBust: true });
+                await loadGlobalTasks({ limit: 5, childId: selectedChildId, cacheBust: true });
                 throw new Error("Problema de conexión. Por favor, reintentá.");
               } else {
                 // Task was deleted, just refresh to ensure consistency
-                await loadGlobalTasks({ limit: 5, cacheBust: true });
+                await loadGlobalTasks({ limit: 5, childId: selectedChildId, cacheBust: true });
                 toast({
                   title: "Task ocultada",
                   description: "La task fue ocultada correctamente.",
@@ -812,7 +840,7 @@ export const TasksManagement = ({
             }
           } catch (checkError) {
             // If check fails, revert and show error
-            await loadGlobalTasks({ limit: 5, cacheBust: true });
+            await loadGlobalTasks({ limit: 5, childId: selectedChildId, cacheBust: true });
             throw new Error("Problema de conexión. Por favor, reintentá.");
           }
         } else {
@@ -821,7 +849,7 @@ export const TasksManagement = ({
             taskId,
             error: errorData,
           });
-          await loadGlobalTasks({ limit: 5, cacheBust: true });
+          await loadGlobalTasks({ limit: 5, childId: selectedChildId, cacheBust: true });
           throw new Error(errorMessage);
         }
       }
@@ -829,8 +857,9 @@ export const TasksManagement = ({
       // Re-fetch to ensure consistency and "refill" the window of 5 items
       console.log("[tasks:deleteGlobal] API success, re-fetching tasks to refill window", {
         taskId,
+        childId: selectedChildId,
       });
-      await loadGlobalTasks({ limit: 5, cacheBust: true });
+      await loadGlobalTasks({ limit: 5, childId: selectedChildId, cacheBust: true });
 
       toast({
         title: taskToDelete.is_global ? "Task hidden" : "Task deleted",
