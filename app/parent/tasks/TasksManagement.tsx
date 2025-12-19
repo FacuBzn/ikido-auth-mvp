@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { Loader2, Plus, Trash2, Edit2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollToTopButton } from "@/components/common/ScrollToTopButton";
@@ -46,6 +46,7 @@ type TaskCardProps = {
   isAlreadyAssigned: boolean;
   isAssigning: boolean;
   onAssign: (taskId: string) => void;
+  onDelete?: (taskId: string) => void;
 };
 
 // TaskCard component for global tasks
@@ -54,11 +55,24 @@ const TaskCard = ({
   isAlreadyAssigned,
   isAssigning,
   onAssign,
+  onDelete,
 }: TaskCardProps) => {
   return (
     <div className="flex flex-col rounded-xl border-2 border-[var(--brand-gold-400)]/40 bg-[#0b2f4c] p-5 shadow-md transition-all hover:border-[var(--brand-gold-400)]/60 hover:shadow-lg">
       <div className="flex flex-1 flex-col gap-3 mb-4">
-        <h3 className="text-lg font-semibold text-white">{task.title}</h3>
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-lg font-semibold text-white flex-1">{task.title}</h3>
+          {onDelete && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onDelete(task.id)}
+              className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/20"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
         {task.description && (
           <p className="flex-1 text-sm text-white/70 leading-relaxed">
             {task.description}
@@ -221,33 +235,124 @@ export const TasksManagement = ({
   const [editDescription, setEditDescription] = useState("");
   const [editPoints, setEditPoints] = useState<string>("10");
 
-  // Load global tasks on mount
-  useEffect(() => {
-    const loadGlobalTasks = async () => {
-      setLoadingGlobalTasks(true);
-      try {
-        const response = await fetch("/api/parent/tasks/list");
-        if (!response.ok) {
-          throw new Error("Failed to load global tasks");
-        }
-        const data = await response.json();
-        setGlobalTasks(data || []);
-      } catch (cause) {
-        console.error("[tasks:loadGlobal] Error:", cause);
-        toast({
-          variant: "destructive",
-          title: "Error loading global tasks",
-          description: "Could not load available tasks.",
-        });
-      } finally {
-        setLoadingGlobalTasks(false);
+  // Load global tasks function (reusable with cache busting and pagination)
+  const loadGlobalTasks = useCallback(async (options?: { cacheBust?: boolean; limit?: number; offset?: number }) => {
+    setLoadingGlobalTasks(true);
+    try {
+      const limit = options?.limit ?? 5; // Default 5 items
+      const offset = options?.offset ?? 0;
+      
+      // Add cache busting query param if requested
+      const url = options?.cacheBust
+        ? `/api/parent/tasks/list?limit=${limit}&offset=${offset}&t=${Date.now()}`
+        : `/api/parent/tasks/list?limit=${limit}&offset=${offset}`;
+      
+      const response = await fetch(url, {
+        cache: "no-store", // Always prevent caching
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to load global tasks");
       }
-    };
-
-    void loadGlobalTasks();
+      
+      const result = await response.json();
+      
+      // Handle both old format (array) and new format ({ tasks, total })
+      const tasks = result.tasks || result || [];
+      const total = result.total ?? tasks.length;
+      
+      console.log("[tasks:loadGlobal] Tasks loaded", {
+        count: tasks.length,
+        total,
+        limit,
+        offset,
+        cacheBust: options?.cacheBust || false,
+      });
+      
+      setGlobalTasks(tasks);
+    } catch (cause) {
+      console.error("[tasks:loadGlobal] Error:", cause);
+      toast({
+        variant: "destructive",
+        title: "Error loading global tasks",
+        description: "Could not load available tasks.",
+      });
+    } finally {
+      setLoadingGlobalTasks(false);
+    }
   }, [toast]);
 
-  // Load assigned tasks when child is selected
+  // Load global tasks on mount
+  useEffect(() => {
+    void loadGlobalTasks();
+  }, [loadGlobalTasks]);
+
+  // Helper function for retry with exponential backoff
+  const fetchWithRetry = async (
+    url: string,
+    options: RequestInit,
+    maxRetries = 2,
+    retryDelay = 1000
+  ): Promise<Response> => {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        if (attempt > 0) {
+          // Show retry toast
+          toast({
+            title: "Reintentando...",
+            description: `Intento ${attempt + 1} de ${maxRetries + 1}`,
+          });
+          
+          // Exponential backoff: 1s, 2s
+          await new Promise((resolve) => setTimeout(resolve, retryDelay * attempt));
+        }
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+        
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `HTTP ${response.status}`);
+        }
+        
+        return response;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        
+        // Don't retry on abort (timeout) or 4xx errors
+        if (error instanceof Error && error.name === "AbortError") {
+          throw new Error("Request timeout. Please try again.");
+        }
+        
+        if (error instanceof Error && error.message.includes("HTTP 4")) {
+          throw lastError; // Don't retry client errors
+        }
+        
+        // Continue to next retry
+        if (attempt < maxRetries) {
+          console.warn(`[tasks:fetchWithRetry] Attempt ${attempt + 1} failed, retrying...`, {
+            error: lastError.message,
+            url,
+          });
+        }
+      }
+    }
+    
+    throw lastError || new Error("Failed after retries");
+  };
+
+  // Load assigned tasks when child is selected (using internal API, no CORS)
   useEffect(() => {
     if (!selectedChildId) {
       setTasks([]);
@@ -259,27 +364,24 @@ export const TasksManagement = ({
       try {
         console.log("[tasks:load] Loading tasks for child", {
           child_id: selectedChildId,
-          using_column: "child_id",
+          using_endpoint: "/api/parent/child-tasks/list",
         });
         
-        const { data, error: fetchError } = await supabase
-          .from("child_tasks")
-          .select("*")
-          .eq("child_id", selectedChildId)
-          .order("assigned_at", { ascending: false });
+        const url = `/api/parent/child-tasks/list?child_id=${encodeURIComponent(selectedChildId)}`;
+        const response = await fetchWithRetry(url, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
 
-        if (fetchError) {
-          console.error("[tasks:load] Supabase error:", {
-            error: fetchError,
-            errorCode: fetchError.code,
-            errorMessage: fetchError.message,
-            errorDetails: fetchError.details,
-            errorHint: fetchError.hint,
-            query_column: "child_id",
-            selectedChildId,
-          });
-          throw fetchError;
+        const result = await response.json();
+        
+        if (result.error) {
+          throw new Error(result.message || result.error);
         }
+
+        const data = result.data || [];
 
         // Diagnostic: Log first item to verify points field
         if (data && data.length > 0 && process.env.NODE_ENV === "development") {
@@ -303,17 +405,11 @@ export const TasksManagement = ({
         console.error("[tasks:load] Error loading tasks:", cause);
         
         const errorMessage = cause instanceof Error ? cause.message : String(cause);
-        const isSchemaError = 
-          errorMessage.includes("child_user_id does not exist") ||
-          errorMessage.includes("child_id does not exist") ||
-          errorMessage.includes("column") && errorMessage.includes("does not exist");
         
         toast({
           variant: "destructive",
           title: "Error loading tasks",
-          description: isSchemaError
-            ? "Database schema issue. Please run scripts/sql/23-fix-child-tasks-schema.sql in Supabase SQL Editor."
-            : "Could not load tasks. Please try again.",
+          description: errorMessage || "Could not load tasks. Please try again.",
         });
       } finally {
         setLoadingTasks(false);
@@ -321,7 +417,7 @@ export const TasksManagement = ({
     };
 
     void loadTasks();
-  }, [selectedChildId, supabase, toast]);
+  }, [selectedChildId, toast]);
 
   const handleCreateTask = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -621,21 +717,350 @@ export const TasksManagement = ({
     }
   };
 
+  const handleDeleteGlobalTask = async (taskId: string) => {
+    if (!confirm("Are you sure you want to remove this task from your catalog?")) {
+      return;
+    }
+
+    try {
+      // Get auth context
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      
+      if (!authData?.user || authError) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Not authenticated",
+        });
+        return;
+      }
+
+      const parentAuthId = authData.user.id;
+
+      // Find the task to check if it's global or custom
+      const taskToDelete = globalTasks.find((t) => t.id === taskId);
+      if (!taskToDelete) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Task not found",
+        });
+        return;
+      }
+
+      console.log("[tasks:deleteGlobal] Starting delete/hide", {
+        taskId,
+        isGlobal: taskToDelete.is_global,
+        createdByParentId: taskToDelete.created_by_parent_id,
+        currentCount: globalTasks.length,
+      });
+
+      // Optimistic update: Remove from UI immediately BEFORE API call
+      setGlobalTasks((prev) => {
+        const filtered = prev.filter((t) => t.id !== taskId);
+        console.log("[tasks:deleteGlobal] Optimistic update", {
+          beforeCount: prev.length,
+          afterCount: filtered.length,
+          removedTaskId: taskId,
+        });
+        return filtered;
+      });
+
+      // Call API to handle delete/hide
+      const response = await fetch("/api/parent/tasks/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ taskId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || "Failed to delete/hide task";
+        
+        // Check if it's a timeout/network error (503) - don't revert immediately
+        if (response.status === 503 || errorMessage.includes("timeout") || errorMessage.includes("Connection")) {
+          console.warn("[tasks:deleteGlobal] Timeout/network error, re-validating before reverting", {
+            taskId,
+            error: errorData,
+          });
+          
+          // Re-fetch to check if the delete actually succeeded on the backend
+          await loadGlobalTasks({ limit: 5, cacheBust: true });
+          
+          // If the task is still in the list, it means the delete failed - show error
+          try {
+            const checkResponse = await fetch("/api/parent/tasks/list?limit=5", { cache: "no-store" });
+            if (checkResponse.ok) {
+              const checkData = await checkResponse.json();
+              const currentTasks = checkData.tasks || checkData || [];
+              
+              if (currentTasks.some((t: TaskTemplate) => t.id === taskId)) {
+                // Task still exists, revert optimistic update
+                await loadGlobalTasks({ limit: 5, cacheBust: true });
+                throw new Error("Problema de conexión. Por favor, reintentá.");
+              } else {
+                // Task was deleted, just refresh to ensure consistency
+                await loadGlobalTasks({ limit: 5, cacheBust: true });
+                toast({
+                  title: "Task ocultada",
+                  description: "La task fue ocultada correctamente.",
+                });
+                return; // Success, exit early
+              }
+            }
+          } catch (checkError) {
+            // If check fails, revert and show error
+            await loadGlobalTasks({ limit: 5, cacheBust: true });
+            throw new Error("Problema de conexión. Por favor, reintentá.");
+          }
+        } else {
+          // Other errors - revert optimistic update
+          console.error("[tasks:deleteGlobal] API error, reverting optimistic update", {
+            taskId,
+            error: errorData,
+          });
+          await loadGlobalTasks({ limit: 5, cacheBust: true });
+          throw new Error(errorMessage);
+        }
+      }
+
+      // Re-fetch to ensure consistency and "refill" the window of 5 items
+      console.log("[tasks:deleteGlobal] API success, re-fetching tasks to refill window", {
+        taskId,
+      });
+      await loadGlobalTasks({ limit: 5, cacheBust: true });
+
+      toast({
+        title: taskToDelete.is_global ? "Task hidden" : "Task deleted",
+        description: taskToDelete.is_global
+          ? "The task has been hidden from your catalog."
+          : "The task has been permanently deleted.",
+      });
+    } catch (cause) {
+      console.error("[tasks:deleteGlobal] Delete/hide failed:", cause);
+      const errorMessage = cause instanceof Error ? cause.message : String(cause);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMessage || "Could not delete/hide task. Please try again.",
+      });
+    }
+  };
+
   const handleDeleteTask = async (taskId: string) => {
     if (!confirm("Are you sure you want to delete this task assignment?")) {
       return;
     }
 
+    if (!selectedChildId) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No child selected",
+      });
+      return;
+    }
+
+    // Find the task to get context for logging
+    const taskToDelete = tasks.find((t) => t.id === taskId);
+    if (!taskToDelete) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Task not found",
+      });
+      return;
+    }
+
     try {
-      const { error: deleteError } = await supabase
+      // Get auth context for logging
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      
+      if (!authData?.user || authError) {
+        console.error("[tasks:delete] Auth check failed:", {
+          hasUser: !!authData?.user,
+          authError,
+        });
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Not authenticated",
+        });
+        return;
+      }
+
+      const parentAuthId = authData.user.id;
+
+      // Verify session is valid for RLS
+      const { data: sessionData } = await supabase.auth.getSession();
+      console.log("[tasks:delete] Session check:", {
+        hasSession: !!sessionData?.session,
+        hasAccessToken: !!sessionData?.session?.access_token,
+        userId: parentAuthId.substring(0, 8) + "...",
+      });
+
+      // Step 1: Determine what type of ID we're deleting
+      const recordShape = Object.keys(taskToDelete);
+      const isAssignedTask = recordShape.includes("child_id") && recordShape.includes("task_id");
+      
+      console.log("[tasks:delete] Starting delete - Context", {
+        taskId,
+        childId: selectedChildId,
+        parentAuthId: `${parentAuthId.substring(0, 8)}...`,
+        recordShape,
+        isAssignedTask,
+        taskData: {
+          id: taskToDelete.id,
+          task_id: taskToDelete.task_id,
+          child_id: taskToDelete.child_id,
+          parent_id: taskToDelete.parent_id,
+          status: taskToDelete.status,
+        },
+      });
+
+      // Step 2: Get parent internal id from auth_id (for RLS and verification)
+      const { data: parentData, error: parentError } = await supabase
+        .from("users")
+        .select("id")
+        .eq("auth_id", parentAuthId)
+        .eq("role", "parent")
+        .single();
+
+      if (parentError || !parentData) {
+        console.error("[tasks:delete] Parent not found", {
+          parentAuthId: `${parentAuthId.substring(0, 8)}...`,
+          parentError,
+        });
+        throw new Error("Parent not found");
+      }
+
+      const parentInternalId = parentData.id;
+
+      console.log("[tasks:delete] Delete with filters", {
+        taskId,
+        childId: selectedChildId,
+        parentInternalId,
+        taskParentId: taskToDelete.parent_id,
+        taskChildId: taskToDelete.child_id,
+        parentIdsMatch: taskToDelete.parent_id === parentInternalId,
+        childIdsMatch: taskToDelete.child_id === selectedChildId,
+      });
+
+      // Step 3: Delete from child_tasks (this is an assignment, not a template)
+      // The list shows "Tasks for [Child]" which are assignments from child_tasks
+      // taskId is child_tasks.id (PK of the assignment)
+      // 
+      // IMPORTANT: If parent_id or child_id don't match, the delete will return 0 rows
+      // This could happen if:
+      // 1. RLS is blocking (but we'd get an error, not 0 rows)
+      // 2. The filters don't match the actual data
+      // 
+      // Try delete with just PK first, then verify ownership
+      const { data: deleteData, error: deleteError } = await supabase
         .from("child_tasks")
         .delete()
-        .eq("id", taskId);
+        .eq("id", taskId) // PK of child_tasks - this should be enough if RLS allows it
+        .select();
 
+      // If delete returned 0 rows, try to understand why
+      if (!deleteError && (!deleteData || deleteData.length === 0)) {
+        // Query the record to see what values it actually has
+        const { data: recordData, error: recordError } = await supabase
+          .from("child_tasks")
+          .select("id, child_id, parent_id, task_id, status")
+          .eq("id", taskId)
+          .maybeSingle();
+
+        console.error("[tasks:delete] Delete returned 0 rows - investigating:", {
+          taskId,
+          recordExists: !!recordData,
+          recordData: recordData || null,
+          recordError: recordError || null,
+          expectedChildId: selectedChildId,
+          expectedParentId: parentInternalId,
+          actualChildId: recordData?.child_id,
+          actualParentId: recordData?.parent_id,
+          childIdMatches: recordData?.child_id === selectedChildId,
+          parentIdMatches: recordData?.parent_id === parentInternalId,
+        });
+
+        // If record exists but filters didn't match, it's likely an RLS issue
+        if (recordData) {
+          throw new Error(
+            `Delete returned 0 rows but record exists. ` +
+            `This may be an RLS issue. ` +
+            `Expected parent_id: ${parentInternalId}, actual: ${recordData.parent_id}. ` +
+            `Expected child_id: ${selectedChildId}, actual: ${recordData.child_id}`
+          );
+        } else {
+          throw new Error("Delete returned 0 rows and record does not exist. It may have already been deleted.");
+        }
+      }
+
+      // Log delete result BEFORE verification
       if (deleteError) {
+        console.error("[tasks:delete] Delete FAILED:", {
+          taskId,
+          error: deleteError,
+          errorCode: deleteError.code,
+          errorMessage: deleteError.message,
+          errorDetails: deleteError.details,
+          errorHint: deleteError.hint,
+          status: (deleteError as { status?: number }).status,
+        });
         throw deleteError;
       }
 
+      console.log("[tasks:delete] Delete response:", {
+        taskId,
+        deletedCount: deleteData?.length || 0,
+        deletedData: deleteData,
+        deletedIds: deleteData?.map((d) => d.id) || [],
+      });
+
+      // Step 3: Verify deletion in the SAME table with the SAME filter
+      // If we deleted from child_tasks, verify in child_tasks
+      if (!deleteData || deleteData.length === 0) {
+        console.error("[tasks:delete] Delete returned no data - nothing was deleted!", {
+          taskId,
+        });
+        throw new Error("Delete operation returned no data. The task may not have been deleted.");
+      }
+
+      // Verify: check if the deleted record still exists
+      const { data: verifyData, error: verifyError } = await supabase
+        .from("child_tasks")
+        .select("id, child_id, task_id, parent_id")
+        .eq("id", taskId) // Same filter as delete
+        .maybeSingle();
+
+      if (verifyError) {
+        console.error("[tasks:delete] Verification query error:", {
+          taskId,
+          error: verifyError,
+          errorCode: verifyError.code,
+          errorMessage: verifyError.message,
+        });
+        // If verification query fails, we can't confirm, but delete might have worked
+        // Log warning but don't throw - the delete response said it worked
+        console.warn("[tasks:delete] Verification query failed, but delete response was successful");
+      } else if (verifyData) {
+        console.error("[tasks:delete] VERIFICATION FAILED: Task still exists after delete!", {
+          taskId,
+          verifyData,
+          deleteResponse: deleteData,
+        });
+        throw new Error(`Delete verification failed: task ${taskId} still exists in child_tasks table`);
+      } else {
+        console.log("[tasks:delete] Verification OK: task no longer exists in child_tasks", {
+          taskId,
+          deletedCount: deleteData.length,
+        });
+      }
+
+      // Only update UI if delete was successful and verified
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
 
       toast({
@@ -643,14 +1068,21 @@ export const TasksManagement = ({
         description: "The task assignment has been removed.",
       });
     } catch (cause) {
-      const message =
-        cause instanceof Error
-          ? cause.message
-          : "Could not delete task. Please try again.";
+      console.error("[tasks:delete] Delete failed:", {
+        taskId,
+        error: cause,
+        isRLSError: cause && typeof cause === "object" && "code" in cause && (cause as { code?: string }).code === "42501",
+      });
+
+      const errorMessage = cause instanceof Error ? cause.message : String(cause);
+      const isRLSError = cause && typeof cause === "object" && "code" in cause && (cause as { code?: string }).code === "42501";
+      
       toast({
         variant: "destructive",
         title: "Error",
-        description: message,
+        description: isRLSError
+          ? "Permission denied. You may not have permission to delete this task."
+          : errorMessage || "Could not delete task. Please try again.",
       });
     }
   };
@@ -733,6 +1165,7 @@ export const TasksManagement = ({
                           isAlreadyAssigned={isAlreadyAssigned}
                           isAssigning={isAssigning}
                           onAssign={handleAssignGlobalTask}
+                          onDelete={handleDeleteGlobalTask}
                         />
                       );
                     })}

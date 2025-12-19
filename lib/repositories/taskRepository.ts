@@ -100,7 +100,7 @@ export async function getGlobalTasks(
 
 /**
  * LIST ALL AVAILABLE TASKS FOR PARENT
- * Returns all global tasks
+ * Returns all global tasks EXCEPT those hidden by this parent
  */
 export async function listAvailableTasksForParent(
   parentAuthId: string,
@@ -110,7 +110,26 @@ export async function listAvailableTasksForParent(
     parentAuthId,
   });
 
-  const { data, error } = await supabase
+  const parentId = await getParentIdFromAuthId(parentAuthId, supabase);
+
+  // First, get list of hidden task IDs for this parent
+  // Note: parent_hidden_tasks table may not be in types yet, so we use type assertion
+  const { data: hiddenTasks, error: hiddenError } = await (supabase
+    .from("parent_hidden_tasks" as any)
+    .select("task_id")
+    .eq("parent_id", parentId) as any);
+
+  if (hiddenError) {
+    console.error("[tasks:listAvailableTasksForParent] Error fetching hidden tasks:", hiddenError);
+    // Continue anyway - if table doesn't exist yet, just return all tasks
+  }
+
+  const hiddenTaskIds = (hiddenTasks as { task_id: string }[] | null)?.map((h) => h.task_id) || [];
+
+  // Query global tasks, excluding hidden ones
+  // If there are hidden tasks, filter them out
+  // Note: Supabase doesn't support NOT IN directly, so we filter in memory if needed
+  const { data: allTasks, error } = await supabase
     .from("tasks")
     .select("*")
     .eq("is_global", true)
@@ -121,12 +140,18 @@ export async function listAvailableTasksForParent(
     throw new TaskError("DATABASE_ERROR", "Failed to fetch tasks");
   }
 
+  // Filter out hidden tasks in memory
+  const data = hiddenTaskIds.length > 0
+    ? allTasks.filter((task) => !hiddenTaskIds.includes(task.id))
+    : allTasks;
+
   return data.map(mapTaskRow);
 }
 
 /**
  * GET TASK BY ID
  * Verifies parent has access (global or owns it)
+ * Returns task if it's global OR if it's custom and owned by this parent
  */
 export async function getTaskById(
   taskId: string,
@@ -147,8 +172,8 @@ export async function getTaskById(
     throw new TaskError("TASK_NOT_FOUND", "Task not found");
   }
 
-  // Verify access: must be global
-  if (!data.is_global) {
+  // Verify access: must be global OR custom task owned by this parent
+  if (!data.is_global && data.created_by_parent_id !== parentId) {
     throw new TaskError(
       "FORBIDDEN",
       "You don't have permission to access this task"
@@ -290,8 +315,114 @@ export async function updateCustomTask(params: {
 }
 
 /**
- * DELETE CUSTOM TASK
+ * HIDE GLOBAL TASK (Soft delete visual)
+ * Adds task to parent_hidden_tasks to hide it from this parent's view
+ */
+export async function hideGlobalTask(params: {
+  parentAuthId: string;
+  taskId: string;
+  supabase: SupabaseClient<Database>;
+}): Promise<void> {
+  const { parentAuthId, taskId, supabase } = params;
+
+  const parentId = await getParentIdFromAuthId(parentAuthId, supabase);
+
+  console.log("[tasks:hideGlobalTask] Hiding task", {
+    parentId,
+    taskId,
+  });
+
+  // Verify task exists and is global
+  const { data: task } = await supabase
+    .from("tasks")
+    .select("id, is_global")
+    .eq("id", taskId)
+    .single();
+
+  if (!task) {
+    throw new TaskError("TASK_NOT_FOUND", "Task not found");
+  }
+
+  if (!task.is_global) {
+    throw new TaskError(
+      "FORBIDDEN",
+      "Only global tasks can be hidden. Custom tasks should be deleted."
+    );
+  }
+
+  // Upsert into parent_hidden_tasks (ignore if already hidden)
+  // Note: parent_hidden_tasks table may not be in types yet, so we use type assertion
+  const { error } = await (supabase
+    .from("parent_hidden_tasks" as any)
+    .upsert(
+      {
+        parent_id: parentId,
+        task_id: taskId,
+      },
+      {
+        onConflict: "parent_id,task_id",
+        ignoreDuplicates: false, // Update if exists, insert if not
+      }
+    ) as any);
+
+  if (error) {
+    console.error("[tasks:hideGlobalTask] Error:", {
+      error,
+      errorCode: error.code,
+      errorMessage: error.message,
+      errorDetails: error.details,
+      errorHint: error.hint,
+      parentId,
+      taskId,
+    });
+    
+    // Check if error is because table doesn't exist
+    if (error.code === "PGRST205" || error.message?.includes("does not exist")) {
+      throw new TaskError(
+        "DATABASE_ERROR",
+        "The hidden_tasks table does not exist. Please run the migration SQL script first."
+      );
+    }
+    
+    throw new TaskError("DATABASE_ERROR", `Failed to hide task: ${error.message || "Unknown error"}`);
+  }
+}
+
+/**
+ * UNHIDE GLOBAL TASK
+ * Removes task from parent_hidden_tasks to show it again
+ */
+export async function unhideGlobalTask(params: {
+  parentAuthId: string;
+  taskId: string;
+  supabase: SupabaseClient<Database>;
+}): Promise<void> {
+  const { parentAuthId, taskId, supabase } = params;
+
+  const parentId = await getParentIdFromAuthId(parentAuthId, supabase);
+
+  console.log("[tasks:unhideGlobalTask] Unhiding task", {
+    parentId,
+    taskId,
+  });
+
+  // Note: parent_hidden_tasks table may not be in types yet, so we use type assertion
+  const { error } = await (supabase
+    .from("parent_hidden_tasks" as any)
+    .delete()
+    .eq("parent_id", parentId)
+    .eq("task_id", taskId) as any);
+
+  if (error) {
+    console.error("[tasks:unhideGlobalTask] Error:", error);
+    throw new TaskError("DATABASE_ERROR", "Failed to unhide task");
+  }
+}
+
+/**
+ * DELETE CUSTOM TASK (Hard delete)
  * Deletes a custom task (only if owned by this parent)
+ * NOTE: Global tasks should NEVER be deleted - use hideGlobalTask instead
  */
 export async function deleteCustomTask(params: {
   parentAuthId: string;
@@ -310,15 +441,25 @@ export async function deleteCustomTask(params: {
   // Verify task exists and is not global (custom task)
   const { data: existing } = await supabase
     .from("tasks")
-    .select("id")
+    .select("id, is_global, created_by_parent_id")
     .eq("id", taskId)
-    .eq("is_global", false)
     .single();
 
   if (!existing) {
+    throw new TaskError("TASK_NOT_FOUND", "Task not found");
+  }
+
+  if (existing.is_global) {
     throw new TaskError(
-      "TASK_NOT_FOUND",
-      "Custom task not found or you don't own it"
+      "FORBIDDEN",
+      "Global tasks cannot be deleted. Use hideGlobalTask to hide them."
+    );
+  }
+
+  if (existing.created_by_parent_id !== parentId) {
+    throw new TaskError(
+      "FORBIDDEN",
+      "You can only delete your own custom tasks"
     );
   }
 
