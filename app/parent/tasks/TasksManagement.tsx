@@ -367,26 +367,44 @@ export const TasksManagement = ({
 
   // Load assigned tasks when child is selected (using internal API, no CORS)
   useEffect(() => {
+    // Reset state immediately when child changes (before fetch)
     if (!selectedChildId) {
       setTasks([]);
+      setLoadingTasks(false);
       return;
     }
 
+    // Reset tasks state immediately to prevent stale UI
+    setTasks([]);
+    setLoadingTasks(true);
+
+    // AbortController to cancel previous requests when childId changes
+    const abortController = new AbortController();
+    const currentChildId = selectedChildId;
+
     const loadTasks = async () => {
-      setLoadingTasks(true);
       try {
         console.log("[tasks:load] Loading tasks for child", {
-          child_id: selectedChildId,
+          child_id: currentChildId,
           using_endpoint: "/api/parent/child-tasks/list",
         });
         
-        const url = `/api/parent/child-tasks/list?child_id=${encodeURIComponent(selectedChildId)}`;
+        const url = `/api/parent/child-tasks/list?child_id=${encodeURIComponent(currentChildId)}`;
         const response = await fetchWithRetry(url, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
           },
+          signal: abortController.signal,
         });
+
+        // Check if this request was aborted (childId changed)
+        if (abortController.signal.aborted) {
+          console.log("[tasks:load] Request aborted, childId changed", {
+            child_id: currentChildId,
+          });
+          return;
+        }
 
         const result = await response.json();
         
@@ -395,6 +413,15 @@ export const TasksManagement = ({
         }
 
         const data = result.data || [];
+
+        // Verify we're still loading for the same child
+        if (currentChildId !== selectedChildId) {
+          console.log("[tasks:load] ChildId changed during fetch, ignoring response", {
+            requested_child_id: currentChildId,
+            current_child_id: selectedChildId,
+          });
+          return;
+        }
 
         // Diagnostic: Log first item to verify points field
         if (data && data.length > 0 && process.env.NODE_ENV === "development") {
@@ -405,16 +432,29 @@ export const TasksManagement = ({
             task_id: data[0].task_id,
             status: data[0].status,
             full_item: data[0],
+            object_keys: Object.keys(data[0]),
           });
         }
 
         console.log("[tasks:load] Tasks loaded successfully", {
           count: data?.length || 0,
-          child_id: selectedChildId,
+          child_id: currentChildId,
+          sample_points: data.length > 0 ? data[0].points : "N/A",
         });
 
+        // Replace entire list (no merge) to ensure clean state
         setTasks((data ?? []) as ChildTask[]);
       } catch (cause) {
+        // Don't show error if request was aborted
+        if (abortController.signal.aborted) {
+          return;
+        }
+
+        // Don't show error if childId changed
+        if (currentChildId !== selectedChildId) {
+          return;
+        }
+
         console.error("[tasks:load] Error loading tasks:", cause);
         
         const errorMessage = cause instanceof Error ? cause.message : String(cause);
@@ -425,11 +465,19 @@ export const TasksManagement = ({
           description: errorMessage || "Could not load tasks. Please try again.",
         });
       } finally {
-        setLoadingTasks(false);
+        // Only update loading state if we're still loading for the same child
+        if (currentChildId === selectedChildId) {
+          setLoadingTasks(false);
+        }
       }
     };
 
     void loadTasks();
+
+    // Cleanup: abort request if childId changes
+    return () => {
+      abortController.abort();
+    };
   }, [selectedChildId, toast, fetchWithRetry]);
 
   const handleCreateTask = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -1341,7 +1389,7 @@ export const TasksManagement = ({
               <div className="space-y-3">
                 {tasks.map((task) => (
                   <div
-                    key={task.id}
+                    key={`${selectedChildId}:${task.id}`}
                     className="rounded-2xl border-2 border-[var(--brand-gold-400)] bg-[#0b2f4c] p-5"
                   >
                     {editingTaskId === task.id ? (

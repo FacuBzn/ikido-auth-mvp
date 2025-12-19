@@ -39,6 +39,8 @@ const mapChildTaskRow = (
     completed,
     completed_at: row.completed_at,
     created_at: row.assigned_at,
+    // Include points from child_tasks.points (assignment-specific points)
+    points: row.points ?? 0,
     task: task
       ? {
           id: task.id,
