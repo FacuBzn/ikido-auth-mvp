@@ -157,7 +157,7 @@ const TaskDisplay = ({ task, onEdit, onDelete, supabase }: TaskDisplayProps) => 
         <div className="mt-2 flex items-center gap-4 text-xs text-white/60">
           <span>
             <span className="font-semibold text-[var(--brand-gold-400)]">
-              {task.points}
+              {task.points ?? 0}
             </span>{" "}
             GGPoints
           </span>
@@ -211,7 +211,7 @@ export const TasksManagement = ({
   // Task form state
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDescription, setTaskDescription] = useState("");
-  const [taskPoints, setTaskPoints] = useState(10);
+  const [taskPoints, setTaskPoints] = useState<string>("10");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -219,7 +219,7 @@ export const TasksManagement = ({
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
-  const [editPoints, setEditPoints] = useState(10);
+  const [editPoints, setEditPoints] = useState<string>("10");
 
   // Load global tasks on mount
   useEffect(() => {
@@ -281,6 +281,18 @@ export const TasksManagement = ({
           throw fetchError;
         }
 
+        // Diagnostic: Log first item to verify points field
+        if (data && data.length > 0 && process.env.NODE_ENV === "development") {
+          console.log("[tasks:load] Sample task item:", {
+            id: data[0].id,
+            points: data[0].points,
+            points_type: typeof data[0].points,
+            task_id: data[0].task_id,
+            status: data[0].status,
+            full_item: data[0],
+          });
+        }
+
         console.log("[tasks:load] Tasks loaded successfully", {
           count: data?.length || 0,
           child_id: selectedChildId,
@@ -324,7 +336,11 @@ export const TasksManagement = ({
       return;
     }
 
-    if (taskPoints < 1 || taskPoints > 100) {
+    // Clamp points to 1-100 before submitting
+    const pointsValue = Number.parseInt(taskPoints, 10) || 0;
+    const clampedPoints = Math.max(1, Math.min(100, pointsValue));
+    
+    if (clampedPoints < 1 || clampedPoints > 100) {
       setError("GGPoints must be between 1 and 100.");
       return;
     }
@@ -357,7 +373,7 @@ export const TasksManagement = ({
         .insert({
           title: taskTitle.trim(),
           description: taskDescription.trim() || null,
-          points: taskPoints,
+          points: clampedPoints,
           is_global: false,
           created_by_parent_id: parentData.id,
         })
@@ -392,11 +408,37 @@ export const TasksManagement = ({
         throw new Error("Task was not assigned successfully.");
       }
 
-      const newTask = childTask as ChildTask;
-      setTasks((prev) => [newTask, ...prev]);
+      // Reload tasks to ensure we have complete data including points
+      const { data: reloadedData, error: reloadError } = await supabase
+        .from("child_tasks")
+        .select("*")
+        .eq("child_id", selectedChildId)
+        .order("assigned_at", { ascending: false });
+
+      if (reloadError) {
+        console.error("[tasks:create] Reload error after create:", reloadError);
+        // Fallback: add new task even if reload fails
+        const newTask = childTask as ChildTask;
+        setTasks((prev) => [newTask, ...prev]);
+      } else if (reloadedData) {
+        // Diagnostic: Log first item to verify points after create
+        if (reloadedData.length > 0 && process.env.NODE_ENV === "development") {
+          console.log("[tasks:create] Sample reloaded task after create:", {
+            id: reloadedData[0].id,
+            points: reloadedData[0].points,
+            points_type: typeof reloadedData[0].points,
+          });
+        }
+        setTasks((reloadedData ?? []) as ChildTask[]);
+      } else {
+        // Fallback: add new task if reload returns no data
+        const newTask = childTask as ChildTask;
+        setTasks((prev) => [newTask, ...prev]);
+      }
+      
       setTaskTitle("");
       setTaskDescription("");
-      setTaskPoints(10);
+      setTaskPoints("10");
 
       toast({
         title: "Task created",
@@ -424,14 +466,14 @@ export const TasksManagement = ({
     setEditingTaskId(task.id);
     setEditTitle(taskTemplate?.title || "");
     setEditDescription(taskTemplate?.description || "");
-    setEditPoints(task.points);
+    setEditPoints(String(task.points ?? 10));
   };
 
   const handleCancelEdit = () => {
     setEditingTaskId(null);
     setEditTitle("");
     setEditDescription("");
-    setEditPoints(10);
+    setEditPoints("10");
   };
 
   const handleSaveEdit = async (taskId: string) => {
@@ -440,7 +482,11 @@ export const TasksManagement = ({
       return;
     }
 
-    if (editPoints < 1 || editPoints > 100) {
+    // Clamp points to 1-100 before submitting
+    const pointsValue = Number.parseInt(editPoints, 10) || 0;
+    const clampedPoints = Math.max(1, Math.min(100, pointsValue));
+    
+    if (clampedPoints < 1 || clampedPoints > 100) {
       setError("GGPoints must be between 1 and 100.");
       return;
     }
@@ -458,8 +504,7 @@ export const TasksManagement = ({
         .update({
           title: editTitle.trim(),
           description: editDescription.trim() || null,
-          points
-: editPoints,
+          points: clampedPoints,
         })
         .eq("id", currentTask.task_id);
 
@@ -471,7 +516,7 @@ export const TasksManagement = ({
       const { data, error: updateError } = await supabase
         .from("child_tasks")
         .update({
-          points: editPoints,
+          points: clampedPoints,
         })
         .eq("id", taskId)
         .select()
@@ -745,37 +790,54 @@ export const TasksManagement = ({
                 </Label>
                 <Input
                   id="task-points"
-                  type="number"
-                  min="1"
-                  max="100"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={taskPoints}
                   onChange={(e) => {
-                    const value = Number.parseInt(e.target.value) || 0;
-                    if (value >= 1 && value <= 100) {
-                      setTaskPoints(value);
-                      setError(null);
-                    } else if (value > 100) {
-                      setTaskPoints(100);
-                    } else if (value < 1 && e.target.value !== "") {
-                      setTaskPoints(1);
+                    // Only allow digits, allow empty during editing
+                    const value = e.target.value.replace(/[^0-9]/g, "");
+                    setTaskPoints(value);
+                    setError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    // Block non-numeric keys (except backspace, delete, arrow keys, tab)
+                    if (
+                      !/[0-9]/.test(e.key) &&
+                      !["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab", "Enter"].includes(e.key) &&
+                      !(e.ctrlKey || e.metaKey) // Allow Ctrl/Cmd combinations
+                    ) {
+                      e.preventDefault();
                     }
+                  }}
+                  onBlur={() => {
+                    // Clamp to 1-100 on blur
+                    const numValue = Number.parseInt(taskPoints, 10) || 0;
+                    const clamped = Math.max(1, Math.min(100, numValue));
+                    setTaskPoints(String(clamped));
                   }}
                   required
                   className={`h-12 rounded-3xl border-2 bg-[#1a5fa0]/40 text-white ${
-                    taskPoints < 1 || taskPoints > 100
-                      ? "border-red-400 focus:border-red-400"
-                      : "border-[var(--brand-gold-400)]"
+                    (() => {
+                      const numValue = Number.parseInt(taskPoints, 10) || 0;
+                      return numValue < 1 || numValue > 100
+                        ? "border-red-400 focus:border-red-400"
+                        : "border-[var(--brand-gold-400)]";
+                    })()
                   }`}
                 />
-                {taskPoints < 1 || taskPoints > 100 ? (
-                  <p className="text-xs text-red-300 mt-1">
-                    GGPoints must be between 1 and 100
-                  </p>
-                ) : (
-                  <p className="text-xs text-white/60 mt-1">
-                    Enter a value between 1 and 100
-                  </p>
-                )}
+                {(() => {
+                  const numValue = Number.parseInt(taskPoints, 10) || 0;
+                  return numValue < 1 || numValue > 100 || taskPoints === "" ? (
+                    <p className="text-xs text-red-300 mt-1">
+                      GGPoints must be between 1 and 100
+                    </p>
+                  ) : (
+                    <p className="text-xs text-white/60 mt-1">
+                      Enter a value between 1 and 100
+                    </p>
+                  );
+                })()}
               </div>
 
               <Button
@@ -837,24 +899,38 @@ export const TasksManagement = ({
                         />
                         <div className="flex items-center gap-2">
                           <Input
-                            type="number"
-                            min="1"
-                            max="100"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
                             value={editPoints}
                             onChange={(e) => {
-                              const value = Number.parseInt(e.target.value) || 0;
-                              if (value >= 1 && value <= 100) {
-                                setEditPoints(value);
-                              } else if (value > 100) {
-                                setEditPoints(100);
-                              } else if (value < 1 && e.target.value !== "") {
-                                setEditPoints(1);
+                              // Only allow digits, allow empty during editing
+                              const value = e.target.value.replace(/[^0-9]/g, "");
+                              setEditPoints(value);
+                            }}
+                            onKeyDown={(e) => {
+                              // Block non-numeric keys (except backspace, delete, arrow keys, tab)
+                              if (
+                                !/[0-9]/.test(e.key) &&
+                                !["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab", "Enter"].includes(e.key) &&
+                                !(e.ctrlKey || e.metaKey) // Allow Ctrl/Cmd combinations
+                              ) {
+                                e.preventDefault();
                               }
                             }}
+                            onBlur={() => {
+                              // Clamp to 1-100 on blur
+                              const numValue = Number.parseInt(editPoints, 10) || 0;
+                              const clamped = Math.max(1, Math.min(100, numValue));
+                              setEditPoints(String(clamped));
+                            }}
                             className={`h-10 w-24 rounded-2xl border-2 bg-[#1a5fa0]/40 text-white ${
-                              editPoints < 1 || editPoints > 100
-                                ? "border-red-400"
-                                : "border-[var(--brand-gold-400)]"
+                              (() => {
+                                const numValue = Number.parseInt(editPoints, 10) || 0;
+                                return numValue < 1 || numValue > 100
+                                  ? "border-red-400"
+                                  : "border-[var(--brand-gold-400)]";
+                              })()
                             }`}
                           />
                           <span className="text-sm text-white/70">GGPoints (1-100)</span>
