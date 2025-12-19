@@ -143,11 +143,14 @@ export async function listAvailableTasksForParent(
 
     // Get list of hidden task IDs for this parent and child
     // Note: child_hidden_tasks table may not be in types yet, so we use type assertion
-    const { data: hiddenTasks, error: hiddenError } = await (supabase
-      .from("child_hidden_tasks" as any)
-      .select("task_id")
-      .eq("parent_id", parentId)
-      .eq("child_id", childId) as any);
+    const { data: hiddenTasks, error: hiddenError } = await (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabase.from("child_hidden_tasks" as any)
+        .select("task_id")
+        .eq("parent_id", parentId)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .eq("child_id", childId) as any
+    );
 
     if (hiddenError) {
       // If table doesn't exist (PGRST205), just return all tasks (graceful degradation)
@@ -409,19 +412,22 @@ export async function hideGlobalTaskForChild(params: {
 
   // Upsert into child_hidden_tasks (ignore if already hidden)
   // Note: child_hidden_tasks table may not be in types yet, so we use type assertion
-  const { error } = await (supabase
-    .from("child_hidden_tasks" as any)
-    .upsert(
-      {
-        parent_id: parentId,
-        child_id: childId,
-        task_id: taskId,
-      },
-      {
-        onConflict: "parent_id,child_id,task_id",
-        ignoreDuplicates: false, // Update if exists, insert if not
-      }
-    ) as any);
+  const { error } = await (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase.from("child_hidden_tasks" as any)
+      .upsert(
+        {
+          parent_id: parentId,
+          child_id: childId,
+          task_id: taskId,
+        },
+        {
+          onConflict: "parent_id,child_id,task_id",
+          ignoreDuplicates: false, // Update if exists, insert if not
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ) as any
+  );
 
   if (error) {
     console.error("[tasks:hideGlobalTaskForChild] Error:", {
@@ -466,11 +472,14 @@ export async function unhideGlobalTask(params: {
   });
 
   // Note: parent_hidden_tasks table may not be in types yet, so we use type assertion
-  const { error } = await (supabase
-    .from("parent_hidden_tasks" as any)
-    .delete()
-    .eq("parent_id", parentId)
-    .eq("task_id", taskId) as any);
+  const { error } = await (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase.from("parent_hidden_tasks" as any)
+      .delete()
+      .eq("parent_id", parentId)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .eq("task_id", taskId) as any
+  );
 
   if (error) {
     console.error("[tasks:unhideGlobalTask] Error:", error);

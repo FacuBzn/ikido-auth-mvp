@@ -302,7 +302,7 @@ export const TasksManagement = ({
   }, [loadGlobalTasks]);
 
   // Helper function for retry with exponential backoff
-  const fetchWithRetry = async (
+  const fetchWithRetry = useCallback(async (
     url: string,
     options: RequestInit,
     maxRetries = 2,
@@ -363,7 +363,7 @@ export const TasksManagement = ({
     }
     
     throw lastError || new Error("Failed after retries");
-  };
+  }, [toast]);
 
   // Load assigned tasks when child is selected (using internal API, no CORS)
   useEffect(() => {
@@ -430,7 +430,7 @@ export const TasksManagement = ({
     };
 
     void loadTasks();
-  }, [selectedChildId, toast]);
+  }, [selectedChildId, toast, fetchWithRetry]);
 
   const handleCreateTask = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -748,8 +748,6 @@ export const TasksManagement = ({
         return;
       }
 
-      const parentAuthId = authData.user.id;
-
       // Find the task to check if it's global or custom
       const taskToDelete = globalTasks.find((t) => t.id === taskId);
       if (!taskToDelete) {
@@ -838,7 +836,7 @@ export const TasksManagement = ({
                 return; // Success, exit early
               }
             }
-          } catch (checkError) {
+          } catch {
             // If check fails, revert and show error
             await loadGlobalTasks({ limit: 5, childId: selectedChildId, cacheBust: true });
             throw new Error("Problema de conexión. Por favor, reintentá.");
