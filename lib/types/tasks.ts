@@ -31,6 +31,8 @@ export interface ChildTaskInstance {
   completed: boolean;
   completed_at: string | null;
   created_at: string;
+  // Points from child_tasks.points (assignment-specific points)
+  points: number;
   // Optional joined task info
   task?: {
     id: string;

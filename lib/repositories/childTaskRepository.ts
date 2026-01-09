@@ -76,6 +76,8 @@ const mapChildTaskRow = (
     completed,
     completed_at: row.completed_at,
     created_at: row.assigned_at, // Use assigned_at as created_at (created_at doesn't exist in schema)
+    // Include points from child_tasks.points (assignment-specific points)
+    points: row.points ?? 0,
     task: task
       ? {
           id: task.id,
@@ -139,13 +141,14 @@ function validatePoints(points: unknown): number {
  */
 export async function assignTaskToChild(params: {
   parentAuthId: string;
+  parentId: string; // Internal id from session - NEVER from client
   taskId: string;
   childId: string;
   supabase: SupabaseClient<Database>;
 }): Promise<ChildTaskInstance> {
-  const { parentAuthId, taskId, childId, supabase } = params;
+  const { parentId, taskId, childId, supabase } = params;
 
-  const parentId = await getParentIdFromAuthId(parentAuthId, supabase);
+  // parentId is now passed from route handler (from session), not calculated here
 
   console.log("[child_tasks:assignTaskToChild] Assigning task", {
     parentId,
@@ -192,15 +195,16 @@ export async function assignTaskToChild(params: {
   console.log("[child_tasks:assignTaskToChild] Using schema columns", {
     task_id: taskId,
     child_id: childId,
-    parent_id: parentId,
+    parent_id: parentId, // From session (auth.uid()), NOT from client
     points: validatedPoints,
     status: "pending",
   });
   
+  // parent_id is ALWAYS from session (auth.uid()), NEVER from client
   const insertData: Db["child_tasks"]["Insert"] = {
     task_id: taskId,
     child_id: childId,
-    parent_id: parentId,
+    parent_id: parentId, // From session, not client
     status: "pending",
     points: validatedPoints,
   };
@@ -242,17 +246,19 @@ export async function assignTaskToChild(params: {
  */
 export async function assignTaskToChildren(params: {
   parentAuthId: string;
+  parentId: string; // Internal id from session - NEVER from client
   taskId: string;
   childIds: string[];
   supabase: SupabaseClient<Database>;
 }): Promise<ChildTaskInstance[]> {
-  const { parentAuthId, taskId, childIds, supabase } = params;
+  const { parentId, taskId, childIds, supabase } = params;
 
   if (!childIds || childIds.length === 0) {
     return [];
   }
 
   console.log("[child_tasks:assignTaskToChildren] Batch assigning", {
+    parentId,
     taskId,
     childCount: childIds.length,
   });
@@ -261,7 +267,8 @@ export async function assignTaskToChildren(params: {
   for (const childId of childIds) {
     try {
       const assignment = await assignTaskToChild({
-        parentAuthId,
+        parentAuthId: params.parentAuthId, // Keep for logging
+        parentId, // Use internal id from session
         taskId,
         childId,
         supabase,
