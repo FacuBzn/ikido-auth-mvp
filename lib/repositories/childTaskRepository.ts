@@ -73,7 +73,8 @@ const mapChildTaskRow = (
     id: row.id,
     child_user_id: row.child_id, // Map child_id -> child_user_id for domain model
     task_id: row.task_id,
-    completed,
+    completed, // boolean derived from status for backward compatibility
+    status, // Real status from database
     completed_at: row.completed_at,
     created_at: row.assigned_at, // Use assigned_at as created_at (created_at doesn't exist in schema)
     // Include points from child_tasks.points (assignment-specific points)

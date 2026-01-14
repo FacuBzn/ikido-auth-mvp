@@ -36,7 +36,8 @@ const mapChildTaskRow = (
     id: row.id,
     child_user_id: row.child_id,
     task_id: row.task_id,
-    completed,
+    completed, // boolean derived from status for backward compatibility
+    status, // Real status from database
     completed_at: row.completed_at,
     created_at: row.assigned_at,
     // Include points from child_tasks.points (assignment-specific points)

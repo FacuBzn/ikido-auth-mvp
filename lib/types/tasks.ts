@@ -7,6 +7,8 @@
  * - ggpoints_ledger: id, child_user_id, points, reason, created_at
  */
 
+import type { ChildTaskStatus } from "@/types/supabase";
+
 /**
  * Task template (from tasks table).
  * Can be global (is_global = true) or custom.
@@ -28,7 +30,8 @@ export interface ChildTaskInstance {
   id: string;
   child_user_id: string;
   task_id: string;
-  completed: boolean;
+  completed: boolean; // Derived from status for backward compatibility
+  status: ChildTaskStatus; // Real status from database
   completed_at: string | null;
   created_at: string;
   // Points from child_tasks.points (assignment-specific points)
