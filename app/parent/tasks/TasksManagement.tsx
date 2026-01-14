@@ -20,13 +20,14 @@ import { createBrowserClient } from "@/lib/supabaseClient";
 import type { Database } from "@/types/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/use-toast";
+import type { ChildTaskInstance } from "@/lib/types/tasks";
 
 type ChildUser = Pick<
   Database["public"]["Tables"]["users"]["Row"],
   "id" | "name" | "child_code"
 >;
 
-type ChildTask = Database["public"]["Tables"]["child_tasks"]["Row"];
+type ChildTask = ChildTaskInstance; // Use domain type that includes status field
 type TaskTemplate = Database["public"]["Tables"]["tasks"]["Row"];
 
 type TasksManagementProps = {
@@ -565,30 +566,37 @@ export const TasksManagement = ({
         throw new Error("Task was not assigned successfully.");
       }
 
-      // Reload tasks to ensure we have complete data including points
-      const { data: reloadedData, error: reloadError } = await supabase
-        .from("child_tasks")
-        .select("*")
-        .eq("child_id", selectedChildId)
-        .order("assigned_at", { ascending: false });
+      // Reload tasks using API endpoint to get properly mapped data
+      try {
+        const reloadUrl = `/api/parent/child-tasks/list?child_id=${encodeURIComponent(selectedChildId)}`;
+        const reloadResponse = await fetchWithRetry(reloadUrl, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
 
-      if (reloadError) {
+        if (reloadResponse.ok) {
+          const reloadResult = await reloadResponse.json();
+          const reloadedData = reloadResult.data || [];
+          
+          // Diagnostic: Log first item to verify points after create
+          if (reloadedData.length > 0 && process.env.NODE_ENV === "development") {
+            console.log("[tasks:create] Sample reloaded task after create:", {
+              id: reloadedData[0].id,
+              points: reloadedData[0].points,
+              points_type: typeof reloadedData[0].points,
+            });
+          }
+          setTasks(reloadedData);
+        } else {
+          // Fallback: add new task even if reload fails
+          const newTask = childTask as ChildTask;
+          setTasks((prev) => [newTask, ...prev]);
+        }
+      } catch (reloadError) {
         console.error("[tasks:create] Reload error after create:", reloadError);
         // Fallback: add new task even if reload fails
-        const newTask = childTask as ChildTask;
-        setTasks((prev) => [newTask, ...prev]);
-      } else if (reloadedData) {
-        // Diagnostic: Log first item to verify points after create
-        if (reloadedData.length > 0 && process.env.NODE_ENV === "development") {
-          console.log("[tasks:create] Sample reloaded task after create:", {
-            id: reloadedData[0].id,
-            points: reloadedData[0].points,
-            points_type: typeof reloadedData[0].points,
-          });
-        }
-        setTasks((reloadedData ?? []) as ChildTask[]);
-      } else {
-        // Fallback: add new task if reload returns no data
         const newTask = childTask as ChildTask;
         setTasks((prev) => [newTask, ...prev]);
       }
@@ -670,27 +678,39 @@ export const TasksManagement = ({
       }
 
       // Update child_task points
-      const { data, error: updateError } = await supabase
+      const { error: updateError } = await supabase
         .from("child_tasks")
         .update({
           points: clampedPoints,
         })
-        .eq("id", taskId)
-        .select()
-        .maybeSingle();
+        .eq("id", taskId);
 
       if (updateError) {
         throw updateError;
       }
 
-      if (!data) {
-        throw new Error("Task was not updated successfully.");
+      // Reload tasks using API endpoint to get properly mapped data
+      if (selectedChildId) {
+        try {
+          const reloadUrl = `/api/parent/child-tasks/list?child_id=${encodeURIComponent(selectedChildId)}`;
+          const reloadResponse = await fetchWithRetry(reloadUrl, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (reloadResponse.ok) {
+            const reloadResult = await reloadResponse.json();
+            const reloadedData = reloadResult.data || [];
+            setTasks(reloadedData);
+          }
+        } catch (reloadError) {
+          console.error("[tasks:edit] Reload error after update:", reloadError);
+          // Continue anyway - the update was successful
+        }
       }
 
-      const updatedTask = data as ChildTask;
-      setTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? updatedTask : t))
-      );
       setEditingTaskId(null);
 
       toast({
@@ -732,30 +752,34 @@ export const TasksManagement = ({
         throw new Error(errorData.message || "Failed to assign task");
       }
 
-      // Reload assigned tasks
+      // Reload assigned tasks using API endpoint to get properly mapped data
       console.log("[tasks:assignGlobal] Reloading tasks for child", {
         child_id: selectedChildId,
-        using_column: "child_id",
+        using_endpoint: "/api/parent/child-tasks/list",
       });
       
-      const { data, error: fetchError } = await supabase
-        .from("child_tasks")
-        .select("*")
-        .eq("child_id", selectedChildId)
-        .order("assigned_at", { ascending: false });
+      try {
+        const reloadUrl = `/api/parent/child-tasks/list?child_id=${encodeURIComponent(selectedChildId)}`;
+        const reloadResponse = await fetchWithRetry(reloadUrl, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
 
-      if (fetchError) {
+        if (reloadResponse.ok) {
+          const reloadResult = await reloadResponse.json();
+          const reloadedData = reloadResult.data || [];
+          console.log("[tasks:assignGlobal] Tasks reloaded", {
+            count: reloadedData.length,
+            child_id: selectedChildId,
+          });
+          setTasks(reloadedData);
+        }
+      } catch (fetchError) {
         console.error("[tasks:assignGlobal] Reload error:", {
           error: fetchError,
-          errorCode: fetchError.code,
-          errorMessage: fetchError.message,
         });
-      } else if (data) {
-        console.log("[tasks:assignGlobal] Tasks reloaded", {
-          count: data.length,
-          child_id: selectedChildId,
-        });
-        setTasks((data ?? []) as ChildTask[]);
       }
 
       toast({
@@ -978,7 +1002,7 @@ export const TasksManagement = ({
 
       // Step 1: Determine what type of ID we're deleting
       const recordShape = Object.keys(taskToDelete);
-      const isAssignedTask = recordShape.includes("child_id") && recordShape.includes("task_id");
+      const isAssignedTask = recordShape.includes("child_user_id") && recordShape.includes("task_id");
       
       console.log("[tasks:delete] Starting delete - Context", {
         taskId,
@@ -989,8 +1013,7 @@ export const TasksManagement = ({
         taskData: {
           id: taskToDelete.id,
           task_id: taskToDelete.task_id,
-          child_id: taskToDelete.child_id,
-          parent_id: taskToDelete.parent_id,
+          child_user_id: taskToDelete.child_user_id,
           status: taskToDelete.status,
         },
       });
@@ -1017,10 +1040,8 @@ export const TasksManagement = ({
         taskId,
         childId: selectedChildId,
         parentInternalId,
-        taskParentId: taskToDelete.parent_id,
-        taskChildId: taskToDelete.child_id,
-        parentIdsMatch: taskToDelete.parent_id === parentInternalId,
-        childIdsMatch: taskToDelete.child_id === selectedChildId,
+        taskChildId: taskToDelete.child_user_id,
+        childIdsMatch: taskToDelete.child_user_id === selectedChildId,
       });
 
       // Step 3: Delete from child_tasks (this is an assignment, not a template)
