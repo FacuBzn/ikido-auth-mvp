@@ -687,6 +687,41 @@ Eliminar links dispersos a V1 y centralizar acceso legacy.
 
 ---
 
+### PR 11: V2 Default Entrypoint ✅ COMPLETADO
+
+**Objetivo:**
+Hacer V2 el default y crear landing legacy para V1.
+
+**Archivos modificados:**
+- `app/page.tsx` - Redirect "/" → "/v2"
+- `app/v2/page.tsx` - Link legacy apunta a "/legacy"
+
+**Archivos creados:**
+- `app/legacy/page.tsx` - Landing para acceso V1
+
+**Rutas resultantes:**
+| Ruta | Comportamiento |
+|------|----------------|
+| `/` | Redirect → `/v2` |
+| `/v2` | Role select V2 (nuevo default) |
+| `/legacy` | Landing con accesos V1 |
+| `/parent/*` | V1 parent routes (sin cambios) |
+| `/child/*` | V1 child routes (sin cambios) |
+
+**Legacy page incluye:**
+- Parent: Login, Dashboard, Tasks
+- Child: Join, Dashboard, Rewards
+- Back to V2 button
+- Notice: "V1 maintained for compatibility"
+
+**Validación:**
+1. ✅ "/" redirige a "/v2"
+2. ✅ "/legacy" muestra accesos V1
+3. ✅ Link en /v2 apunta a "/legacy"
+4. ✅ Build OK (34 páginas)
+
+---
+
 ## Notas Importantes
 
 ### No modificar:

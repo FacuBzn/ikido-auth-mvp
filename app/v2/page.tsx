@@ -137,7 +137,7 @@ export default async function V2RoleSelectPage() {
         {/* Legacy Link */}
         <div className="text-center mt-4">
           <Link
-            href="/"
+            href="/legacy"
             className="text-[var(--ik-text-muted)] text-xs underline underline-offset-2 hover:text-[var(--ik-accent-cyan)] opacity-60 hover:opacity-100 transition-opacity"
           >
             Use Legacy Version (V1)

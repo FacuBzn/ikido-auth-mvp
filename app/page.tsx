@@ -1,12 +1,9 @@
-import type { Metadata } from "next";
-import { RoleSelection } from "@/components/screens/role-selection";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "iKidO | GGPoints",
-};
-
+/**
+ * Root page - redirects to V2 as the default entrypoint
+ * V1 is accessible via /legacy
+ */
 export default function Home() {
-  // Landing page - no need to check auth here
-  // Client-side navigation will handle redirects if needed
-  return <RoleSelection />;
+  redirect("/v2");
 }
