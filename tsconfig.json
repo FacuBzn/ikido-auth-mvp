@@ -40,6 +40,7 @@
   ],
   "exclude": [
     "node_modules",
-    "family-app-ui"
+    "family-app-ui",
+    "v0-ui"
   ]
 }

@@ -1,0 +1,442 @@
+# Plan de Migración V2 - UI iKidO
+
+## Resumen
+
+Migración incremental de la UI generada en V0 (`/v0-ui`) hacia la app Next.js existente, usando rutas paralelas `/v2/*` sin afectar las rutas actuales.
+
+## Análisis Inicial
+
+| Aspecto | Valor |
+|---------|-------|
+| Router | **App Router** (`/app` directory) |
+| Framework | Next.js 16 |
+| React | 19.2.3 |
+| Auth Parent | Supabase Auth + RLS |
+| Auth Child | Zustand store (localStorage) + API validation |
+| State | Zustand con persistencia |
+| V0 Source | `/v0-ui` (READ-ONLY) |
+
+## Estructura Creada
+
+```
+app/
+└── v2/
+    ├── layout.tsx              # Layout base con gradiente IKIDO
+    └── playground/
+        └── page.tsx            # Playground para validar UI Kit
+
+components/
+└── ikido/
+    ├── index.ts                # Barrel exports
+    ├── buttons.tsx             # PrimaryButton, SecondaryButton, CyanButton
+    ├── panel-card.tsx          # PanelCard
+    ├── text-input.tsx          # TextInput
+    ├── chip-toggle.tsx         # ChipToggle, FilterChipsRow
+    └── top-bar.tsx             # TopBar, IkidoLogo, PointsPill
+
+lib/
+└── api/
+    ├── index.ts                # Barrel exports
+    ├── client.ts               # Fetch wrapper con tipos
+    ├── parent/
+    │   └── auth.ts             # Login/Register mappers
+    └── child/
+        ├── auth.ts             # Child login API
+        ├── tasks.ts            # Tasks API
+        └── points.ts           # Points API
+
+styles/
+└── ikido-tokens.css            # Design tokens (--ik-*)
+```
+
+---
+
+## Plan de Migración por Slices
+
+### Orden de Prioridad
+
+1. **Login Parent** - Flujo crítico, validar auth integration
+2. **Login Child** - Segundo flujo de auth
+3. **Parent Dashboard** - Vista principal post-login
+4. **Child Dashboard** - Vista principal para niños
+5. **Rewards** - Feature secundaria
+6. **Activity/History** - Feature terciaria
+
+---
+
+## Slice 1: Parent Login (`/v2/parent/login`)
+
+### Archivos a crear
+
+```
+app/v2/parent/
+├── layout.tsx                   # Layout parent (sin auth check)
+└── login/
+    ├── page.tsx                 # Server component wrapper
+    └── ParentLoginForm.tsx      # Client form component
+```
+
+### Checklist
+
+- [ ] **UI States**
+  - [ ] Default state (form vacío)
+  - [ ] Loading state (spinner en botón)
+  - [ ] Error state (credenciales inválidas)
+  - [ ] Success state (redirect a dashboard)
+- [ ] **Auth Integration**
+  - [ ] Conectar con `loginParent()` de Supabase
+  - [ ] Actualizar Zustand store via `setParent()`
+  - [ ] Delay 150ms antes de navegar
+  - [ ] `router.refresh()` después de navigate
+- [ ] **Validación**
+  - [ ] Email format validation
+  - [ ] Password required
+  - [ ] Show API error messages
+- [ ] **UX**
+  - [ ] Link a "Create account" (`/v2/parent/register`)
+  - [ ] Link a "Child login" (`/v2/child/join`)
+
+### Componentes iKidO usados
+
+- `PanelCard` - Container principal
+- `TextInput` - Email y password
+- `PrimaryButton` - Submit
+- `IkidoLogo` - Header
+
+---
+
+## Slice 2: Child Login (`/v2/child/join`)
+
+### Archivos a crear
+
+```
+app/v2/child/
+├── layout.tsx                   # Layout child (sin auth check server)
+└── join/
+    ├── page.tsx
+    └── ChildJoinForm.tsx
+```
+
+### Checklist
+
+- [ ] **UI States**
+  - [ ] Default (form vacío)
+  - [ ] Loading
+  - [ ] Error: `INVALID_FAMILY_CODE`
+  - [ ] Error: `INVALID_CHILD_CODE`
+  - [ ] Success → redirect `/v2/child/dashboard`
+- [ ] **Auth Integration**
+  - [ ] POST `/api/child/login`
+  - [ ] Códigos normalizados UPPERCASE
+  - [ ] `setChild()` en Zustand
+  - [ ] Delay 120ms antes de navegar
+- [ ] **Validación**
+  - [ ] `family_code` = 6 caracteres
+  - [ ] `child_code` >= 3 caracteres
+- [ ] **UX**
+  - [ ] Helper text explicando códigos
+  - [ ] Link a "Parent login"
+
+### Componentes iKidO usados
+
+- `PanelCard`
+- `TextInput` x2
+- `PrimaryButton`
+- `IkidoLogo`
+
+---
+
+## Slice 3: Parent Dashboard (`/v2/parent/dashboard`)
+
+### Archivos a crear
+
+```
+app/v2/parent/
+└── dashboard/
+    ├── page.tsx                 # Server: auth check + redirect
+    └── ParentDashboardClient.tsx
+```
+
+### Checklist
+
+- [ ] **UI States**
+  - [ ] Loading (hydration Zustand)
+  - [ ] Empty state (sin children)
+  - [ ] Default state (con children)
+  - [ ] Error state (API fail)
+- [ ] **Auth**
+  - [ ] Server-side auth check en `page.tsx`
+  - [ ] `useRequireParentAuth()` como fallback
+- [ ] **Data Fetching**
+  - [ ] Lista de children
+  - [ ] Family code display
+  - [ ] Tasks pendientes de aprobación
+- [ ] **Actions**
+  - [ ] Navigate to Tasks
+  - [ ] Navigate to Children management
+  - [ ] Logout
+
+### Componentes iKidO usados
+
+- `TopBar` (con logout)
+- `PanelCard`
+- `StatCard` (stats)
+- `ListRow` (children list)
+- `PrimaryButton`, `SecondaryButton`
+
+---
+
+## Slice 4: Child Dashboard (`/v2/child/dashboard`)
+
+### Archivos a crear
+
+```
+app/v2/child/
+└── dashboard/
+    ├── page.tsx
+    └── ChildDashboardClient.tsx
+```
+
+### Checklist
+
+- [ ] **UI States**
+  - [ ] Loading (hydration)
+  - [ ] Empty (sin tareas asignadas)
+  - [ ] Default (con tareas)
+  - [ ] Error
+- [ ] **Auth**
+  - [ ] `useRequireChildAuth()` hook
+  - [ ] Redirect a `/v2/child/join` si no auth
+- [ ] **Data Fetching**
+  - [ ] GET `/api/child/tasks`
+  - [ ] GET `/api/child/points`
+- [ ] **Actions**
+  - [ ] Marcar tarea como completada
+  - [ ] Navigate to Rewards
+  - [ ] Logout
+
+### Componentes iKidO usados
+
+- `TopBar` (con `coins`)
+- `PanelCard`
+- Task cards (crear nuevo componente)
+- `PrimaryButton`
+
+---
+
+## Slice 5: Rewards (`/v2/child/rewards`)
+
+### Archivos a crear
+
+```
+app/v2/child/
+└── rewards/
+    ├── page.tsx
+    └── ChildRewardsClient.tsx
+```
+
+### Checklist
+
+- [ ] **UI States**
+  - [ ] Loading
+  - [ ] Empty (sin rewards disponibles)
+  - [ ] Default (grid de rewards)
+  - [ ] Can't afford state (grayed out)
+- [ ] **Auth**
+  - [ ] `useRequireChildAuth()`
+- [ ] **Data**
+  - [ ] Lista de rewards
+  - [ ] Points balance
+- [ ] **Actions**
+  - [ ] Claim reward (if points sufficient)
+
+### Componentes iKidO usados
+
+- `TopBar`
+- `RewardCard` (migrar de V0)
+- `PointsPill`
+
+---
+
+## Slice 6: Activity History (`/v2/parent/activity`)
+
+### Archivos a crear
+
+```
+app/v2/parent/
+└── activity/
+    ├── page.tsx
+    └── ActivityClient.tsx
+```
+
+### Checklist
+
+- [ ] **UI States**
+  - [ ] Loading
+  - [ ] Empty
+  - [ ] Default (lista de actividad)
+  - [ ] Filtered (por child)
+- [ ] **Auth**
+  - [ ] Server-side check
+- [ ] **Data**
+  - [ ] Activity history (points ledger)
+  - [ ] Child selector
+- [ ] **Filters**
+  - [ ] By child
+  - [ ] By type (earned/spent)
+
+### Componentes iKidO usados
+
+- `TopBar`
+- `ChildSelector` (migrar de V0)
+- `FilterChipsRow`
+- `ListRow`
+
+---
+
+## Componentes Pendientes de Migrar
+
+Desde `/v0-ui/components/ikido/`:
+
+| Componente | Prioridad | Slice |
+|------------|-----------|-------|
+| `avatar.tsx` | Media | Dashboard |
+| `stat-card.tsx` | Alta | Dashboard |
+| `reward-card.tsx` | Alta | Rewards |
+| `list-row.tsx` | Alta | Dashboard/Activity |
+| `child-selector.tsx` | Media | Activity |
+| `mobile-screen-shell.tsx` | Baja | Opcional |
+
+---
+
+## Plan de PRs
+
+### PR 1: Foundation (Este PR)
+
+**Archivos:**
+- `styles/ikido-tokens.css`
+- `components/ikido/*`
+- `lib/api/*`
+- `app/v2/layout.tsx`
+- `app/v2/playground/page.tsx`
+- `app/globals.css` (import tokens)
+- `docs/V2_MIGRATION_PLAN.md`
+
+**Validación:**
+1. `npm run dev`
+2. Navegar a `/v2/playground`
+3. Verificar todos los componentes renderizan correctamente
+
+---
+
+### PR 2: Parent Login
+
+**Archivos:**
+- `app/v2/parent/layout.tsx`
+- `app/v2/parent/login/page.tsx`
+- `app/v2/parent/login/ParentLoginForm.tsx`
+
+**Validación:**
+1. Login exitoso → redirect a `/parent/dashboard` (v1)
+2. Login fallido → error message
+3. Loading state visible
+
+---
+
+### PR 3: Child Login
+
+**Archivos:**
+- `app/v2/child/layout.tsx`
+- `app/v2/child/join/page.tsx`
+- `app/v2/child/join/ChildJoinForm.tsx`
+
+**Validación:**
+1. Join con códigos válidos → redirect
+2. Código inválido → error específico
+3. Normalización UPPERCASE
+
+---
+
+### PR 4: Parent Dashboard
+
+**Archivos:**
+- `app/v2/parent/dashboard/page.tsx`
+- `app/v2/parent/dashboard/ParentDashboardClient.tsx`
+- `components/ikido/stat-card.tsx`
+- `components/ikido/list-row.tsx`
+
+**Validación:**
+1. Auth check funciona
+2. Lista children carga
+3. Stats muestran datos correctos
+4. Logout funciona
+
+---
+
+### PR 5: Child Dashboard
+
+**Archivos:**
+- `app/v2/child/dashboard/page.tsx`
+- `app/v2/child/dashboard/ChildDashboardClient.tsx`
+- New task card component
+
+**Validación:**
+1. Auth redirect funciona
+2. Tasks cargan
+3. Points balance visible
+4. Complete task funciona
+
+---
+
+### PR 6: Rewards
+
+**Archivos:**
+- `app/v2/child/rewards/page.tsx`
+- `app/v2/child/rewards/ChildRewardsClient.tsx`
+- `components/ikido/reward-card.tsx`
+
+---
+
+### PR 7: Activity (Opcional)
+
+**Archivos:**
+- `app/v2/parent/activity/*`
+- `components/ikido/child-selector.tsx`
+
+---
+
+## Notas Importantes
+
+### No modificar:
+- ❌ `/v0-ui/*` - Source of truth para diseño
+- ❌ `/app/parent/*` - Rutas actuales
+- ❌ `/app/child/*` - Rutas actuales
+- ❌ `/app/api/*` - API routes existentes
+
+### Crear wrappers si falta algo:
+- ✅ `/lib/api/*` - Wrappers para endpoints existentes
+
+### Testing manual entre PRs:
+1. Rutas v1 siguen funcionando
+2. Auth flows no se rompen
+3. Zustand store compatible
+
+---
+
+## Timeline Sugerido
+
+Cada PR debería poder completarse de forma independiente. El orden está diseñado para:
+
+1. **Validar foundation** (playground) antes de empezar features
+2. **Auth flows primero** - Son prerequisitos para dashboards
+3. **Dashboards** - Core de la app
+4. **Features secundarias** - Rewards, Activity
+
+---
+
+## Rollback Strategy
+
+Si algo falla en V2:
+1. Las rutas v1 siguen funcionando
+2. Simplemente no linkear a `/v2/*` en producción
+3. Feature flag opcional: `USE_V2_UI=true`
