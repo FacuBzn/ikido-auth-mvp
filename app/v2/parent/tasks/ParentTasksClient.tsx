@@ -86,6 +86,7 @@ export function ParentTasksClient({
   const [assigningTaskId, setAssigningTaskId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+  const [approvingTaskId, setApprovingTaskId] = useState<string | null>(null);
 
   // Error state
   const [error, setError] = useState<string | null>(null);
@@ -280,6 +281,39 @@ export function ParentTasksClient({
     }
   };
 
+  // Handle approve task
+  const handleApproveTask = async (task: AssignedTask) => {
+    setApprovingTaskId(task.id);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/parent/tasks/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ child_task_id: task.id }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to approve task");
+      }
+
+      // Show success feedback with points earned
+      const pointsEarned = data.points_earned ?? task.points;
+      setSuccessMessage(`Approved! +${pointsEarned} GGPoints granted`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+
+      // Refetch to update list
+      await fetchAssignedTasks();
+    } catch (err) {
+      console.error("[V2 ParentTasks] Approve failed:", err);
+      setError(err instanceof Error ? err.message : "Failed to approve task");
+    } finally {
+      setApprovingTaskId(null);
+    }
+  };
+
   // Handle delete assigned task
   const handleDeleteAssignment = async (taskId: string) => {
     if (!confirm("Remove this task assignment?")) return;
@@ -319,9 +353,8 @@ export function ParentTasksClient({
 
   // Separate tasks by status
   const pendingTasks = assignedTasks.filter((t) => t.status === "pending");
-  const completedTasks = assignedTasks.filter(
-    (t) => t.status === "completed" || t.status === "approved"
-  );
+  const awaitingApprovalTasks = assignedTasks.filter((t) => t.status === "completed");
+  const approvedTasks = assignedTasks.filter((t) => t.status === "approved");
 
   // Check if template is already assigned
   const isTemplateAssigned = (templateId: string) =>
@@ -339,7 +372,7 @@ export function ParentTasksClient({
       case "completed":
         return (
           <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--ik-accent-cyan)]/20 text-[var(--ik-accent-cyan)]">
-            <CheckCircle2 className="w-3 h-3" /> Completed
+            <Clock className="w-3 h-3" /> Awaiting Approval
           </span>
         );
       default:
@@ -517,13 +550,34 @@ export function ParentTasksClient({
                         </div>
                       )}
 
-                      {/* Completed */}
-                      {completedTasks.length > 0 && (
+                      {/* Awaiting Approval */}
+                      {awaitingApprovalTasks.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-[var(--ik-accent-cyan)] text-xs font-bold">
+                            ⏳ Awaiting Approval ({awaitingApprovalTasks.length})
+                          </p>
+                          {awaitingApprovalTasks.map((task) => (
+                            <TaskRow
+                              key={task.id}
+                              task={task}
+                              statusBadge={getStatusBadge(task.status)}
+                              onDelete={() => handleDeleteAssignment(task.id)}
+                              isDeleting={deletingTaskId === task.id}
+                              showApprove
+                              onApprove={() => handleApproveTask(task)}
+                              isApproving={approvingTaskId === task.id}
+                            />
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Approved */}
+                      {approvedTasks.length > 0 && (
                         <div className="space-y-2">
                           <p className="text-green-400 text-xs font-bold">
-                            Completed ({completedTasks.length})
+                            ✓ Approved ({approvedTasks.length})
                           </p>
-                          {completedTasks.map((task) => (
+                          {approvedTasks.map((task) => (
                             <TaskRow
                               key={task.id}
                               task={task}
@@ -687,11 +741,28 @@ interface TaskRowProps {
   statusBadge: React.ReactNode;
   onDelete: () => void;
   isDeleting: boolean;
+  showApprove?: boolean;
+  onApprove?: () => void;
+  isApproving?: boolean;
 }
 
-function TaskRow({ task, statusBadge, onDelete, isDeleting }: TaskRowProps) {
+function TaskRow({
+  task,
+  statusBadge,
+  onDelete,
+  isDeleting,
+  showApprove = false,
+  onApprove,
+  isApproving = false,
+}: TaskRowProps) {
   return (
-    <div className="bg-[var(--ik-surface-1)] border border-[var(--ik-outline-light)] rounded-xl p-4">
+    <div
+      className={`bg-[var(--ik-surface-1)] border rounded-xl p-4 ${
+        showApprove
+          ? "border-[var(--ik-accent-cyan)]/50 border-2"
+          : "border-[var(--ik-outline-light)]"
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <p className="font-bold text-white">{task.title || "Task"}</p>
@@ -707,17 +778,40 @@ function TaskRow({ task, statusBadge, onDelete, isDeleting }: TaskRowProps) {
             {statusBadge}
           </div>
         </div>
-        <button
-          onClick={onDelete}
-          disabled={isDeleting}
-          className="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-500/10 transition-colors disabled:opacity-50"
-        >
-          {isDeleting ? (
-            <div className="animate-spin w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full" />
-          ) : (
-            <Trash2 className="w-4 h-4" />
+        <div className="flex items-center gap-2">
+          {/* Approve Button */}
+          {showApprove && onApprove && (
+            <button
+              onClick={onApprove}
+              disabled={isApproving}
+              className="ik-btn-primary flex items-center gap-2 px-3 py-2 text-sm disabled:opacity-50"
+            >
+              {isApproving ? (
+                <>
+                  <div className="animate-spin w-4 h-4 border-2 border-[var(--ik-bg-dark)] border-t-transparent rounded-full" />
+                  <span>...</span>
+                </>
+              ) : (
+                <>
+                  <Award className="w-4 h-4" />
+                  <span>Approve</span>
+                </>
+              )}
+            </button>
           )}
-        </button>
+          {/* Delete Button */}
+          <button
+            onClick={onDelete}
+            disabled={isDeleting}
+            className="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-500/10 transition-colors disabled:opacity-50"
+          >
+            {isDeleting ? (
+              <div className="animate-spin w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full" />
+            ) : (
+              <Trash2 className="w-4 h-4" />
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

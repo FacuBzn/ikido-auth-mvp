@@ -195,6 +195,23 @@ export function ParentDashboardClient({
           </div>
         </PanelCard>
 
+        {/* Approve Tasks Card */}
+        <PanelCard>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-white mb-1">Approve Tasks</h2>
+              <p className="text-[var(--ik-text-muted)] text-sm">
+                Review and approve completed tasks
+              </p>
+            </div>
+            <Link href="/v2/parent/approvals">
+              <SecondaryButton icon={<CheckSquare className="w-4 h-4" />}>
+                Review
+              </SecondaryButton>
+            </Link>
+          </div>
+        </PanelCard>
+
         {/* Children Section */}
         <PanelCard className="space-y-4">
           <div className="flex items-center justify-between">

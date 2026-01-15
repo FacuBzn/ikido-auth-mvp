@@ -197,6 +197,98 @@ async function testTasksNoSession() {
 }
 
 /**
+ * Test: /api/parent/child-tasks/pending-approval (no auth)
+ * Expected: 401 Unauthorized
+ */
+async function testPendingApprovalNoAuth() {
+  const testName = "pending-approval: 401 without auth";
+  try {
+    const response = await fetch(
+      `${BASE_URL}/api/parent/child-tasks/pending-approval?child_id=fake-id`
+    );
+
+    if (response.status === 401) {
+      pass(testName);
+    } else {
+      fail(testName, `Expected 401, got ${response.status}`);
+    }
+  } catch (error) {
+    fail(testName, `Request failed: ${error}`);
+  }
+}
+
+/**
+ * Test: /api/parent/child-tasks/approve (no auth)
+ * Expected: 401 Unauthorized
+ */
+async function testApproveNoAuth() {
+  const testName = "child-tasks/approve: 401 without auth";
+  try {
+    const response = await fetch(`${BASE_URL}/api/parent/child-tasks/approve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ child_task_id: "fake-id" }),
+    });
+
+    if (response.status === 401) {
+      pass(testName);
+    } else {
+      fail(testName, `Expected 401, got ${response.status}`);
+    }
+  } catch (error) {
+    fail(testName, `Request failed: ${error}`);
+  }
+}
+
+/**
+ * Test: /api/parent/tasks/approve (no auth)
+ * Expected: 401 Unauthorized
+ */
+async function testTasksApproveNoAuth() {
+  const testName = "tasks/approve: 401 without auth";
+  try {
+    const response = await fetch(`${BASE_URL}/api/parent/tasks/approve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ child_task_id: "fake-id" }),
+    });
+
+    if (response.status === 401) {
+      pass(testName);
+    } else {
+      fail(testName, `Expected 401, got ${response.status}`);
+    }
+  } catch (error) {
+    fail(testName, `Request failed: ${error}`);
+  }
+}
+
+/**
+ * Test: /api/parent/tasks/approve (no body)
+ * Expected: 400 Invalid Input (or 401 if auth required first)
+ */
+async function testTasksApproveNoBody() {
+  const testName = "tasks/approve: 400/401 without body";
+  try {
+    const response = await fetch(`${BASE_URL}/api/parent/tasks/approve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    // 401 is acceptable (auth check happens first)
+    // 400 would be ideal if auth was bypassed for testing
+    if (response.status === 401 || response.status === 400) {
+      pass(testName);
+    } else {
+      fail(testName, `Expected 400 or 401, got ${response.status}`);
+    }
+  } catch (error) {
+    fail(testName, `Request failed: ${error}`);
+  }
+}
+
+/**
  * Test: V2 role select page loads
  * Expected: 200 OK
  */
@@ -274,6 +366,10 @@ async function runAllTests() {
   await testTasksListNoAuth();
   await testPointsNoSession();
   await testTasksNoSession();
+  await testPendingApprovalNoAuth();
+  await testApproveNoAuth();
+  await testTasksApproveNoAuth();
+  await testTasksApproveNoBody();
 
   console.log("");
   console.log("Page Load Tests:");

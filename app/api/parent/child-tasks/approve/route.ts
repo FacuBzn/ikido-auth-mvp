@@ -1,5 +1,5 @@
 /**
- * POST /api/parent/tasks/approve
+ * POST /api/parent/child-tasks/approve
  *
  * Approves a completed task and credits points to the child.
  * Body: { child_task_id: string }
@@ -7,23 +7,22 @@
  * Auth: Requires parent authentication (Supabase Auth)
  * Ownership: Validates child_task belongs to a child of the authenticated parent
  *
- * Flow (Idempotent + CAS for safety):
+ * Flow (Idempotent + CAS):
  * 1. Validate auth and ownership
- * 2. If already approved: return 200 { success: true, already_approved: true }
- * 3. If not completed (pending/rejected): return 409 INVALID_STATE
+ * 2. If already approved: return 200 { already_approved: true }
+ * 3. If not completed: return 400
  * 4. UPDATE child_tasks SET status='approved', approved_at WHERE status='completed'
  *    - If 0 rows affected: race condition, return idempotent
  * 5. UPDATE users.points_balance with CAS + 1 retry
  * 6. INSERT ggpoints_ledger (best effort)
  *
  * Returns:
- * - 200: { success: true, child_task_id, points_earned, ggpoints }
- * - 200: { success: true, already_approved: true, ggpoints }
- * - 400: { error: "INVALID_INPUT", message }
- * - 401: { error: "UNAUTHORIZED", message }
+ * - 200: { success: true, child_task_id, points_earned, ggpoints_child }
+ * - 200: { success: true, already_approved: true, ggpoints_child }
+ * - 400: { error: "INVALID_STATUS", message }
  * - 403: { error: "FORBIDDEN", message }
- * - 404: { error: "TASK_NOT_FOUND", message }
- * - 409: { error: "INVALID_STATE", message }
+ * - 404: { error: "NOT_FOUND", message }
+ * - 409: { error: "CONCURRENT_MODIFICATION", ggpoints_child }
  */
 
 import { NextResponse } from "next/server";
@@ -74,7 +73,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (parentError || !parentData) {
-      console.error("[tasks:approve] Parent not found:", parentError);
+      console.error("[approve] Parent not found:", parentError);
       return NextResponse.json(
         { error: "UNAUTHORIZED", message: "Parent record not found" },
         { status: 401 }
@@ -103,9 +102,9 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (taskError || !childTask) {
-      console.error("[tasks:approve] Task not found:", taskError);
+      console.error("[approve] Task not found:", taskError);
       return NextResponse.json(
-        { error: "TASK_NOT_FOUND", message: "Task not found" },
+        { error: "NOT_FOUND", message: "Task not found" },
         { status: 404 }
       );
     }
@@ -126,7 +125,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (childError || !childData) {
-      console.error("[tasks:approve] Child not found:", childError);
+      console.error("[approve] Child not found:", childError);
       return NextResponse.json(
         { error: "DATABASE_ERROR", message: "Failed to get child data" },
         { status: 500 }
@@ -137,7 +136,7 @@ export async function POST(request: NextRequest) {
 
     // 7. If already approved, return idempotent success
     if (childTask.status === "approved") {
-      console.log("[tasks:approve] Already approved (idempotent)", {
+      console.log("[approve] Already approved (idempotent)", {
         child_task_id: body.child_task_id,
       });
       return NextResponse.json(
@@ -145,7 +144,7 @@ export async function POST(request: NextRequest) {
           success: true,
           already_approved: true,
           child_task_id: body.child_task_id,
-          ggpoints: currentPoints,
+          ggpoints_child: currentPoints,
         },
         { status: 200 }
       );
@@ -155,17 +154,17 @@ export async function POST(request: NextRequest) {
     if (childTask.status !== "completed") {
       return NextResponse.json(
         {
-          error: "INVALID_STATE",
+          error: "INVALID_STATUS",
           message: `Task must be completed before approval. Current status: ${childTask.status}`,
         },
-        { status: 409 }
+        { status: 400 }
       );
     }
 
     const pointsEarned = childTask.points;
     const taskTitle = childTask.tasks?.title || "Unknown Task";
 
-    console.log("[tasks:approve] Approving task", {
+    console.log("[approve] Approving task", {
       child_task_id: body.child_task_id,
       points_earned: pointsEarned,
       current_balance: currentPoints,
@@ -185,7 +184,7 @@ export async function POST(request: NextRequest) {
       .select("id, status");
 
     if (updateTaskError) {
-      console.error("[tasks:approve] Task update failed:", updateTaskError);
+      console.error("[approve] Task update failed:", updateTaskError);
       return NextResponse.json(
         { error: "DATABASE_ERROR", message: "Failed to approve task" },
         { status: 500 }
@@ -195,7 +194,7 @@ export async function POST(request: NextRequest) {
     // Check if update affected rows (race condition check)
     if (!updatedTasks || updatedTasks.length === 0) {
       // Another request approved it first - return idempotent
-      console.log("[tasks:approve] Race condition: already approved by another request");
+      console.log("[approve] Race condition: already approved by another request");
 
       // Refetch current points
       const { data: refetchedChild } = await adminClient
@@ -209,7 +208,7 @@ export async function POST(request: NextRequest) {
           success: true,
           already_approved: true,
           child_task_id: body.child_task_id,
-          ggpoints: refetchedChild?.points_balance ?? currentPoints,
+          ggpoints_child: refetchedChild?.points_balance ?? currentPoints,
         },
         { status: 200 }
       );
@@ -232,7 +231,7 @@ export async function POST(request: NextRequest) {
         .select("points_balance");
 
       if (pointsError) {
-        console.error("[tasks:approve] Points update failed:", pointsError);
+        console.error("[approve] Points update failed:", pointsError);
         // ROLLBACK: Revert task approval
         await adminClient
           .from("child_tasks")
@@ -248,7 +247,7 @@ export async function POST(request: NextRequest) {
       if (updatedUsers && updatedUsers.length > 0) {
         newBalance = updatedUsers[0].points_balance;
         casSuccess = true;
-        console.log("[tasks:approve] CAS succeeded", {
+        console.log("[approve] CAS succeeded", {
           attempt,
           old_balance: pointsUpdateBalance,
           new_balance: newBalance,
@@ -257,7 +256,7 @@ export async function POST(request: NextRequest) {
       }
 
       // CAS failed - refetch and retry
-      console.log("[tasks:approve] CAS failed, refetching", { attempt });
+      console.log("[approve] CAS failed, refetching", { attempt });
 
       const { data: refetchedUser } = await adminClient
         .from("users")
@@ -284,7 +283,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Max retries exceeded
-      console.error("[tasks:approve] CAS failed after retries");
+      console.error("[approve] CAS failed after retries");
 
       // ROLLBACK
       await adminClient
@@ -296,7 +295,7 @@ export async function POST(request: NextRequest) {
         {
           error: "CONCURRENT_MODIFICATION",
           message: "Balance changed. Please try again.",
-          ggpoints: refetchedUser.points_balance ?? 0,
+          ggpoints_child: refetchedUser.points_balance ?? 0,
         },
         { status: 409 }
       );
@@ -310,7 +309,7 @@ export async function POST(request: NextRequest) {
         .eq("id", body.child_task_id);
 
       return NextResponse.json(
-        { error: "DATABASE_ERROR", message: "Failed to process approval" },
+        { error: "INTERNAL_ERROR", message: "Failed to process approval" },
         { status: 500 }
       );
     }
@@ -327,11 +326,11 @@ export async function POST(request: NextRequest) {
       });
 
     if (ledgerError) {
-      console.error("[tasks:approve] Ledger insert failed (non-critical):", ledgerError);
+      console.error("[approve] Ledger insert failed (non-critical):", ledgerError);
       // Continue - approval is still valid
     }
 
-    console.log("[tasks:approve] Task approved successfully", {
+    console.log("[approve] Task approved successfully", {
       child_task_id: body.child_task_id,
       points_earned: pointsEarned,
       new_balance: newBalance,
@@ -342,13 +341,12 @@ export async function POST(request: NextRequest) {
         success: true,
         child_task_id: body.child_task_id,
         points_earned: pointsEarned,
-        ggpoints: newBalance,
-        status: "approved",
+        ggpoints_child: newBalance,
       },
       { status: 200 }
     );
   } catch (error) {
-    console.error("[tasks:approve] Unexpected error:", error);
+    console.error("[approve] Unexpected error:", error);
     return NextResponse.json(
       { error: "DATABASE_ERROR", message: "Failed to approve task" },
       { status: 500 }

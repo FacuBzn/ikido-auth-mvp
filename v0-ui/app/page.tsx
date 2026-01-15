@@ -43,6 +43,7 @@ type Screen =
   | "rewards"
   | "activity-history"
   | "child-insights"
+  | "approvals"
 
 // Mock Data
 const mockChildren = [
@@ -126,6 +127,33 @@ const mockActivities = [
   },
 ]
 
+const mockPendingApprovals = [
+  {
+    id: "1",
+    title: "Do homework",
+    description: "Finished before dinner.",
+    completedAt: "Today 18:40",
+    points: 15,
+    status: "approved" as const,
+  },
+  {
+    id: "2",
+    title: "Clean bedroom",
+    description: "Everything is tidy now",
+    completedAt: "Today 18:40",
+    points: 20,
+    status: "waiting" as const,
+  },
+  {
+    id: "3",
+    title: "Take out trash",
+    description: "Done before the truck came.",
+    completedAt: "Today 18:40",
+    points: 10,
+    status: "waiting" as const,
+  },
+]
+
 export default function IKidOApp() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("welcome")
   const [selectedChildId, setSelectedChildId] = useState("1")
@@ -191,6 +219,16 @@ export default function IKidOApp() {
             activities={mockActivities}
             filter={activityFilter}
             setFilter={setActivityFilter}
+            onNavigate={setCurrentScreen}
+          />
+        )
+      case "approvals":
+        return (
+          <ApprovalsScreen
+            children={mockChildren}
+            selectedChildId={selectedChildId}
+            setSelectedChildId={setSelectedChildId}
+            pendingTasks={mockPendingApprovals}
             onNavigate={setCurrentScreen}
           />
         )
@@ -443,6 +481,9 @@ function ParentDashboardScreen({
 
         {/* Quick navigation for demo */}
         <div className="mt-4 flex flex-wrap gap-2 justify-center">
+          <SecondaryButton size="sm" onClick={() => onNavigate("approvals")}>
+            Approvals
+          </SecondaryButton>
           <SecondaryButton size="sm" onClick={() => onNavigate("activity-history")}>
             History
           </SecondaryButton>
@@ -690,7 +731,7 @@ function ActivityHistoryScreen({
   const filters = [
     { id: "All", label: "All", icon: <Check className="w-3 h-3" /> },
     { id: "Completed", label: "Completed", icon: <Clock className="w-3 h-3" /> },
-    { id: "Pending", label: "Pendirds", icon: <Calendar className="w-3 h-3" /> },
+    { id: "Pending", label: "Pending", icon: <Calendar className="w-3 h-3" /> },
     { id: "This Week", label: "This Week", icon: <Calendar className="w-3 h-3" /> },
   ]
 
@@ -887,6 +928,148 @@ function ChildInsightsScreen({
             Export Report
           </PrimaryButton>
         </div>
+      </div>
+    </MobileScreenShell>
+  )
+}
+
+// I) Approvals Screen
+function ApprovalsScreen({
+  children,
+  selectedChildId,
+  setSelectedChildId,
+  pendingTasks,
+  onNavigate,
+}: {
+  children: typeof mockChildren
+  selectedChildId: string
+  setSelectedChildId: (id: string) => void
+  pendingTasks: typeof mockPendingApprovals
+  onNavigate: (screen: Screen) => void
+}) {
+  const [taskStatuses, setTaskStatuses] = useState<Record<string, "approved" | "waiting">>(
+    Object.fromEntries(pendingTasks.map((t) => [t.id, t.status])),
+  )
+
+  const selectedChild = children.find((c) => c.id === selectedChildId) || children[0]
+  const pendingCount = Object.values(taskStatuses).filter((s) => s === "waiting").length
+
+  const handleApproveTask = (taskId: string) => {
+    setTaskStatuses((prev) => ({ ...prev, [taskId]: "approved" }))
+  }
+
+  const handleApproveAll = () => {
+    const allApproved = Object.fromEntries(pendingTasks.map((t) => [t.id, "approved" as const]))
+    setTaskStatuses(allApproved)
+  }
+
+  return (
+    <MobileScreenShell>
+      <div className="flex flex-col min-h-[700px] px-2 py-4">
+        <TopBar
+          showBack
+          onBack={() => onNavigate("parent-dashboard")}
+          showLogout
+          onLogout={() => onNavigate("welcome")}
+        />
+
+        {/* Header */}
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-black text-[var(--ik-accent-yellow)]">Approvals</h1>
+          <p className="text-[var(--ik-text-muted)] text-sm">Review and approve completed tasks</p>
+        </div>
+
+        {/* Main Panel */}
+        <PanelCard className="flex-1 flex flex-col">
+          {/* Select Child Header */}
+          <h2 className="text-lg font-bold text-white mb-4">Select child</h2>
+
+          {/* Child Selection Row */}
+          <div
+            className="flex items-center gap-3 p-3 bg-[var(--ik-surface-1)] rounded-[var(--ik-radius-card)] border-2 border-[var(--ik-outline-light)] mb-4 cursor-pointer"
+            onClick={() => {
+              // Cycle through children for demo
+              const currentIndex = children.findIndex((c) => c.id === selectedChildId)
+              const nextIndex = (currentIndex + 1) % children.length
+              setSelectedChildId(children[nextIndex].id)
+            }}
+          >
+            <Avatar name={selectedChild.name} variant={selectedChild.variant} />
+            <div className="flex-1">
+              <h3 className="font-bold text-white">{selectedChild.name}</h3>
+              <p className="text-[var(--ik-text-muted)] text-xs">
+                Tasks completed by this child, pending your approval
+              </p>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-[var(--ik-surface-2)] border-2 border-[var(--ik-outline-light)] flex items-center justify-center">
+              <Check className="w-4 h-4 text-white" />
+            </div>
+          </div>
+
+          {/* Stats Row */}
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex-1 px-4 py-2 bg-[var(--ik-surface-1)] rounded-full border-2 border-[var(--ik-outline-light)] text-center">
+              <span className="text-white text-sm font-semibold">Pending approvals: {pendingCount}</span>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 bg-[var(--ik-surface-1)] rounded-full border-2 border-[var(--ik-outline-light)]">
+              <span className="text-[var(--ik-accent-yellow)]">🪙</span>
+              <span className="text-white text-sm font-semibold">Child balance: {selectedChild.points} GG</span>
+            </div>
+          </div>
+
+          {/* Tasks List */}
+          <div className="space-y-3 flex-1">
+            {pendingTasks.map((task) => {
+              const currentStatus = taskStatuses[task.id]
+              const isApproved = currentStatus === "approved"
+
+              return (
+                <div
+                  key={task.id}
+                  className="p-4 bg-[var(--ik-surface-1)] rounded-[var(--ik-radius-card)] border-2 border-[var(--ik-outline-light)]"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-bold text-white">{task.title}</h3>
+                      <p className="text-[var(--ik-text-muted)] text-sm">{task.description}</p>
+                      <p className="text-[var(--ik-text-muted)] text-xs mt-1">Completed: {task.completedAt}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      {isApproved ? (
+                        <span className="px-3 py-1 bg-[var(--ik-surface-2)] rounded-full text-[var(--ik-accent-yellow)] text-sm font-bold border-2 border-[var(--ik-outline-light)]">
+                          {task.points} GG
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleApproveTask(task.id)}
+                          className="px-3 py-1.5 bg-[var(--ik-accent-yellow)] text-[var(--ik-text-dark)] text-xs font-bold rounded-lg border-2 border-[var(--ik-accent-yellow-dark)] hover:opacity-90 transition-opacity"
+                        >
+                          Waiting
+                          <br />
+                          approval
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Footer Text */}
+          <p className="text-[var(--ik-text-muted)] text-sm text-center mt-4">Complete tasks to earn more GGPoints!</p>
+        </PanelCard>
+
+        {/* Approve All Button */}
+        <PrimaryButton
+          fullWidth
+          className="mt-4"
+          icon={<Check className="w-5 h-5" />}
+          onClick={handleApproveAll}
+          disabled={pendingCount === 0}
+        >
+          Approve All
+        </PrimaryButton>
       </div>
     </MobileScreenShell>
   )

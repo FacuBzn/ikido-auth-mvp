@@ -30,7 +30,8 @@ type TaskFromAPI = {
   title: string;
   description: string | null;
   points: number;
-  completed: boolean;
+  status: "pending" | "in_progress" | "completed" | "approved" | "rejected";
+  completed: boolean; // deprecated, use status
   completed_at: string | null;
   created_at: string;
 };
@@ -63,7 +64,6 @@ export function ChildDashboardClient() {
 
   // Success feedback
   const [successTaskId, setSuccessTaskId] = useState<string | null>(null);
-  const [successPoints, setSuccessPoints] = useState<number | null>(null);
 
   // Auth guard - redirect if no child session
   useEffect(() => {
@@ -146,16 +146,39 @@ export function ChildDashboardClient() {
     }
   }, [hasHydrated, child, fetchTasks, fetchPoints]);
 
+  // Auto-refresh when tab/window becomes visible
+  useEffect(() => {
+    if (!hasHydrated || !child) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        console.log("[ChildDashboard] Tab visible - refreshing data");
+        void fetchTasks();
+      }
+    };
+
+    const handleFocus = () => {
+      console.log("[ChildDashboard] Window focus - refreshing data");
+      void fetchTasks();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [hasHydrated, child, fetchTasks]);
+
   // Handle task completion
   const handleCompleteTask = async (task: TaskFromAPI) => {
     if (!child?.child_code || !child?.family_code) return;
 
     const taskId = task.child_task_id;
-    const taskPoints = task.points;
 
     setCompletingTaskId(taskId);
     setSuccessTaskId(null);
-    setSuccessPoints(null);
 
     // Optimistic update
     setTasks((prev) =>
@@ -184,12 +207,10 @@ export function ChildDashboardClient() {
 
       // Show success feedback
       setSuccessTaskId(taskId);
-      setSuccessPoints(taskPoints);
 
       // Clear success feedback after 3 seconds
       setTimeout(() => {
         setSuccessTaskId(null);
-        setSuccessPoints(null);
       }, 3000);
 
       // Refetch to ensure data consistency
@@ -245,9 +266,16 @@ export function ChildDashboardClient() {
     );
   }
 
-  // Separate pending and completed tasks
-  const pendingTasks = tasks.filter((t) => !t.completed);
-  const completedTasks = tasks.filter((t) => t.completed);
+  // Separate tasks by status
+  // pending/in_progress = actionable
+  // completed = waiting for parent approval
+  // approved = done and points credited
+  const actionableTasks = tasks.filter(
+    (t) => t.status === "pending" || t.status === "in_progress"
+  );
+  const waitingApprovalTasks = tasks.filter((t) => t.status === "completed");
+  const approvedTasks = tasks.filter((t) => t.status === "approved");
+  const pendingTasks = actionableTasks; // For display count
 
   return (
     <div className="min-h-screen flex flex-col p-4">
@@ -304,11 +332,11 @@ export function ChildDashboardClient() {
           </div>
 
           {/* Success Feedback */}
-          {successPoints !== null && (
-            <div className="mt-4 bg-green-500/20 border-2 border-green-500 rounded-xl p-3 flex items-center gap-3 animate-pulse">
-              <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0" />
-              <span className="text-green-400 font-bold text-sm">
-                +{successPoints} GGPoints earned!
+          {successTaskId !== null && (
+            <div className="mt-4 bg-[var(--ik-accent-yellow)]/20 border-2 border-[var(--ik-accent-yellow)] rounded-xl p-3 flex items-center gap-3 animate-pulse">
+              <CheckCircle2 className="w-5 h-5 text-[var(--ik-accent-yellow)] shrink-0" />
+              <span className="text-[var(--ik-accent-yellow)] font-bold text-sm">
+                Task completed! Waiting for parent approval to earn points.
               </span>
             </div>
           )}
@@ -382,8 +410,8 @@ export function ChildDashboardClient() {
           {/* Tasks List */}
           {tasks.length > 0 && (
             <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-              {/* Pending Tasks First */}
-              {pendingTasks.map((task) => (
+              {/* Actionable Tasks First */}
+              {actionableTasks.map((task) => (
                 <TaskCard
                   key={task.child_task_id}
                   task={task}
@@ -393,23 +421,49 @@ export function ChildDashboardClient() {
                 />
               ))}
 
-              {/* Completed Tasks */}
-              {completedTasks.length > 0 && pendingTasks.length > 0 && (
-                <div className="border-t border-[var(--ik-outline-light)] my-4 pt-4">
-                  <p className="text-[var(--ik-text-muted)] text-xs mb-3">
-                    Completed ({completedTasks.length})
-                  </p>
-                </div>
+              {/* Waiting Approval Tasks */}
+              {waitingApprovalTasks.length > 0 && (
+                <>
+                  {actionableTasks.length > 0 && (
+                    <div className="border-t border-[var(--ik-outline-light)] my-4 pt-4">
+                      <p className="text-[var(--ik-accent-yellow)] text-xs font-bold mb-3">
+                        ⏳ Waiting for Approval ({waitingApprovalTasks.length})
+                      </p>
+                    </div>
+                  )}
+                  {waitingApprovalTasks.map((task) => (
+                    <TaskCard
+                      key={task.child_task_id}
+                      task={task}
+                      isCompleting={false}
+                      isSuccess={false}
+                      onComplete={() => {}}
+                    />
+                  ))}
+                </>
               )}
-              {completedTasks.map((task) => (
-                <TaskCard
-                  key={task.child_task_id}
-                  task={task}
-                  isCompleting={false}
-                  isSuccess={successTaskId === task.child_task_id}
-                  onComplete={() => {}}
-                />
-              ))}
+
+              {/* Approved Tasks */}
+              {approvedTasks.length > 0 && (
+                <>
+                  {(actionableTasks.length > 0 || waitingApprovalTasks.length > 0) && (
+                    <div className="border-t border-[var(--ik-outline-light)] my-4 pt-4">
+                      <p className="text-green-400 text-xs font-bold mb-3">
+                        ✓ Approved ({approvedTasks.length})
+                      </p>
+                    </div>
+                  )}
+                  {approvedTasks.map((task) => (
+                    <TaskCard
+                      key={task.child_task_id}
+                      task={task}
+                      isCompleting={false}
+                      isSuccess={false}
+                      onComplete={() => {}}
+                    />
+                  ))}
+                </>
+              )}
             </div>
           )}
         </PanelCard>
@@ -428,27 +482,56 @@ interface TaskCardProps {
 }
 
 function TaskCard({ task, isCompleting, isSuccess, onComplete }: TaskCardProps) {
+  const isActionable = task.status === "pending" || task.status === "in_progress";
+  const isWaitingApproval = task.status === "completed";
+  const isApproved = task.status === "approved";
+
+  // Border color based on status
+  const borderClass = isApproved
+    ? "border-green-500/30 opacity-75"
+    : isWaitingApproval
+    ? "border-[var(--ik-accent-yellow)]/50"
+    : isSuccess
+    ? "border-green-500 animate-pulse"
+    : "border-[var(--ik-outline-light)]";
+
+  // Status badge config
+  const getStatusBadge = () => {
+    if (isApproved) {
+      return {
+        className: "bg-green-500/20 text-green-400",
+        text: "✓ Approved",
+      };
+    }
+    if (isWaitingApproval) {
+      return {
+        className: "bg-[var(--ik-accent-yellow)]/20 text-[var(--ik-accent-yellow)]",
+        text: "⏳ Waiting Approval",
+      };
+    }
+    return {
+      className: "bg-[var(--ik-accent-cyan)]/20 text-[var(--ik-accent-cyan)]",
+      text: "○ Pending",
+    };
+  };
+
+  const statusBadge = getStatusBadge();
+
   return (
     <div
-      className={`bg-[var(--ik-surface-1)] border-2 rounded-xl p-4 transition-all ${
-        task.completed
-          ? "border-green-500/30 opacity-75"
-          : isSuccess
-          ? "border-green-500 animate-pulse"
-          : "border-[var(--ik-outline-light)]"
-      }`}
+      className={`bg-[var(--ik-surface-1)] border-2 rounded-xl p-4 transition-all ${borderClass}`}
     >
       <div className="flex items-start justify-between gap-3">
         {/* Task Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-start gap-2 mb-2">
-            {task.completed && (
+            {isApproved && (
               <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0 mt-0.5" />
             )}
             <div className="flex-1 min-w-0">
               <h3
                 className={`font-bold text-lg break-words ${
-                  task.completed ? "text-white/70 line-through" : "text-white"
+                  isApproved ? "text-white/70 line-through" : "text-white"
                 }`}
               >
                 {task.title || "Task"}
@@ -470,19 +553,15 @@ function TaskCard({ task, isCompleting, isSuccess, onComplete }: TaskCardProps) 
 
             {/* Status Chip */}
             <span
-              className={`inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full ${
-                task.completed
-                  ? "bg-green-500/20 text-green-400"
-                  : "bg-[var(--ik-accent-cyan)]/20 text-[var(--ik-accent-cyan)]"
-              }`}
+              className={`inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full ${statusBadge.className}`}
             >
-              {task.completed ? "✓ Completed" : "○ Pending"}
+              {statusBadge.text}
             </span>
           </div>
         </div>
 
-        {/* Complete Button */}
-        {!task.completed && (
+        {/* Complete Button - only for actionable tasks */}
+        {isActionable && (
           <PrimaryButton
             onClick={onComplete}
             disabled={isCompleting}

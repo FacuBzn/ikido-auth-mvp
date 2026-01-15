@@ -1,9 +1,9 @@
 /**
  * POST /api/child/tasks
- * 
+ *
  * Lists tasks assigned to a child
  * Requires: Child session cookie (set by /api/child/login)
- * 
+ *
  * Returns:
  * {
  *   tasks: [
@@ -13,7 +13,8 @@
  *       title: string,
  *       description: string | null,
  *       points: number,
- *       completed: boolean,
+ *       status: "pending" | "in_progress" | "completed" | "approved" | "rejected",
+ *       completed: boolean,        // deprecated, use status
  *       completed_at: string | null,
  *       created_at: string
  *     }
@@ -94,16 +95,18 @@ export async function POST(request: NextRequest) {
     });
 
     // Transform tasks to the required format
+    // Include status for proper UI display (pending, completed, approved, etc.)
     const formattedTasks = tasks.map((task) => {
-      const taskPoints = task.task?.points ?? 0;
-      
+      const taskPoints = task.points ?? task.task?.points ?? 0;
+
       return {
         child_task_id: task.id,
         task_id: task.task_id,
         title: task.task?.title || "Unknown Task",
         description: task.task?.description || null,
         points: taskPoints,
-        completed: task.completed,
+        status: task.status, // Real status: pending | completed | approved | etc
+        completed: task.completed, // Deprecated: use status instead
         completed_at: task.completed_at,
         created_at: task.created_at,
       };

@@ -841,3 +841,123 @@ Si algo falla en V2:
 1. Las rutas v1 siguen funcionando
 2. Simplemente no linkear a `/v2/*` en producción
 3. Feature flag opcional: `USE_V2_UI=true`
+
+---
+
+## PR13: Parent Task Approval Flow
+
+### Objetivo
+Implementar flujo completo de aprobación de tareas por el parent, donde:
+- Child completa tarea (status: "completed")
+- Parent aprueba tarea (status: "approved", puntos acreditados)
+- Points solo se acreditan al aprobar, NO al completar
+
+### Schema child_tasks
+```
+status: "pending" | "in_progress" | "completed" | "approved" | "rejected"
+approved_at: timestamp | null
+```
+
+### Endpoints Creados
+
+| Endpoint | Método | Descripción |
+|----------|--------|-------------|
+| `/api/parent/child-tasks/pending-approval` | GET | Lista tareas completadas pendientes de aprobación |
+| `/api/parent/child-tasks/approve` | POST | Aprueba tarea y acredita puntos con CAS |
+
+### Flujo de Approval (CAS + Idempotente)
+```
+1. Validar auth (parent) + ownership (child belongs to parent)
+2. Si ya está approved → return 200 { already_approved: true }
+3. Si no está completed → return 400 INVALID_STATUS
+4. UPDATE child_tasks SET status='approved' WHERE status='completed'
+   - Si 0 rows → race condition, return idempotente
+5. UPDATE users.points_balance con CAS + 1 retry
+   - CAS fail → rollback child_tasks, retry o return 409
+6. INSERT ggpoints_ledger (best effort)
+7. Return { success, points_earned, ggpoints_child }
+```
+
+### UI Creada
+
+| Ruta | Descripción |
+|------|-------------|
+| `/v2/parent/approvals` | Página para aprobar tareas por hijo |
+| `/v2/parent/dashboard` | Link a "Approve Tasks" agregado |
+
+### Child Dashboard Updates
+- **Auto-refresh**: visibilitychange + focus events
+- **Status badges**:
+  - `○ Pending` - Tarea por hacer
+  - `⏳ Waiting Approval` - Completada, esperando parent
+  - `✓ Approved` - Aprobada, puntos acreditados
+
+### /api/child/tasks Response
+```typescript
+{
+  tasks: [{
+    child_task_id: string,
+    status: "pending" | "completed" | "approved" | ...,
+    // ... otros campos
+  }],
+  ggpoints: number // desde users.points_balance
+}
+```
+
+### Smoke Tests Agregados
+```
+✅ pending-approval: 401 without auth
+✅ child-tasks/approve: 401 without auth
+✅ tasks/approve: 401 without auth
+✅ tasks/approve: 400/401 without body
+```
+
+### Archivos Creados/Modificados
+```
+app/api/parent/child-tasks/pending-approval/route.ts  (NEW)
+app/api/parent/child-tasks/approve/route.ts           (NEW)
+app/api/parent/tasks/approve/route.ts                 (IMPROVED: idempotent, CAS, ggpoints)
+app/api/child/tasks/route.ts                          (status field)
+app/v2/parent/approvals/page.tsx                      (NEW)
+app/v2/parent/approvals/ApprovalsClient.tsx           (NEW)
+app/v2/parent/tasks/ParentTasksClient.tsx             (Approve button integrated)
+app/v2/parent/dashboard/ParentDashboardClient.tsx     (link added)
+app/v2/child/dashboard/ChildDashboardClient.tsx       (auto-refresh, badges)
+scripts/smoke-tests.ts                                (new tests)
+```
+
+### UI: Approve desde /v2/parent/tasks
+
+La pantalla de "Manage Tasks" ahora muestra tres secciones:
+1. **Pending** - Tareas asignadas aún no completadas
+2. **⏳ Awaiting Approval** - Tareas completadas por el niño, con botón "Approve"
+3. **✓ Approved** - Tareas aprobadas (puntos ya acreditados)
+
+Al hacer click en "Approve":
+- Se llama a `POST /api/parent/tasks/approve`
+- Se muestra feedback "+X GGPoints granted"
+- La tarea se mueve a la sección "Approved"
+- El balance del niño se actualiza en tiempo real
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ 41 routes
+npm run smoke-test # (con dev server)
+```
+
+### Test Manual del Flujo Completo
+```
+1. Parent: Asignar tarea a child desde /v2/parent/tasks
+2. Child: Completar tarea desde /v2/child/dashboard
+   - La tarea aparece como "⏳ Waiting Approval"
+   - GGPoints NO aumentan aún
+3. Parent: Ver tarea en "Awaiting Approval" en /v2/parent/tasks
+4. Parent: Click "Approve"
+   - Mensaje "+X GGPoints granted"
+   - Tarea se mueve a "Approved"
+5. Child: Refrescar /v2/child/dashboard
+   - GGPoints ahora reflejan el nuevo balance
+   - Tarea aparece como "✓ Approved"
+```

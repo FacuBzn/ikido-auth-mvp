@@ -76,6 +76,7 @@ export default async function V2ChildActivityPage({ params }: PageProps) {
   }
 
   // Fetch child tasks with task details (last 50)
+  // NOTE: approved_at column does NOT exist in database - using completed_at for approved tasks
   const { data: tasksData, error: tasksError } = await supabase
     .from("child_tasks")
     .select(`
@@ -84,7 +85,6 @@ export default async function V2ChildActivityPage({ params }: PageProps) {
       points,
       assigned_at,
       completed_at,
-      approved_at,
       task:tasks(title, description)
     `)
     .eq("child_id", childId)
@@ -117,14 +117,15 @@ export default async function V2ChildActivityPage({ params }: PageProps) {
       const taskInfo = task.task as { title: string; description: string | null } | null;
       const title = taskInfo?.title || "Unknown Task";
 
-      if (task.status === "approved" && task.approved_at) {
+      // NOTE: approved_at column doesn't exist - using completed_at as date for approved tasks
+      if (task.status === "approved") {
         events.push({
           id: `task-approved-${task.id}`,
           type: "task_approved",
           title,
           subtitle: taskInfo?.description || null,
           pointsDelta: task.points,
-          date: task.approved_at,
+          date: task.completed_at || task.assigned_at, // Use completed_at as fallback
           status: "approved",
         });
       } else if (task.status === "completed" && task.completed_at) {
