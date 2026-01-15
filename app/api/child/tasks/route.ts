@@ -27,10 +27,12 @@ import type { NextRequest } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/adminClient";
 import {
   getTasksForChildByCodes,
-  getTotalPointsForChild,
   ChildTaskError,
 } from "@/lib/repositories/childTaskRepository";
 import { requireChildSession } from "@/lib/auth/childSession";
+
+// Force dynamic to prevent caching
+export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,10 +58,11 @@ export async function POST(request: NextRequest) {
       family_code: session.family_code,
     });
 
-    // Get child_code from database for backward compatibility with repository
+    // Get child_code and points_balance from database
+    // points_balance is the source of truth for consistency across all endpoints
     const { data: childData, error: childError } = await adminClient
       .from("users")
-      .select("child_code")
+      .select("child_code, points_balance")
       .eq("id", session.child_id)
       .eq("role", "child")
       .single();
@@ -81,17 +84,8 @@ export async function POST(request: NextRequest) {
       supabase: adminClient,
     });
 
-    // Get total points for the child
-    let totalPoints = 0;
-    try {
-      totalPoints = await getTotalPointsForChild({
-        childId: session.child_id,
-        supabase: adminClient,
-      });
-    } catch (pointsError) {
-      console.error("[child:tasks] Failed to get total points:", pointsError);
-      // Continue without points if calculation fails
-    }
+    // Use points_balance from users table (source of truth)
+    const totalPoints = childData.points_balance ?? 0;
 
     console.log("[child:tasks] Found tasks", {
       count: tasks.length,

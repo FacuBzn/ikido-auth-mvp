@@ -1,8 +1,11 @@
 /**
- * GET /api/child/points
+ * POST /api/child/points
  * 
  * Returns total GGPoints for a child
  * Requires: Child session cookie (set by /api/child/login)
+ * 
+ * Uses users.points_balance as the source of truth for consistency
+ * across all endpoints (rewards, tasks, etc.)
  * 
  * Returns:
  * {
@@ -13,11 +16,10 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/adminClient";
-import {
-  getTotalPointsForChild,
-  ChildTaskError,
-} from "@/lib/repositories/childTaskRepository";
 import { requireChildSession } from "@/lib/auth/childSession";
+
+// Force dynamic to prevent caching
+export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,19 +40,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("[child:points] Fetching total points for child", {
+    console.log("[child:points] Fetching points_balance for child", {
       child_id: session.child_id,
     });
 
-    // Get total points
-    const totalPoints = await getTotalPointsForChild({
-      childId: session.child_id,
-      supabase: adminClient,
-    });
+    // Get points_balance directly from users table (source of truth)
+    const { data: childData, error: childError } = await adminClient
+      .from("users")
+      .select("points_balance")
+      .eq("id", session.child_id)
+      .single();
 
-    console.log("[child:points] Total points calculated", {
+    if (childError) {
+      console.error("[child:points] Failed to get child data:", childError);
+      return NextResponse.json(
+        {
+          error: "DATABASE_ERROR",
+          message: "Failed to get points balance",
+        },
+        { status: 500 }
+      );
+    }
+
+    const totalPoints = childData?.points_balance ?? 0;
+
+    console.log("[child:points] Points balance retrieved", {
       child_id: session.child_id,
-      total_points: totalPoints,
+      points_balance: totalPoints,
     });
 
     return NextResponse.json(
@@ -68,22 +84,6 @@ export async function POST(request: NextRequest) {
           message: "Child session required. Please log in first.",
         },
         { status: 401 }
-      );
-    }
-
-    if (error instanceof ChildTaskError) {
-      console.error("[child:points] Error", {
-        code: error.code,
-        message: error.message,
-      });
-
-      let status = 400;
-      if (error.code === "UNAUTHORIZED") status = 401;
-      else if (error.code === "FORBIDDEN") status = 403;
-
-      return NextResponse.json(
-        { error: error.code, message: error.message },
-        { status }
       );
     }
 

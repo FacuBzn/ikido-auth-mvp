@@ -153,6 +153,50 @@ async function testTasksListNoAuth() {
 }
 
 /**
+ * Test: /api/child/points (no session)
+ * Expected: 401 Unauthorized
+ */
+async function testPointsNoSession() {
+  const testName = "child/points: 401 without session";
+  try {
+    const response = await fetch(`${BASE_URL}/api/child/points`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (response.status === 401) {
+      pass(testName);
+    } else {
+      fail(testName, `Expected 401, got ${response.status}`);
+    }
+  } catch (error) {
+    fail(testName, `Request failed: ${error}`);
+  }
+}
+
+/**
+ * Test: /api/child/tasks (no session)
+ * Expected: 401 Unauthorized
+ */
+async function testTasksNoSession() {
+  const testName = "child/tasks: 401 without session";
+  try {
+    const response = await fetch(`${BASE_URL}/api/child/tasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (response.status === 401) {
+      pass(testName);
+    } else {
+      fail(testName, `Expected 401, got ${response.status}`);
+    }
+  } catch (error) {
+    fail(testName, `Request failed: ${error}`);
+  }
+}
+
+/**
  * Test: V2 role select page loads
  * Expected: 200 OK
  */
@@ -228,6 +272,8 @@ async function runAllTests() {
   await testRewardsClaimNoRewardId();
   await testCustomCreateNoAuth();
   await testTasksListNoAuth();
+  await testPointsNoSession();
+  await testTasksNoSession();
 
   console.log("");
   console.log("Page Load Tests:");

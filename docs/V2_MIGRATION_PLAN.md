@@ -745,6 +745,16 @@ Hacer V2 el default y crear landing legacy para V1.
 5. ✅ Returns `already_claimed: true` for idempotent handling
 6. ✅ Returns 409 CONCURRENT_MODIFICATION if retries exhausted
 
+**GGPoints consistency (users.points_balance as source of truth):**
+| Endpoint | Source | Status |
+|----------|--------|--------|
+| `/api/child/points` | `users.points_balance` | ✅ Aligned |
+| `/api/child/tasks` (ggpoints field) | `users.points_balance` | ✅ Aligned |
+| `/api/child/rewards` | `users.points_balance` | ✅ Aligned |
+| `/api/child/rewards/claim` | `users.points_balance` (write) | ✅ Aligned |
+| `/api/parent/tasks/approve` | RPC updates `points_balance` | ✅ Aligned |
+| `getTotalPointsForChild()` | Calculates from child_tasks | ⚠️ Reconciliation only |
+
 **Custom-create-and-assign:**
 1. ✅ Rollback: deletes task template if child_tasks insert fails
 2. ✅ Logs with operation tags for debugging
