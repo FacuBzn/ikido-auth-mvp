@@ -311,7 +311,7 @@ Desde `/v0-ui/components/ikido/`:
 
 ## Plan de PRs
 
-### PR 1: Foundation (Este PR)
+### PR 1: Foundation ✅ COMPLETADO
 
 **Archivos:**
 - `styles/ikido-tokens.css`
@@ -329,17 +329,29 @@ Desde `/v0-ui/components/ikido/`:
 
 ---
 
-### PR 2: Parent Login
+### PR 2: Parent Login ✅ COMPLETADO
 
-**Archivos:**
-- `app/v2/parent/layout.tsx`
-- `app/v2/parent/login/page.tsx`
-- `app/v2/parent/login/ParentLoginForm.tsx`
+**Archivos creados:**
+- `app/v2/parent/layout.tsx` - Layout wrapper
+- `app/v2/parent/login/page.tsx` - Server component
+- `app/v2/parent/login/ParentLoginForm.tsx` - Client form con UI IKIDO
+- `app/v2/parent/dashboard/page.tsx` - Placeholder con auth check
+- `app/v2/parent/dashboard/ParentDashboardPlaceholder.tsx` - UI placeholder
+- `app/v2/parent/register/page.tsx` - Placeholder "Coming Soon"
+
+**Patrón de auth reutilizado:**
+- `loginParent()` de `lib/repositories/parentRepository.ts`
+- `createBrowserClient()` de Supabase SSR
+- `setParent()` en Zustand store
+- Delay 150ms + `router.push()` + `router.refresh()`
 
 **Validación:**
-1. Login exitoso → redirect a `/parent/dashboard` (v1)
-2. Login fallido → error message
-3. Loading state visible
+1. `npm run dev`
+2. Navegar a `/v2/parent/login`
+3. Login con credenciales válidas → redirect a `/v2/parent/dashboard`
+4. Login con credenciales inválidas → error message en panel
+5. Loading state visible durante submit
+6. Link "Create one now" → `/v2/parent/register` (placeholder)
 
 ---
 
