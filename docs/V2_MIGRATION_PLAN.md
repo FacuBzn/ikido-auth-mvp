@@ -447,12 +447,41 @@ Desde `/v0-ui/components/ikido/`:
 
 ---
 
-### PR 6: Rewards (Parcial - Placeholder creado)
+### PR 6: Rewards ✅ COMPLETADO (Hardened in 6.1)
 
-**Archivos:**
-- `app/v2/child/rewards/page.tsx` ✅ Placeholder con auth guard
-- `app/v2/child/rewards/ChildRewardsClient.tsx` - Pendiente implementación real
-- `components/ikido/reward-card.tsx` - Pendiente
+**Archivos creados:**
+- `app/api/child/rewards/route.ts` - Endpoint lista rewards + ggpoints
+- `app/api/child/rewards/claim/route.ts` - Endpoint claim reward (deducir puntos)
+- `app/v2/child/rewards/page.tsx` - Página funcional con shop completo
+- `components/ikido/reward-card.tsx` - Componente RewardCard IKIDO
+- `components/ikido/index.ts` - Actualizado con export de RewardCard
+
+**Origen de datos:**
+- Tabla `rewards` de Supabase (id, name, cost, claimed, child_user_id, claimed_at)
+- Tabla `ggpoints_ledger` para deducir puntos al claim
+
+**Endpoints creados:**
+- `POST /api/child/rewards` → `{ rewards[], ggpoints }`
+- `POST /api/child/rewards/claim` → `{ success, reward, ggpoints }`
+
+**Flujo implementado:**
+1. Auth guard client-side con Zustand
+2. Fetch rewards y ggpoints al montar
+3. Grid 2x2 de RewardCards (available primero, claimed después)
+4. Indicador "Not enough" si puntos insuficientes
+5. Click en reward habilitado → Modal de confirmación IKIDO
+6. Confirm claim → optimistic update + API call + refetch
+7. Success feedback animado
+8. Error handling con revert de optimistic update
+
+**Validación:**
+1. ✅ Auth redirect funciona
+2. ✅ Rewards cargan correctamente
+3. ✅ Points balance visible
+4. ✅ Claim funciona (modal + deducción)
+5. ✅ Empty state cuando no hay rewards
+6. ✅ "Not enough" cuando puntos insuficientes
+7. ✅ Loading/error states
 
 ---
 

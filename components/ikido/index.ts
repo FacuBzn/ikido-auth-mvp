@@ -35,3 +35,6 @@ export {
   type IkidoLogoProps,
   type PointsPillProps,
 } from "./top-bar";
+
+// Rewards
+export { RewardCard, type RewardCardProps } from "./reward-card";
