@@ -20,6 +20,7 @@ import {
   Activity,
   ListTodo,
   X,
+  Gift,
 } from "lucide-react";
 import type { Parent, Child } from "@/store/useSessionStore";
 import { useSessionStore } from "@/store/useSessionStore";
@@ -208,6 +209,23 @@ export function ParentDashboardClient({
               <SecondaryButton icon={<CheckSquare className="w-4 h-4" />}>
                 Review
               </SecondaryButton>
+            </Link>
+          </div>
+        </PanelCard>
+
+        {/* Manage Rewards Card */}
+        <PanelCard>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-white mb-1">Manage Rewards</h2>
+              <p className="text-[var(--ik-text-muted)] text-sm">
+                Create rewards and approve claims
+              </p>
+            </div>
+            <Link href="/v2/parent/rewards">
+              <PrimaryButton icon={<Gift className="w-4 h-4" />}>
+                Rewards
+              </PrimaryButton>
             </Link>
           </div>
         </PanelCard>

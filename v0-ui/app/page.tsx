@@ -31,6 +31,15 @@ import {
   User,
   Flame,
   Gift,
+  RefreshCw,
+  X,
+  ChevronDown,
+  Tv,
+  Film,
+  IceCreamCone,
+  Pencil,
+  Gamepad2,
+  Star,
 } from "lucide-react"
 
 type Screen =
@@ -44,6 +53,7 @@ type Screen =
   | "activity-history"
   | "child-insights"
   | "approvals"
+  | "rewards-management"
 
 // Mock Data
 const mockChildren = [
@@ -154,6 +164,41 @@ const mockPendingApprovals = [
   },
 ]
 
+const mockParentRewards = [
+  { id: "1", name: "Extra Screen Time", icon: "tv", cost: 50, status: "active" as const, assignedTo: "Maria" },
+  { id: "2", name: "Movie Night", icon: "film", cost: 300, status: "active" as const, assignedTo: "Maria" },
+  { id: "3", name: "Ice Cream Treat", icon: "icecream", cost: 100, status: "active" as const, assignedTo: "Maria" },
+  { id: "4", name: "200 GG Bonus", icon: "star", cost: 200, status: "active" as const, assignedTo: "Maria" },
+  { id: "5", name: "New Toy", icon: "gift", cost: 500, status: "active" as const, assignedTo: "Maria" },
+  { id: "6", name: "New Toy", icon: "gift", cost: 400, status: "paused" as const, assignedTo: "Maria" },
+  { id: "7", name: "Game Night", icon: "gamepad", cost: 250, status: "active" as const, assignedTo: "Maria" },
+]
+
+const mockRewardClaims = [
+  {
+    id: "1",
+    rewardName: "Movie Night",
+    childName: "Maria",
+    claimedAt: "Today 15:30",
+    cost: 300,
+    status: "pending" as const,
+  },
+  {
+    id: "2",
+    rewardName: "Ice Cream",
+    childName: "Ramiro",
+    claimedAt: "Yesterday 18:00",
+    cost: 100,
+    status: "approved" as const,
+  },
+]
+
+const mockRewardHistory = [
+  { id: "1", rewardName: "Extra Screen Time", childName: "Maria", redeemedAt: "Jan 10, 2025", cost: 50 },
+  { id: "2", rewardName: "Movie Night", childName: "Ramiro", redeemedAt: "Jan 8, 2025", cost: 300 },
+  { id: "3", rewardName: "New Toy", childName: "Maria", redeemedAt: "Jan 5, 2025", cost: 500 },
+]
+
 export default function IKidOApp() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("welcome")
   const [selectedChildId, setSelectedChildId] = useState("1")
@@ -229,6 +274,18 @@ export default function IKidOApp() {
             selectedChildId={selectedChildId}
             setSelectedChildId={setSelectedChildId}
             pendingTasks={mockPendingApprovals}
+            onNavigate={setCurrentScreen}
+          />
+        )
+      case "rewards-management":
+        return (
+          <RewardsManagementScreen
+            children={mockChildren}
+            selectedChildId={selectedChildId}
+            setSelectedChildId={setSelectedChildId}
+            rewards={mockParentRewards}
+            claims={mockRewardClaims}
+            history={mockRewardHistory}
             onNavigate={setCurrentScreen}
           />
         )
@@ -483,6 +540,9 @@ function ParentDashboardScreen({
         <div className="mt-4 flex flex-wrap gap-2 justify-center">
           <SecondaryButton size="sm" onClick={() => onNavigate("approvals")}>
             Approvals
+          </SecondaryButton>
+          <SecondaryButton size="sm" onClick={() => onNavigate("rewards-management")}>
+            Rewards
           </SecondaryButton>
           <SecondaryButton size="sm" onClick={() => onNavigate("activity-history")}>
             History
@@ -1071,6 +1131,467 @@ function ApprovalsScreen({
           Approve All
         </PrimaryButton>
       </div>
+    </MobileScreenShell>
+  )
+}
+
+function RewardsManagementScreen({
+  children,
+  selectedChildId,
+  setSelectedChildId,
+  rewards: initialRewards,
+  claims,
+  history,
+  onNavigate,
+}: {
+  children: typeof mockChildren
+  selectedChildId: string
+  setSelectedChildId: (id: string) => void
+  rewards: typeof mockParentRewards
+  claims: typeof mockRewardClaims
+  history: typeof mockRewardHistory
+  onNavigate: (screen: Screen) => void
+}) {
+  const [activeTab, setActiveTab] = useState<"rewards" | "claims" | "history">("rewards")
+  const [rewards, setRewards] = useState(initialRewards)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [editingReward, setEditingReward] = useState<(typeof initialRewards)[0] | null>(null)
+  const [childDropdownOpen, setChildDropdownOpen] = useState(false)
+
+  const selectedChild = children.find((c) => c.id === selectedChildId) || children[0]
+
+  // Form state for create/edit modal
+  const [formName, setFormName] = useState("")
+  const [formCost, setFormCost] = useState("")
+  const [formDescription, setFormDescription] = useState("")
+  const [formIcon, setFormIcon] = useState("gift")
+
+  const iconOptions = [
+    { id: "gift", icon: <Gift className="w-4 h-4" /> },
+    { id: "tv", icon: <Tv className="w-4 h-4" /> },
+    { id: "film", icon: <Film className="w-4 h-4" /> },
+    { id: "icecream", icon: <IceCreamCone className="w-4 h-4" /> },
+    { id: "gamepad", icon: <Gamepad2 className="w-4 h-4" /> },
+    { id: "star", icon: <Star className="w-4 h-4" /> },
+  ]
+
+  const getRewardIcon = (iconId: string) => {
+    switch (iconId) {
+      case "tv":
+        return <Tv className="w-5 h-5 text-white" />
+      case "film":
+        return <Film className="w-5 h-5 text-white" />
+      case "icecream":
+        return <IceCreamCone className="w-5 h-5 text-white" />
+      case "gamepad":
+        return <Gamepad2 className="w-5 h-5 text-white" />
+      case "star":
+        return <Star className="w-5 h-5 text-white" />
+      case "pencil":
+        return <Pencil className="w-5 h-5 text-white" />
+      default:
+        return <Gift className="w-5 h-5 text-white" />
+    }
+  }
+
+  const handleCreateReward = () => {
+    if (!formName || !formCost) return
+
+    const newReward = {
+      id: Date.now().toString(),
+      name: formName,
+      icon: formIcon,
+      cost: Number.parseInt(formCost),
+      status: "active" as const,
+      assignedTo: selectedChild.name,
+    }
+    setRewards([...rewards, newReward])
+    resetForm()
+    setShowCreateModal(false)
+  }
+
+  const handleUpdateReward = () => {
+    if (!editingReward || !formName || !formCost) return
+
+    setRewards(
+      rewards.map((r) =>
+        r.id === editingReward.id ? { ...r, name: formName, cost: Number.parseInt(formCost), icon: formIcon } : r,
+      ),
+    )
+    resetForm()
+    setEditingReward(null)
+  }
+
+  const handleDeleteReward = (id: string) => {
+    setRewards(rewards.filter((r) => r.id !== id))
+  }
+
+  const handleToggleStatus = (id: string) => {
+    setRewards(
+      rewards.map((r) =>
+        r.id === id ? { ...r, status: r.status === "active" ? ("paused" as const) : ("active" as const) } : r,
+      ),
+    )
+  }
+
+  const resetForm = () => {
+    setFormName("")
+    setFormCost("")
+    setFormDescription("")
+    setFormIcon("gift")
+  }
+
+  const openEditModal = (reward: (typeof initialRewards)[0]) => {
+    setEditingReward(reward)
+    setFormName(reward.name)
+    setFormCost(reward.cost.toString())
+    setFormIcon(reward.icon)
+  }
+
+  const filteredRewards = rewards.filter((r) => r.assignedTo === selectedChild.name)
+
+  return (
+    <MobileScreenShell>
+      <div className="flex flex-col min-h-[700px] px-2 py-4">
+        {/* Top Bar */}
+        <div className="flex items-center justify-between mb-4">
+          <SecondaryButton size="sm" icon={<span>←</span>} onClick={() => onNavigate("parent-dashboard")}>
+            BACK
+          </SecondaryButton>
+          <IkidoLogo />
+          <SecondaryButton size="sm" icon={<RefreshCw className="w-4 h-4" />}>
+            Refresh
+          </SecondaryButton>
+        </div>
+
+        {/* Main Content: Two-column layout on larger screens, stacked on mobile */}
+        <div className="flex flex-col lg:flex-row gap-4 flex-1">
+          {/* Left Panel: Child Selector */}
+          <div className="lg:w-1/3">
+            <PanelCard className="h-full">
+              <h2 className="text-lg font-bold text-white mb-4">Select Child</h2>
+
+              {/* Child Dropdown */}
+              <div className="relative mb-4">
+                <button
+                  onClick={() => setChildDropdownOpen(!childDropdownOpen)}
+                  className="w-full flex items-center gap-3 p-3 bg-[var(--ik-surface-1)] rounded-[var(--ik-radius-card)] border-2 border-[var(--ik-outline-light)]"
+                >
+                  <Avatar name={selectedChild.name} variant={selectedChild.variant} size="sm" />
+                  <span className="flex-1 text-left font-bold text-white">{selectedChild.name}</span>
+                  <ChevronDown
+                    className={`w-5 h-5 text-white transition-transform ${childDropdownOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+
+                {childDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--ik-surface-2)] rounded-[var(--ik-radius-card)] border-2 border-[var(--ik-outline-light)] overflow-hidden z-10">
+                    {children.map((child) => (
+                      <button
+                        key={child.id}
+                        onClick={() => {
+                          setSelectedChildId(child.id)
+                          setChildDropdownOpen(false)
+                        }}
+                        className={`w-full flex items-center gap-3 p-3 hover:bg-[var(--ik-surface-1)] transition-colors ${
+                          child.id === selectedChildId ? "bg-[var(--ik-surface-1)]" : ""
+                        }`}
+                      >
+                        <Avatar name={child.name} variant={child.variant} size="sm" />
+                        <span className="font-bold text-white">{child.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Child Balance */}
+              <div className="p-3 bg-[var(--ik-surface-1)] rounded-[var(--ik-radius-card)] border-2 border-[var(--ik-outline-light)] mb-4">
+                <p className="text-[var(--ik-text-muted)] text-sm">{selectedChild.name} Balance:</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[var(--ik-accent-yellow)] text-2xl">🪙</span>
+                  <span className="text-2xl font-black text-[var(--ik-accent-yellow)]">{selectedChild.points} GG</span>
+                </div>
+              </div>
+
+              {/* Preview Card (shows first reward) */}
+              {filteredRewards[0] && (
+                <div className="p-3 bg-[var(--ik-surface-1)] rounded-[var(--ik-radius-card)] border-2 border-[var(--ik-outline-light)]">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-8 h-8 rounded-lg bg-[var(--ik-surface-2)] flex items-center justify-center">
+                      {getRewardIcon(filteredRewards[0].icon)}
+                    </div>
+                    <span className="font-bold text-white">{filteredRewards[0].name}</span>
+                    <button onClick={() => handleDeleteReward(filteredRewards[0].id)} className="ml-auto">
+                      <Trash2 className="w-4 h-4 text-[var(--ik-text-muted)] hover:text-[var(--ik-danger)]" />
+                    </button>
+                  </div>
+                  <p className="text-[var(--ik-text-muted)] text-sm mb-2">Cost (GGPoints)</p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 bg-[var(--ik-surface-2)] rounded-full">
+                      <div
+                        className="h-full bg-[var(--ik-accent-cyan)] rounded-full"
+                        style={{ width: `${Math.min((filteredRewards[0].cost / 500) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-white font-bold text-sm">{filteredRewards[0].cost}</span>
+                  </div>
+                  <div className="mt-3">
+                    <CyanButton fullWidth size="sm">
+                      Assigned to {selectedChild.name}
+                    </CyanButton>
+                  </div>
+                </div>
+              )}
+            </PanelCard>
+          </div>
+
+          {/* Right Panel: Rewards/Claims/History */}
+          <div className="lg:w-2/3 flex flex-col">
+            {/* Tabs */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setActiveTab("rewards")}
+                className={`px-6 py-2 rounded-full font-bold text-sm transition-all border-2 ${
+                  activeTab === "rewards"
+                    ? "bg-[var(--ik-accent-yellow)] border-[var(--ik-accent-yellow-dark)] text-[var(--ik-text-dark)]"
+                    : "bg-[var(--ik-surface-1)] border-[var(--ik-outline-light)] text-white"
+                }`}
+              >
+                Rewards
+              </button>
+              <button
+                onClick={() => setActiveTab("claims")}
+                className={`px-6 py-2 rounded-full font-bold text-sm transition-all border-2 ${
+                  activeTab === "claims"
+                    ? "bg-[var(--ik-accent-cyan)] border-[var(--ik-accent-cyan)] text-[var(--ik-text-dark)]"
+                    : "bg-[var(--ik-surface-1)] border-[var(--ik-outline-light)] text-white"
+                }`}
+              >
+                Claims
+              </button>
+              <button
+                onClick={() => setActiveTab("history")}
+                className={`px-6 py-2 rounded-full font-bold text-sm transition-all border-2 ${
+                  activeTab === "history"
+                    ? "bg-[var(--ik-surface-2)] border-[var(--ik-outline-light)] text-white"
+                    : "bg-[var(--ik-surface-1)] border-[var(--ik-outline-light)] text-white"
+                }`}
+              >
+                History
+              </button>
+            </div>
+
+            {/* Rewards Tab */}
+            {activeTab === "rewards" && (
+              <PanelCard className="flex-1">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-bold text-white">Rewards for {selectedChild.name}</h2>
+                  <SecondaryButton
+                    size="sm"
+                    icon={<Plus className="w-4 h-4" />}
+                    onClick={() => setShowCreateModal(true)}
+                  >
+                    New
+                  </SecondaryButton>
+                </div>
+
+                {/* Rewards Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  {filteredRewards.map((reward) => (
+                    <div
+                      key={reward.id}
+                      className="p-3 bg-[var(--ik-surface-1)] rounded-[var(--ik-radius-card)] border-2 border-[var(--ik-outline-light)] relative"
+                    >
+                      {/* Status Badge */}
+                      {reward.status === "paused" && (
+                        <div className="absolute -top-2 -right-2 px-2 py-0.5 bg-[var(--ik-danger)] text-white text-xs font-bold rounded-full">
+                          Paused
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-[var(--ik-surface-2)] flex items-center justify-center">
+                          {getRewardIcon(reward.icon)}
+                        </div>
+                        <span className="flex-1 font-bold text-white text-sm truncate">{reward.name}</span>
+                        <button onClick={() => handleDeleteReward(reward.id)}>
+                          <Trash2 className="w-4 h-4 text-[var(--ik-text-muted)] hover:text-[var(--ik-danger)]" />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[var(--ik-text-muted)] text-xs truncate">
+                          Assigned to {reward.assignedTo}
+                        </span>
+                        <button
+                          onClick={() => handleToggleStatus(reward.id)}
+                          className={`px-2 py-1 rounded text-xs font-bold ${
+                            reward.status === "active"
+                              ? "bg-[var(--ik-accent-cyan)] text-[var(--ik-text-dark)]"
+                              : "bg-[var(--ik-surface-2)] text-[var(--ik-text-muted)]"
+                          }`}
+                        >
+                          {reward.status === "active" ? "Active" : "Paused"}
+                        </button>
+                      </div>
+
+                      {/* Edit button */}
+                      <button
+                        onClick={() => openEditModal(reward)}
+                        className="mt-2 w-full text-center text-[var(--ik-accent-cyan)] text-xs font-bold hover:underline"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </PanelCard>
+            )}
+
+            {/* Claims Tab */}
+            {activeTab === "claims" && (
+              <PanelCard className="flex-1">
+                <h2 className="text-lg font-bold text-white mb-4">Pending Claims</h2>
+                <div className="space-y-3">
+                  {claims.map((claim) => (
+                    <div
+                      key={claim.id}
+                      className="p-3 bg-[var(--ik-surface-1)] rounded-[var(--ik-radius-card)] border-2 border-[var(--ik-outline-light)] flex items-center gap-3"
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-[var(--ik-surface-2)] flex items-center justify-center">
+                        <Gift className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-white">{claim.rewardName}</h3>
+                        <p className="text-[var(--ik-text-muted)] text-xs">
+                          Claimed by {claim.childName} • {claim.claimedAt}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[var(--ik-accent-yellow)] font-bold">{claim.cost} GG</div>
+                        {claim.status === "pending" ? (
+                          <div className="flex gap-1 mt-1">
+                            <button className="px-2 py-1 bg-[var(--ik-success)] text-white text-xs font-bold rounded">
+                              Approve
+                            </button>
+                            <button className="px-2 py-1 bg-[var(--ik-danger)] text-white text-xs font-bold rounded">
+                              Deny
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-[var(--ik-success)] text-xs font-bold">Approved</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </PanelCard>
+            )}
+
+            {/* History Tab */}
+            {activeTab === "history" && (
+              <PanelCard className="flex-1">
+                <h2 className="text-lg font-bold text-white mb-4">Reward History</h2>
+                <div className="space-y-3">
+                  {history.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-3 bg-[var(--ik-surface-1)] rounded-[var(--ik-radius-card)] border-2 border-[var(--ik-outline-light)] flex items-center gap-3"
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-[var(--ik-surface-2)] flex items-center justify-center">
+                        <Gift className="w-5 h-5 text-[var(--ik-accent-yellow)]" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-white">{item.rewardName}</h3>
+                        <p className="text-[var(--ik-text-muted)] text-xs">
+                          Redeemed by {item.childName} • {item.redeemedAt}
+                        </p>
+                      </div>
+                      <div className="text-[var(--ik-danger)] font-bold">-{item.cost} GG</div>
+                    </div>
+                  ))}
+                </div>
+              </PanelCard>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Create/Edit Reward Modal */}
+      {(showCreateModal || editingReward) && (
+        <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50 p-4">
+          <div className="w-full max-w-md bg-[var(--ik-surface-2)] rounded-t-[var(--ik-radius-card)] border-2 border-[var(--ik-outline-light)] p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-white">{editingReward ? "Edit Reward" : "Create Reward"}</h2>
+              <button
+                onClick={() => {
+                  setShowCreateModal(false)
+                  setEditingReward(null)
+                  resetForm()
+                }}
+                className="w-8 h-8 rounded-full bg-[var(--ik-surface-1)] flex items-center justify-center"
+              >
+                <X className="w-4 h-4 text-white" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <TextInput label="Reward Name" placeholder="e.g., Movie Night" value={formName} onChange={setFormName} />
+
+              <TextInput
+                label="Cost (GGPoints)"
+                placeholder="e.g., 300"
+                value={formCost}
+                onChange={setFormCost}
+                type="text"
+              />
+
+              <TextInput
+                label="Description (optional)"
+                placeholder="A brief description..."
+                value={formDescription}
+                onChange={setFormDescription}
+              />
+
+              <div>
+                <label className="block text-white font-bold text-sm mb-2">Icon (optional)</label>
+                <div className="flex gap-2">
+                  {iconOptions.map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() => setFormIcon(opt.id)}
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
+                        formIcon === opt.id
+                          ? "bg-[var(--ik-accent-yellow)] text-[var(--ik-text-dark)]"
+                          : "bg-[var(--ik-surface-1)] text-white border-2 border-[var(--ik-outline-light)]"
+                      }`}
+                    >
+                      {opt.icon}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <SecondaryButton
+                fullWidth
+                onClick={() => {
+                  setShowCreateModal(false)
+                  setEditingReward(null)
+                  resetForm()
+                }}
+              >
+                Cancel
+              </SecondaryButton>
+              <CyanButton fullWidth onClick={editingReward ? handleUpdateReward : handleCreateReward}>
+                Save
+              </CyanButton>
+            </div>
+          </div>
+        </div>
+      )}
     </MobileScreenShell>
   )
 }
