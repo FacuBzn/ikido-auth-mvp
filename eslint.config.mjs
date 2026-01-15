@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // V0 UI snapshot - READ ONLY, do not lint
+    "v0-ui/**",
   ]),
 ]);
 

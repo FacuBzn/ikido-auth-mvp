@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ReactNode } from "react";
-import { Header } from "@/components/Header";
 import { SessionProvider } from "@/components/SessionProvider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
@@ -31,10 +30,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       >
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           <SessionProvider>
-            <div className="flex min-h-screen flex-col">
-              <Header />
-              <main className="flex flex-1 flex-col">{children}</main>
-            </div>
+            {/* Each page/layout handles its own header/topbar */}
+            <main className="flex min-h-screen flex-col">{children}</main>
             <Toaster />
           </SessionProvider>
         </ThemeProvider>

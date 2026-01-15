@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
+import { Header } from "@/components/Header";
 
 /**
- * Parent Layout - NO hace auth check aquí para evitar loops
+ * Parent Layout (V1) - Includes legacy Header
  * 
  * Las rutas protegidas (dashboard, tasks, children) deben usar
  * el layout en (auth) group o hacer su propio check de auth.
@@ -13,8 +14,11 @@ export default function ParentLayout({
 }: {
   children: ReactNode;
 }) {
-  // No auth check here - prevents redirect loops on login/register
-  // Protected routes will handle their own auth via (auth) layout
-  return <>{children}</>;
+  return (
+    <div className="flex min-h-screen flex-col">
+      <Header />
+      <div className="flex flex-1 flex-col">{children}</div>
+    </div>
+  );
 }
 
