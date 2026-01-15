@@ -379,19 +379,38 @@ Desde `/v0-ui/components/ikido/`:
 
 ---
 
-### PR 4: Parent Dashboard
+### PR 4: Parent Dashboard ✅ COMPLETADO (Hardened)
 
-**Archivos:**
-- `app/v2/parent/dashboard/page.tsx`
-- `app/v2/parent/dashboard/ParentDashboardClient.tsx`
-- `components/ikido/stat-card.tsx`
-- `components/ikido/list-row.tsx`
+**Archivos creados/modificados:**
+- `app/v2/parent/dashboard/page.tsx` - Server component con data fetching
+- `app/v2/parent/dashboard/ParentDashboardClient.tsx` - Client UI completa IKIDO
+- `app/v2/parent/tasks/page.tsx` - Placeholder con auth check
+- `app/v2/parent/children/[childId]/activity/page.tsx` - Placeholder con auth check
+- (Eliminado) `ParentDashboardPlaceholder.tsx` - Ya no necesario
+
+**Origen de datos (mismo que V1):**
+- `supabase.auth.getUser()` → auth check
+- `supabase.from("users").eq("auth_id", user.id)` → parent data
+- `supabase.from("users").eq("parent_id", parent.id)` → children list
+- `POST /api/children/create` → agregar child
+
+**Acciones implementadas:**
+- Copy Family Code → navigator.clipboard + feedback "Copied!"
+- Copy Child Code → navigator.clipboard + feedback "Copied!"
+- Logout → useSessionStore.logout() + redirect
+- Add Child → inline form + POST API
+- Go to Tasks → /v2/parent/tasks (placeholder)
+- Child Tasks → /v2/parent/tasks?childId=... (placeholder)
+- Child Activity → /v2/parent/children/[id]/activity (placeholder)
 
 **Validación:**
-1. Auth check funciona
-2. Lista children carga
-3. Stats muestran datos correctos
-4. Logout funciona
+1. Auth check funciona (redirect a login si no auth)
+2. Lista children carga correctamente (0, 1, N children)
+3. Family Code con Copy funciona
+4. Add Child funciona
+5. Child cards con Tasks/Activity buttons navegan correctamente
+6. Logout funciona
+7. Scroll funciona con 5+ children
 
 ---
 
