@@ -133,6 +133,16 @@ export default async function V2RoleSelectPage() {
         <p className="text-[var(--ik-text-muted)] text-xs text-center mt-8">
           iKidO - Making chores fun with GGPoints
         </p>
+
+        {/* Legacy Link */}
+        <div className="text-center mt-4">
+          <Link
+            href="/"
+            className="text-[var(--ik-text-muted)] text-xs underline underline-offset-2 hover:text-[var(--ik-accent-cyan)] opacity-60 hover:opacity-100 transition-opacity"
+          >
+            Use Legacy Version (V1)
+          </Link>
+        </div>
       </div>
     </div>
   );

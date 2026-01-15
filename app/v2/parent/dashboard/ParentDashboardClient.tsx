@@ -275,15 +275,6 @@ export function ParentDashboardClient({
           )}
         </PanelCard>
 
-        {/* Link to current dashboard */}
-        <div className="text-center">
-          <Link
-            href="/parent/dashboard"
-            className="text-[var(--ik-accent-cyan)] text-sm underline underline-offset-2 hover:text-[var(--ik-accent-cyan-dark)]"
-          >
-            Go to Current Dashboard (V1)
-          </Link>
-        </div>
       </div>
     </div>
   );

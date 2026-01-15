@@ -52,10 +52,10 @@ export default function V2ParentRegisterPage() {
               </p>
             </div>
 
-            {/* Link to current register */}
-            <Link href="/parent/register">
+            {/* Back to login */}
+            <Link href="/v2/parent/login">
               <SecondaryButton fullWidth>
-                Use Current Registration
+                Back to Login
               </SecondaryButton>
             </Link>
           </PanelCard>

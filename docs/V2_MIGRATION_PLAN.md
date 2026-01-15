@@ -653,6 +653,40 @@ Desde `/v0-ui/components/ikido/`:
 
 ---
 
+### PR 10: Cleanup Links V1 ✅ COMPLETADO
+
+**Objetivo:**
+Eliminar links dispersos a V1 y centralizar acceso legacy.
+
+**Links eliminados de:**
+- `app/v2/child/dashboard/ChildDashboardClient.tsx` - "/child/dashboard"
+- `app/v2/child/rewards/page.tsx` - "/child/rewards"
+- `app/v2/parent/dashboard/ParentDashboardClient.tsx` - "/parent/dashboard"
+- `app/v2/parent/tasks/ParentTasksClient.tsx` - "/parent/tasks"
+- `app/v2/parent/register/page.tsx` - "/parent/register" (cambiado a back to login)
+
+**Link Legacy centralizado:**
+- Ubicación: `/v2` (role select page)
+- Texto: "Use Legacy Version (V1)"
+- Destino: `/` (root V1)
+- Estilo: discreto (opacity 60%, hover visible)
+
+**Navegación V2 verificada:**
+- `/v2` → login/join
+- `/v2/parent/dashboard` → tasks, activity
+- `/v2/parent/tasks` → back dashboard
+- `/v2/child/dashboard` → rewards
+- `/v2/child/rewards` → back dashboard
+- `/v2/parent/children/[childId]/activity` → back dashboard
+
+**Validación:**
+1. ✅ grep "href=\"/parent/" = 0 matches en /app/v2
+2. ✅ grep "href=\"/child/" = 0 matches en /app/v2
+3. ✅ Link legacy único en /v2
+4. ✅ Build OK
+
+---
+
 ## Notas Importantes
 
 ### No modificar:

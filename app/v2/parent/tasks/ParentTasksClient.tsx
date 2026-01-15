@@ -673,15 +673,6 @@ export function ParentTasksClient({
           </>
         )}
 
-        {/* Link to V1 */}
-        <div className="text-center">
-          <Link
-            href="/parent/tasks"
-            className="text-[var(--ik-accent-cyan)] text-sm underline underline-offset-2 hover:text-[var(--ik-accent-cyan-dark)]"
-          >
-            Go to Current Tasks (V1)
-          </Link>
-        </div>
       </div>
     </div>
   );

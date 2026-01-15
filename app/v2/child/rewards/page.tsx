@@ -360,15 +360,6 @@ export default function V2ChildRewardsPage() {
           )}
         </PanelCard>
 
-        {/* Link to V1 */}
-        <div className="text-center">
-          <Link
-            href="/child/rewards"
-            className="text-[var(--ik-accent-cyan)] text-sm underline underline-offset-2 hover:text-[var(--ik-accent-cyan-dark)]"
-          >
-            Go to Current Rewards (V1)
-          </Link>
-        </div>
       </div>
 
       {/* Confirm Modal */}
