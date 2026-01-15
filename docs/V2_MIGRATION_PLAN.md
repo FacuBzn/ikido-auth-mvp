@@ -485,11 +485,50 @@ Desde `/v0-ui/components/ikido/`:
 
 ---
 
-### PR 7: Activity (Opcional)
+### PR 7: Parent Activity History ✅ COMPLETADO
 
-**Archivos:**
-- `app/v2/parent/activity/*`
-- `components/ikido/child-selector.tsx`
+**Archivos creados:**
+- `app/v2/parent/children/[childId]/activity/page.tsx` - Server component con validación
+- `app/v2/parent/children/[childId]/activity/ChildActivityClient.tsx` - Client UI con filtros
+
+**Origen de datos:**
+- `users` → child info + points_balance
+- `child_tasks` + `tasks` → tasks completed/approved/pending
+- `rewards` → rewards claimed
+
+**Queries usadas:**
+- `users.eq("id", childId).eq("parent_id", parentId)` → validar ownership
+- `child_tasks.eq("child_id", childId).select("*, task:tasks(*)")` → tasks con título
+- `rewards.eq("child_user_id", childId).eq("claimed", true)` → rewards reclamados
+
+**Flujo implementado:**
+1. Server-side auth check (getAuthenticatedUser)
+2. Validar parent record exists
+3. Validar childId pertenece al parent (404 si no)
+4. Fetch tasks + rewards
+5. Normalizar a ActivityEvent[]
+6. Ordenar por fecha desc
+7. Client component con filtros
+
+**Filtros (client-side):**
+- All: todos los eventos
+- Tasks: completed + approved
+- Pending: tasks pendientes
+- Rewards: rewards reclamados
+
+**UI Features:**
+- Child summary card (nombre + balance)
+- Filter chips con contadores
+- Lista scrolleable de eventos
+- Cada evento: ícono, título, subtitle, points delta (+/-), status badge, fecha
+- Empty states por filtro
+
+**Validación:**
+1. ✅ Auth check funciona
+2. ✅ 404 si child no pertenece al parent
+3. ✅ Lista eventos carga correctamente
+4. ✅ Filtros funcionan
+5. ✅ Empty state cuando no hay eventos
 
 ---
 
