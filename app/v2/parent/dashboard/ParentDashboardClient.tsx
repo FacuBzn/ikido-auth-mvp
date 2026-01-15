@@ -20,6 +20,7 @@ import {
   Activity,
   ListTodo,
   X,
+  Gift,
 } from "lucide-react";
 import type { Parent, Child } from "@/store/useSessionStore";
 import { useSessionStore } from "@/store/useSessionStore";
@@ -190,6 +191,40 @@ export function ParentDashboardClient({
             <Link href="/v2/parent/tasks">
               <PrimaryButton icon={<CheckSquare className="w-4 h-4" />}>
                 Go to Tasks
+              </PrimaryButton>
+            </Link>
+          </div>
+        </PanelCard>
+
+        {/* Approve Tasks Card */}
+        <PanelCard>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-white mb-1">Approve Tasks</h2>
+              <p className="text-[var(--ik-text-muted)] text-sm">
+                Review and approve completed tasks
+              </p>
+            </div>
+            <Link href="/v2/parent/approvals">
+              <SecondaryButton icon={<CheckSquare className="w-4 h-4" />}>
+                Review
+              </SecondaryButton>
+            </Link>
+          </div>
+        </PanelCard>
+
+        {/* Manage Rewards Card */}
+        <PanelCard>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-white mb-1">Manage Rewards</h2>
+              <p className="text-[var(--ik-text-muted)] text-sm">
+                Create rewards and approve claims
+              </p>
+            </div>
+            <Link href="/v2/parent/rewards">
+              <PrimaryButton icon={<Gift className="w-4 h-4" />}>
+                Rewards
               </PrimaryButton>
             </Link>
           </div>

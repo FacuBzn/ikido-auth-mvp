@@ -197,6 +197,98 @@ async function testTasksNoSession() {
 }
 
 /**
+ * Test: /api/parent/child-tasks/pending-approval (no auth)
+ * Expected: 401 Unauthorized
+ */
+async function testPendingApprovalNoAuth() {
+  const testName = "pending-approval: 401 without auth";
+  try {
+    const response = await fetch(
+      `${BASE_URL}/api/parent/child-tasks/pending-approval?child_id=fake-id`
+    );
+
+    if (response.status === 401) {
+      pass(testName);
+    } else {
+      fail(testName, `Expected 401, got ${response.status}`);
+    }
+  } catch (error) {
+    fail(testName, `Request failed: ${error}`);
+  }
+}
+
+/**
+ * Test: /api/parent/child-tasks/approve (no auth)
+ * Expected: 401 Unauthorized
+ */
+async function testApproveNoAuth() {
+  const testName = "child-tasks/approve: 401 without auth";
+  try {
+    const response = await fetch(`${BASE_URL}/api/parent/child-tasks/approve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ child_task_id: "fake-id" }),
+    });
+
+    if (response.status === 401) {
+      pass(testName);
+    } else {
+      fail(testName, `Expected 401, got ${response.status}`);
+    }
+  } catch (error) {
+    fail(testName, `Request failed: ${error}`);
+  }
+}
+
+/**
+ * Test: /api/parent/tasks/approve (no auth)
+ * Expected: 401 Unauthorized
+ */
+async function testTasksApproveNoAuth() {
+  const testName = "tasks/approve: 401 without auth";
+  try {
+    const response = await fetch(`${BASE_URL}/api/parent/tasks/approve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ child_task_id: "fake-id" }),
+    });
+
+    if (response.status === 401) {
+      pass(testName);
+    } else {
+      fail(testName, `Expected 401, got ${response.status}`);
+    }
+  } catch (error) {
+    fail(testName, `Request failed: ${error}`);
+  }
+}
+
+/**
+ * Test: /api/parent/tasks/approve (no body)
+ * Expected: 400 Invalid Input (or 401 if auth required first)
+ */
+async function testTasksApproveNoBody() {
+  const testName = "tasks/approve: 400/401 without body";
+  try {
+    const response = await fetch(`${BASE_URL}/api/parent/tasks/approve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    // 401 is acceptable (auth check happens first)
+    // 400 would be ideal if auth was bypassed for testing
+    if (response.status === 401 || response.status === 400) {
+      pass(testName);
+    } else {
+      fail(testName, `Expected 400 or 401, got ${response.status}`);
+    }
+  } catch (error) {
+    fail(testName, `Request failed: ${error}`);
+  }
+}
+
+/**
  * Test: V2 role select page loads
  * Expected: 200 OK
  */
@@ -260,6 +352,131 @@ async function testLegacyLoads() {
   }
 }
 
+// ===========================================
+// PR13: Parent Rewards Admin Tests
+// ===========================================
+
+/**
+ * Test: /api/parent/rewards/list (no auth)
+ * Expected: 401 Unauthorized
+ */
+async function testParentRewardsListNoAuth() {
+  const testName = "parent/rewards/list: 401 without auth";
+  try {
+    const response = await fetch(
+      `${BASE_URL}/api/parent/rewards/list?child_id=fake-id`
+    );
+
+    if (response.status === 401) {
+      pass(testName);
+    } else {
+      fail(testName, `Expected 401, got ${response.status}`);
+    }
+  } catch (error) {
+    fail(testName, `Request failed: ${error}`);
+  }
+}
+
+/**
+ * Test: /api/parent/rewards/claims/list (no auth)
+ * Expected: 401 Unauthorized
+ */
+async function testParentClaimsListNoAuth() {
+  const testName = "parent/rewards/claims/list: 401 without auth";
+  try {
+    const response = await fetch(
+      `${BASE_URL}/api/parent/rewards/claims/list?child_id=fake-id`
+    );
+
+    if (response.status === 401) {
+      pass(testName);
+    } else {
+      fail(testName, `Expected 401, got ${response.status}`);
+    }
+  } catch (error) {
+    fail(testName, `Request failed: ${error}`);
+  }
+}
+
+/**
+ * Test: /api/parent/rewards/claims/approve (no auth)
+ * Expected: 401 Unauthorized
+ */
+async function testParentClaimsApproveNoAuth() {
+  const testName = "parent/rewards/claims/approve: 401 without auth";
+  try {
+    const response = await fetch(
+      `${BASE_URL}/api/parent/rewards/claims/approve`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rewardId: "fake-id" }),
+      }
+    );
+
+    if (response.status === 401) {
+      pass(testName);
+    } else {
+      fail(testName, `Expected 401, got ${response.status}`);
+    }
+  } catch (error) {
+    fail(testName, `Request failed: ${error}`);
+  }
+}
+
+/**
+ * Test: /api/child/rewards/request (no session)
+ * Expected: 401 Unauthorized
+ */
+async function testChildRewardsRequestNoSession() {
+  const testName = "child/rewards/request: 401 without session";
+  try {
+    const response = await fetch(`${BASE_URL}/api/child/rewards/request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reward_id: "fake-id" }),
+    });
+
+    if (response.status === 401) {
+      pass(testName);
+    } else {
+      fail(testName, `Expected 401, got ${response.status}`);
+    }
+  } catch (error) {
+    fail(testName, `Request failed: ${error}`);
+  }
+}
+
+/**
+ * Test: /v2/parent/rewards (no auth - redirect expected)
+ * Expected: 307/308 redirect to login
+ */
+async function testParentRewardsPageNoAuth() {
+  const testName = "v2/parent/rewards: redirects without auth";
+  try {
+    const response = await fetch(`${BASE_URL}/v2/parent/rewards`, {
+      redirect: "manual",
+    });
+
+    // Should redirect to login
+    if (response.status === 307 || response.status === 308 || response.status === 302) {
+      pass(testName);
+    } else if (response.status === 200) {
+      // If it loads, check if it's a login page
+      const text = await response.text();
+      if (text.includes("login") || text.includes("Login")) {
+        pass(testName);
+      } else {
+        fail(testName, `Expected redirect to login, got 200 with content`);
+      }
+    } else {
+      fail(testName, `Expected redirect, got ${response.status}`);
+    }
+  } catch (error) {
+    fail(testName, `Request failed: ${error}`);
+  }
+}
+
 // Run all tests
 async function runAllTests() {
   log("Starting smoke tests...");
@@ -274,6 +491,18 @@ async function runAllTests() {
   await testTasksListNoAuth();
   await testPointsNoSession();
   await testTasksNoSession();
+  await testPendingApprovalNoAuth();
+  await testApproveNoAuth();
+  await testTasksApproveNoAuth();
+  await testTasksApproveNoBody();
+
+  console.log("");
+  console.log("PR13: Parent Rewards Admin Tests:");
+  await testParentRewardsListNoAuth();
+  await testParentClaimsListNoAuth();
+  await testParentClaimsApproveNoAuth();
+  await testChildRewardsRequestNoSession();
+  await testParentRewardsPageNoAuth();
 
   console.log("");
   console.log("Page Load Tests:");

@@ -258,6 +258,13 @@ export type Database = {
           child_user_id: string;
           claimed_at: string | null;
           created_at: string;
+          // PR13: Request/Approve flow fields
+          status: "available" | "requested" | "approved" | "rejected";
+          requested_at: string | null;
+          approved_at: string | null;
+          rejected_at: string | null;
+          decided_by_parent_id: string | null;
+          reject_reason: string | null;
         };
         Insert: {
           id?: string;
@@ -267,6 +274,13 @@ export type Database = {
           child_user_id: string;
           claimed_at?: string | null;
           created_at?: string;
+          // PR13: Request/Approve flow fields
+          status?: "available" | "requested" | "approved" | "rejected";
+          requested_at?: string | null;
+          approved_at?: string | null;
+          rejected_at?: string | null;
+          decided_by_parent_id?: string | null;
+          reject_reason?: string | null;
         };
         Update: {
           id?: string;
@@ -276,6 +290,13 @@ export type Database = {
           child_user_id?: string;
           claimed_at?: string | null;
           created_at?: string;
+          // PR13: Request/Approve flow fields
+          status?: "available" | "requested" | "approved" | "rejected";
+          requested_at?: string | null;
+          approved_at?: string | null;
+          rejected_at?: string | null;
+          decided_by_parent_id?: string | null;
+          reject_reason?: string | null;
         };
         Relationships: [
           {

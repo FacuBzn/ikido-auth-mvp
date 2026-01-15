@@ -841,3 +841,269 @@ Si algo falla en V2:
 1. Las rutas v1 siguen funcionando
 2. Simplemente no linkear a `/v2/*` en producción
 3. Feature flag opcional: `USE_V2_UI=true`
+
+---
+
+## PR13: Parent Task Approval Flow
+
+### Objetivo
+Implementar flujo completo de aprobación de tareas por el parent, donde:
+- Child completa tarea (status: "completed")
+- Parent aprueba tarea (status: "approved", puntos acreditados)
+- Points solo se acreditan al aprobar, NO al completar
+
+### Schema child_tasks
+```
+status: "pending" | "in_progress" | "completed" | "approved" | "rejected"
+approved_at: timestamp | null
+```
+
+### Endpoints Creados
+
+| Endpoint | Método | Descripción |
+|----------|--------|-------------|
+| `/api/parent/child-tasks/pending-approval` | GET | Lista tareas completadas pendientes de aprobación |
+| `/api/parent/child-tasks/approve` | POST | Aprueba tarea y acredita puntos con CAS |
+
+### Flujo de Approval (CAS + Idempotente)
+```
+1. Validar auth (parent) + ownership (child belongs to parent)
+2. Si ya está approved → return 200 { already_approved: true }
+3. Si no está completed → return 400 INVALID_STATUS
+4. UPDATE child_tasks SET status='approved' WHERE status='completed'
+   - Si 0 rows → race condition, return idempotente
+5. UPDATE users.points_balance con CAS + 1 retry
+   - CAS fail → rollback child_tasks, retry o return 409
+6. INSERT ggpoints_ledger (best effort)
+7. Return { success, points_earned, ggpoints_child }
+```
+
+### UI Creada
+
+| Ruta | Descripción |
+|------|-------------|
+| `/v2/parent/approvals` | Página para aprobar tareas por hijo |
+| `/v2/parent/dashboard` | Link a "Approve Tasks" agregado |
+
+### Child Dashboard Updates
+- **Auto-refresh**: visibilitychange + focus events
+- **Status badges**:
+  - `○ Pending` - Tarea por hacer
+  - `⏳ Waiting Approval` - Completada, esperando parent
+  - `✓ Approved` - Aprobada, puntos acreditados
+
+### /api/child/tasks Response
+```typescript
+{
+  tasks: [{
+    child_task_id: string,
+    status: "pending" | "completed" | "approved" | ...,
+    // ... otros campos
+  }],
+  ggpoints: number // desde users.points_balance
+}
+```
+
+### Smoke Tests Agregados
+```
+✅ pending-approval: 401 without auth
+✅ child-tasks/approve: 401 without auth
+✅ tasks/approve: 401 without auth
+✅ tasks/approve: 400/401 without body
+```
+
+### Archivos Creados/Modificados
+```
+app/api/parent/child-tasks/pending-approval/route.ts  (NEW)
+app/api/parent/child-tasks/approve/route.ts           (NEW)
+app/api/parent/tasks/approve/route.ts                 (IMPROVED: idempotent, CAS, ggpoints)
+app/api/child/tasks/route.ts                          (status field)
+app/v2/parent/approvals/page.tsx                      (NEW)
+app/v2/parent/approvals/ApprovalsClient.tsx           (NEW)
+app/v2/parent/tasks/ParentTasksClient.tsx             (Approve button integrated)
+app/v2/parent/dashboard/ParentDashboardClient.tsx     (link added)
+app/v2/child/dashboard/ChildDashboardClient.tsx       (auto-refresh, badges)
+scripts/smoke-tests.ts                                (new tests)
+```
+
+### UI: Approve desde /v2/parent/tasks
+
+La pantalla de "Manage Tasks" ahora muestra tres secciones:
+1. **Pending** - Tareas asignadas aún no completadas
+2. **⏳ Awaiting Approval** - Tareas completadas por el niño, con botón "Approve"
+3. **✓ Approved** - Tareas aprobadas (puntos ya acreditados)
+
+Al hacer click en "Approve":
+- Se llama a `POST /api/parent/tasks/approve`
+- Se muestra feedback "+X GGPoints granted"
+- La tarea se mueve a la sección "Approved"
+- El balance del niño se actualiza en tiempo real
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ 41 routes
+npm run smoke-test # (con dev server)
+```
+
+### Test Manual del Flujo Completo
+```
+1. Parent: Asignar tarea a child desde /v2/parent/tasks
+2. Child: Completar tarea desde /v2/child/dashboard
+   - La tarea aparece como "⏳ Waiting Approval"
+   - GGPoints NO aumentan aún
+3. Parent: Ver tarea en "Awaiting Approval" en /v2/parent/tasks
+4. Parent: Click "Approve"
+   - Mensaje "+X GGPoints granted"
+   - Tarea se mueve a "Approved"
+5. Child: Refrescar /v2/child/dashboard
+   - GGPoints ahora reflejan el nuevo balance
+   - Tarea aparece como "✓ Approved"
+```
+
+---
+
+## PR13: Parent Rewards Admin + Approve Claims
+
+### Resumen del Flujo
+El flujo de rewards ahora requiere aprobación del padre:
+1. **Parent** crea rewards para el child desde `/v2/parent/rewards`
+2. **Child** ve rewards disponibles en `/v2/child/rewards` y hace click "Request"
+3. **Parent** ve claims pendientes en la pestaña "Claims" y puede Approve/Reject
+4. Si aprueba: se deducen puntos del child y el reward queda como "claimed"
+5. Si rechaza: el child puede volver a solicitar
+
+### Schema Migration (Supabase)
+Archivo: `docs/supabase/PR13_rewards_status_migration.sql`
+
+Nuevas columnas en tabla `rewards`:
+- `status`: 'available' | 'requested' | 'approved' | 'rejected'
+- `requested_at`: timestamp cuando el niño solicita
+- `approved_at`: timestamp cuando el padre aprueba
+- `rejected_at`: timestamp cuando el padre rechaza
+- `decided_by_parent_id`: UUID del padre que decidió
+- `reject_reason`: razón opcional del rechazo
+
+Reglas de consistencia:
+- `status='available'` => `claimed=false`
+- `status='requested'` => `claimed=false`
+- `status='approved'` => `claimed=true`, `claimed_at` NOT NULL
+- `status='rejected'` => `claimed=false`
+
+### Endpoints Nuevos
+
+#### Child Endpoints
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| POST | `/api/child/rewards/request` | Solicita canjear un reward (NO deduce puntos) |
+
+#### Parent Endpoints
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/parent/rewards/list?child_id=` | Lista rewards de un child |
+| POST | `/api/parent/rewards/create` | Crea reward para un child |
+| POST | `/api/parent/rewards/update` | Edita un reward |
+| POST | `/api/parent/rewards/delete` | Elimina un reward |
+| GET | `/api/parent/rewards/claims/list?child_id=` | Lista claims pendientes |
+| POST | `/api/parent/rewards/claims/approve` | Aprueba claim (deduce puntos) |
+| POST | `/api/parent/rewards/claims/reject` | Rechaza claim |
+
+### Seguridad
+- Todos los endpoints parent requieren `getAuthenticatedUser()` con `role=Parent`
+- Ownership validation: child debe pertenecer al parent
+- Approve usa CAS (Compare-And-Swap) con 1 retry para evitar race conditions
+- Rollback automático si falla la deducción de puntos
+- Idempotencia: aprobar un claim ya aprobado retorna success sin duplicar
+
+### Archivos Creados/Modificados
+```
+docs/supabase/PR13_rewards_status_migration.sql     (NEW)
+types/supabase.ts                                   (UPDATED: rewards type)
+
+# Child Endpoints
+app/api/child/rewards/route.ts                      (UPDATED: status fields)
+app/api/child/rewards/request/route.ts              (NEW)
+
+# Parent Endpoints
+app/api/parent/rewards/list/route.ts                (NEW)
+app/api/parent/rewards/create/route.ts              (NEW)
+app/api/parent/rewards/update/route.ts              (NEW)
+app/api/parent/rewards/delete/route.ts              (NEW)
+app/api/parent/rewards/claims/list/route.ts         (NEW)
+app/api/parent/rewards/claims/approve/route.ts      (NEW)
+app/api/parent/rewards/claims/reject/route.ts       (NEW)
+
+# UI Parent
+app/v2/parent/rewards/page.tsx                      (NEW)
+app/v2/parent/rewards/ParentRewardsClient.tsx       (NEW)
+app/v2/parent/dashboard/ParentDashboardClient.tsx   (UPDATED: link to rewards)
+
+# UI Child
+app/v2/child/rewards/page.tsx                       (REWRITTEN: Request flow)
+
+# Tests
+scripts/smoke-tests.ts                              (UPDATED: new tests)
+```
+
+### UI Parent Rewards (`/v2/parent/rewards`)
+
+**Features:**
+- Selector de child (dropdown scrolleable)
+- Muestra GGPoints del child seleccionado
+- Tabs: "Rewards" y "Claims" (con badge de pendientes)
+
+**Tab Rewards:**
+- Lista de rewards con status badges
+- Botón "+ New" para crear
+- Botones Edit/Delete por reward
+- No se puede editar cost si status != 'available'
+- No se puede eliminar si status = 'requested' o 'approved'
+
+**Tab Claims:**
+- Lista de rewards con status 'requested'
+- Botones Approve / Reject por claim
+- Al aprobar: deduce puntos, actualiza UI, muestra feedback
+
+### UI Child Rewards (`/v2/child/rewards`)
+
+**Cambios:**
+- Botón cambia de "Claim" a "Request"
+- Modal de confirmación explica que parent debe aprobar
+- Secciones separadas por status:
+  - Available: pueden solicitar
+  - Awaiting Approval: ya solicitados
+  - Rejected: pueden re-solicitar
+  - Claimed: ya aprobados
+
+### Smoke Tests
+```
+✅ /api/parent/rewards/list: 401 without auth
+✅ /api/parent/rewards/claims/list: 401 without auth
+✅ /api/parent/rewards/claims/approve: 401 without auth
+✅ /api/child/rewards/request: 401 without session
+```
+
+### Test Manual
+```
+1. Parent: Ir a /v2/parent/rewards
+2. Parent: Seleccionar child y crear reward "Ice Cream" por 50 GG
+3. Child: Ir a /v2/child/rewards
+   - Ver "Ice Cream" disponible
+   - Click "Request" -> Confirmar
+   - Reward aparece en "Awaiting Approval"
+4. Parent: Ir a tab "Claims"
+   - Ver "Ice Cream" con botones Approve/Reject
+   - Click "Approve"
+   - Mensaje "-50 GG approved"
+5. Child: Refresh /v2/child/rewards
+   - GGPoints bajaron 50
+   - "Ice Cream" aparece en "Claimed"
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
