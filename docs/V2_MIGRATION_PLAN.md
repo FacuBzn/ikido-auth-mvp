@@ -625,6 +625,34 @@ Desde `/v0-ui/components/ikido/`:
 
 ---
 
+### PR 9: Role Select (Entrypoint) ✅ COMPLETADO
+
+**Archivos creados:**
+- `app/v2/page.tsx` - Server component con landing V2
+- `app/v2/ChildContinueCard.tsx` - Client component para detectar child session
+
+**Funcionalidades:**
+- Header IKIDO con logo
+- Título "Choose your role"
+- 2 role cards (Parent + Child) con CTAs
+- UX inteligente:
+  - Si parent session (server): muestra "Continue as Parent"
+  - Si child en Zustand (client): muestra "Continue as Child"
+- Divider dinámico cuando hay sesión activa
+
+**Arquitectura:**
+- Server component principal detecta parent session via `getServerSession()`
+- Client subcomponent `ChildContinueCard` lee Zustand store
+- Hydration handling para evitar SSR mismatch
+
+**Validación:**
+1. ✅ Sin sesiones: muestra solo 2 role cards
+2. ✅ Con parent session: muestra "Continue as Parent" + divider
+3. ✅ Con child session: muestra "Continue as Child" (tras hydration)
+4. ✅ CTAs navegan correctamente
+
+---
+
 ## Notas Importantes
 
 ### No modificar:
