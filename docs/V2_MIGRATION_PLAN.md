@@ -355,17 +355,27 @@ Desde `/v0-ui/components/ikido/`:
 
 ---
 
-### PR 3: Child Login
+### PR 3: Child Login ✅ COMPLETADO
 
-**Archivos:**
-- `app/v2/child/layout.tsx`
-- `app/v2/child/join/page.tsx`
-- `app/v2/child/join/ChildJoinForm.tsx`
+**Archivos creados:**
+- `app/v2/child/layout.tsx` - Layout wrapper
+- `app/v2/child/join/page.tsx` - Server component
+- `app/v2/child/join/ChildJoinForm.tsx` - Client form con UI IKIDO
+- `app/v2/child/dashboard/page.tsx` - Dashboard placeholder
+- `app/v2/child/dashboard/ChildDashboardClient.tsx` - Client con auth guard Zustand
+
+**Patrón de auth reutilizado:**
+- `POST /api/child/login` con `child_code` only
+- `setChild()` en Zustand store (persist localStorage)
+- No Supabase Auth para children
+- Client-side guard via `hasHydrated` + `child` check
 
 **Validación:**
-1. Join con códigos válidos → redirect
-2. Código inválido → error específico
-3. Normalización UPPERCASE
+1. Join con código válido → redirect a `/v2/child/dashboard`
+2. Código inválido → error "Invalid child code..."
+3. Código muy corto (<3 chars) → error client-side
+4. Dashboard sin auth → redirect a `/v2/child/join`
+5. Logout → limpia store y redirect a join
 
 ---
 
