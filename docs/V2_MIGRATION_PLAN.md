@@ -414,27 +414,45 @@ Desde `/v0-ui/components/ikido/`:
 
 ---
 
-### PR 5: Child Dashboard
+### PR 5: Child Dashboard ✅ COMPLETADO
 
-**Archivos:**
-- `app/v2/child/dashboard/page.tsx`
-- `app/v2/child/dashboard/ChildDashboardClient.tsx`
-- New task card component
+**Archivos creados/modificados:**
+- `app/v2/child/dashboard/ChildDashboardClient.tsx` - Dashboard completo con tasks y puntos
+- `app/v2/child/rewards/page.tsx` - Placeholder con auth guard
+- `components/ikido/top-bar.tsx` - Añadido prop `loading` a PointsPill
+
+**Origen de datos (mismo que V1 - `app/child/dashboard/ChildDashboardClient.tsx`):**
+- `POST /api/child/tasks` → lista de tasks + ggpoints
+- `POST /api/child/points` → ggpoints actualizados
+- `POST /api/child/tasks/complete` → marcar task completado
+
+**Flujo implementado:**
+1. Auth guard client-side con Zustand + hydration check
+2. Fetch tasks y points al montar
+3. Renderizar welcome card + points display
+4. Lista de tasks separada: pending primero, completed después
+5. Botón "Complete" con optimistic UI + refetch
+6. Feedback "+X GGPoints earned!" animado
+7. Navegación a Rewards (placeholder)
+8. Refresh manual de datos
 
 **Validación:**
-1. Auth redirect funciona
-2. Tasks cargan
-3. Points balance visible
-4. Complete task funciona
+1. ✅ Auth redirect funciona (no child → /v2/child/join)
+2. ✅ Tasks cargan correctamente
+3. ✅ Points balance visible en header y card
+4. ✅ Complete task funciona con feedback
+5. ✅ Empty state cuando no hay tasks
+6. ✅ Loading state mientras carga
+7. ✅ Error state si API falla
 
 ---
 
-### PR 6: Rewards
+### PR 6: Rewards (Parcial - Placeholder creado)
 
 **Archivos:**
-- `app/v2/child/rewards/page.tsx`
-- `app/v2/child/rewards/ChildRewardsClient.tsx`
-- `components/ikido/reward-card.tsx`
+- `app/v2/child/rewards/page.tsx` ✅ Placeholder con auth guard
+- `app/v2/child/rewards/ChildRewardsClient.tsx` - Pendiente implementación real
+- `components/ikido/reward-card.tsx` - Pendiente
 
 ---
 

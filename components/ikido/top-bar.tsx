@@ -97,6 +97,7 @@ export function IkidoLogo({ size = "default" }: IkidoLogoProps) {
 export interface PointsPillProps {
   points: number;
   size?: "small" | "default";
+  loading?: boolean;
 }
 
 const pillSizeClasses = {
@@ -107,13 +108,17 @@ const pillSizeClasses = {
 /**
  * GGPoints display pill
  */
-export function PointsPill({ points, size = "default" }: PointsPillProps) {
+export function PointsPill({
+  points,
+  size = "default",
+  loading = false,
+}: PointsPillProps) {
   return (
     <div
       className={`ik-btn-primary ${pillSizeClasses[size]} flex items-center gap-1.5`}
     >
       <span className="text-[var(--ik-accent-yellow-dark)]">🪙</span>
-      <span>{points} GG</span>
+      <span>{loading ? "..." : `${points} GG`}</span>
     </div>
   );
 }
