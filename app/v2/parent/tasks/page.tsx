@@ -1,19 +1,35 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAuthenticatedUser } from "@/lib/authHelpers";
-import { PanelCard, IkidoLogo, SecondaryButton } from "@/components/ikido";
-import { ArrowLeft, CheckSquare } from "lucide-react";
+import { createSupabaseServerComponentClient } from "@/lib/supabase/serverClient";
+import { ParentTasksClient } from "./ParentTasksClient";
 
 export const metadata: Metadata = {
   title: "Manage Tasks | iKidO",
 };
 
+export const dynamic = "force-dynamic";
+
+interface PageProps {
+  searchParams: Promise<{ childId?: string }>;
+}
+
 /**
- * V2 Parent Tasks Page - Placeholder
- * Will be fully implemented in a future PR
+ * Child type for selector
  */
-export default async function V2ParentTasksPage() {
+export type ChildForSelector = {
+  id: string;
+  name: string;
+  child_code: string | null;
+};
+
+/**
+ * V2 Parent Tasks Page
+ * Server component that validates auth and fetches children list
+ */
+export default async function V2ParentTasksPage({ searchParams }: PageProps) {
+  const { childId: initialChildId } = await searchParams;
+
   const authUser = await getAuthenticatedUser();
 
   if (!authUser) {
@@ -24,49 +40,43 @@ export default async function V2ParentTasksPage() {
     redirect("/v2/child/dashboard");
   }
 
+  const supabase = await createSupabaseServerComponentClient();
+
+  // Get parent record
+  const { data: parentData, error: parentError } = await supabase
+    .from("users")
+    .select("id")
+    .eq("auth_id", authUser.user.id)
+    .eq("role", "parent")
+    .single();
+
+  if (parentError || !parentData) {
+    redirect("/v2/parent/login");
+  }
+
+  // Get children for selector
+  const { data: childrenData, error: childrenError } = await supabase
+    .from("users")
+    .select("id, name, child_code")
+    .eq("role", "child")
+    .eq("parent_id", parentData.id)
+    .order("name", { ascending: true });
+
+  if (childrenError) {
+    console.error("[V2 ParentTasks] Failed to load children:", childrenError);
+  }
+
+  const children: ChildForSelector[] = (childrenData || []).map((c) => ({
+    id: c.id,
+    name: c.name || "Unknown",
+    child_code: c.child_code,
+  }));
+
   return (
-    <div className="min-h-screen flex flex-col p-4">
-      {/* Top Bar */}
-      <div className="flex items-center justify-between mb-8">
-        <Link
-          href="/v2/parent/dashboard"
-          className="ik-btn-primary flex items-center gap-2 px-4 py-2 text-sm"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>BACK</span>
-        </Link>
-
-        <IkidoLogo />
-
-        <div className="w-[88px]" />
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center">
-        <div className="w-full max-w-md text-center">
-          <h1 className="text-2xl font-black text-[var(--ik-accent-yellow)] mb-6">
-            Manage Tasks
-          </h1>
-
-          <PanelCard className="space-y-6">
-            <div className="py-8">
-              <CheckSquare className="w-16 h-16 text-[var(--ik-accent-cyan)] mx-auto mb-4 opacity-50" />
-              <p className="text-[var(--ik-accent-cyan)] font-bold text-lg mb-2">
-                Coming Soon
-              </p>
-              <p className="text-[var(--ik-text-muted)] text-sm">
-                V2 task management will be implemented in a future PR.
-              </p>
-            </div>
-
-            <Link href="/parent/tasks">
-              <SecondaryButton fullWidth>
-                Use Current Tasks (V1)
-              </SecondaryButton>
-            </Link>
-          </PanelCard>
-        </div>
-      </div>
-    </div>
+    <ParentTasksClient
+      parentId={parentData.id}
+      childrenList={children}
+      initialChildId={initialChildId}
+    />
   );
 }

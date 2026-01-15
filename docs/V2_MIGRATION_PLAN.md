@@ -532,6 +532,99 @@ Desde `/v0-ui/components/ikido/`:
 
 ---
 
+### PR 8: Parent Manage Tasks ✅ COMPLETADO
+
+**Archivos creados:**
+- `app/v2/parent/tasks/page.tsx` - Server component con auth + fetch children
+- `app/v2/parent/tasks/ParentTasksClient.tsx` - Client UI con selector, lists, acciones
+
+**Endpoints V1 reutilizados:**
+- `GET /api/parent/tasks/list?childId=...&limit=...` → task templates disponibles
+- `GET /api/parent/child-tasks/list?child_id=...` → tasks asignadas al child
+- `POST /api/parent/tasks/assign` → asignar task a child
+- `POST /api/parent/tasks/delete` → eliminar asignación
+
+**Flujo implementado:**
+1. Server-side auth check
+2. Fetch children list para selector
+3. Child selector con dropdown scrolleable (no chips)
+4. Sección "Tasks for {child}": pending/completed separados
+5. Sección "Assign Task": lista templates con botón Assign
+6. Sección "Create Custom Task": form inline (link a V1 por limitación)
+7. Botón Refresh para refetch manual
+8. Delete task assignment con confirmación
+
+**UI Features:**
+- Child selector dropdown escalable (N hijos)
+- Status badges: Pending (amarillo), Completed (cyan), Approved (verde)
+- Task cards con título, descripción, puntos
+- URL sync con ?childId para deep linking
+- Empty states por sección
+
+**Validación:**
+1. ✅ Auth check funciona
+2. ✅ Child selector funciona con N hijos
+3. ✅ Tasks asignadas cargan correctamente
+4. ✅ Assign task funciona
+5. ✅ Delete assignment funciona
+6. ✅ Status se actualiza tras refresh
+7. ✅ URL sync con childId
+8. ✅ Custom task creation funciona
+
+---
+
+### PR 8.2: Custom Task Creation ✅ COMPLETADO
+
+**Endpoint nuevo:**
+- `POST /api/parent/tasks/custom-create-and-assign`
+
+**Body:**
+```json
+{
+  "childId": "uuid",
+  "title": "string",
+  "points": 10,
+  "description": "optional string"
+}
+```
+
+**Tablas usadas:**
+1. `tasks` - INSERT con:
+   - `title`: string
+   - `description`: string | null
+   - `points`: number (1-100)
+   - `is_global`: false (custom)
+   - `created_by_parent_id`: parent internal ID
+
+2. `child_tasks` - INSERT con:
+   - `task_id`: UUID del task creado
+   - `child_id`: childId del request
+   - `parent_id`: parent internal ID
+   - `status`: "pending"
+   - `points`: hereda del task
+
+**Validaciones server-side:**
+- Parent autenticado (getAuthenticatedUser)
+- Child pertenece al parent (ownership check)
+- Title no vacío
+- Points entre 1-100
+
+**Rollback:**
+- Si falla INSERT en child_tasks, se elimina el task template creado
+
+**UI actualizada:**
+- Eliminado link/workaround a V1
+- Form funcional: title, description, points
+- On success: refetch de assigned + templates
+
+**Validación:**
+1. ✅ Create custom task funciona
+2. ✅ Task aparece en "Tasks for {child}"
+3. ✅ Child puede completar la task
+4. ✅ Parent ve status actualizado tras refresh
+
+---
+
 ## Notas Importantes
 
 ### No modificar:
