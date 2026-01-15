@@ -722,6 +722,80 @@ Hacer V2 el default y crear landing legacy para V1.
 
 ---
 
+### PR 12: Production Readiness ✅ COMPLETADO
+
+#### A) Seguridad (must-have) ✅
+
+| Endpoint | Auth | Ownership | Errors |
+|----------|------|-----------|--------|
+| `/api/child/rewards` | `requireChildSession` | Via `session.child_id` filter | 401/500 |
+| `/api/child/rewards/claim` | `requireChildSession` | Explicit check `reward.child_user_id === session.child_id` | 401/403/404/400/500 |
+| `/api/parent/tasks/custom-create-and-assign` | `getAuthenticatedUser` + role check | `child.parent_id === parent.id` | 401/403/400/500 |
+
+#### B) Consistencia de datos (must-have) ✅
+
+**Rewards claim (atomic + idempotent + CAS):**
+1. ✅ UPDATE reward WHERE claimed=false (prevents double-claim)
+2. ✅ UPDATE users SET points_balance with Compare-And-Swap (CAS):
+   - `.eq("points_balance", currentPoints)` - only if unchanged
+   - `.gte("points_balance", cost)` - still have enough
+   - If CAS fails: refetch balance, retry 1 time
+3. ✅ Ledger insert ONLY if both updates succeed
+4. ✅ Rollback reward.claimed if points update fails or CAS exhausted
+5. ✅ Returns `already_claimed: true` for idempotent handling
+6. ✅ Returns 409 CONCURRENT_MODIFICATION if retries exhausted
+
+**Custom-create-and-assign:**
+1. ✅ Rollback: deletes task template if child_tasks insert fails
+2. ✅ Logs with operation tags for debugging
+
+#### C) Caching/refresh (must-have) ✅
+
+**API Routes (dynamic):**
+- `app/api/child/rewards/route.ts` - Added `dynamic = "force-dynamic"`
+- `app/api/child/rewards/claim/route.ts` - Added `dynamic = "force-dynamic"`
+- `app/api/parent/tasks/custom-create-and-assign/route.ts` - Already had `dynamic`
+
+**Server Pages (dynamic):**
+- `app/v2/parent/dashboard/page.tsx` - ✅ `dynamic = "force-dynamic"`
+- `app/v2/parent/tasks/page.tsx` - ✅ `dynamic = "force-dynamic"`
+- `app/v2/parent/children/[childId]/activity/page.tsx` - ✅ `dynamic = "force-dynamic"`
+
+**Client Fetches (no-store):**
+- `ParentTasksClient.tsx` - Added `cache: "no-store"` to GET requests
+
+#### D) Smoke Tests ✅
+
+**Script:** `scripts/smoke-tests.ts`
+
+**Run:** `npm run smoke-test` (requires dev server running)
+
+**Tests included:**
+- API: 401 for unauthenticated requests (rewards, claim, custom-create, tasks/list)
+- API: 400/401 for missing required fields
+- Pages: /v2 loads (200)
+- Pages: / redirects to /v2 (307/308)
+- Pages: /legacy loads (200)
+
+#### E) Comandos de Validación
+
+```bash
+# Lint
+npm run lint
+
+# Type check
+npm run typecheck
+
+# Build
+npm run build
+
+# Smoke tests (requires dev server in another terminal)
+npm run dev &
+npm run smoke-test
+```
+
+---
+
 ## Notas Importantes
 
 ### No modificar:

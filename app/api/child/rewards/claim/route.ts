@@ -29,6 +29,9 @@ import type { NextRequest } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/adminClient";
 import { requireChildSession } from "@/lib/auth/childSession";
 
+// Force dynamic to prevent caching
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   try {
     // Get child session from cookie
@@ -198,66 +201,160 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 2: ATOMIC UPDATE points_balance (only if sufficient balance)
-    // This prevents overspend from concurrent claims of DIFFERENT rewards
-    const { data: updatedUsers, error: pointsUpdateError } = await adminClient
-      .from("users")
-      .update({
-        points_balance: currentPoints - reward.cost,
-      })
-      .eq("id", session.child_id)
-      .gte("points_balance", reward.cost) // CRITICAL: Only if balance >= cost
-      .select("points_balance");
+    // Step 2: ATOMIC UPDATE points_balance with Compare-And-Swap (CAS)
+    // This prevents lost updates from concurrent claims of DIFFERENT rewards
+    // CAS: only update if points_balance === currentPoints (no concurrent modification)
+    // AND points_balance >= cost (still have enough)
+    
+    let pointsUpdateBalance = currentPoints;
+    let newBalance = 0;
+    let casSuccess = false;
+    const MAX_RETRIES = 1;
+    
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      const { data: updatedUsers, error: pointsUpdateError } = await adminClient
+        .from("users")
+        .update({
+          points_balance: pointsUpdateBalance - reward.cost,
+        })
+        .eq("id", session.child_id)
+        .eq("points_balance", pointsUpdateBalance) // CAS: must match expected value
+        .gte("points_balance", reward.cost) // Still have enough points
+        .select("points_balance");
 
-    if (pointsUpdateError) {
-      console.error("[child:rewards:claim] Points update failed:", pointsUpdateError);
-      // ROLLBACK: Revert reward claim since points deduction failed
-      await adminClient
-        .from("rewards")
-        .update({ claimed: false, claimed_at: null })
-        .eq("id", body.reward_id);
+      if (pointsUpdateError) {
+        console.error("[child:rewards:claim] Points update failed:", pointsUpdateError);
+        // ROLLBACK: Revert reward claim since points deduction failed
+        await adminClient
+          .from("rewards")
+          .update({ claimed: false, claimed_at: null })
+          .eq("id", body.reward_id);
 
-      return NextResponse.json(
-        {
-          error: "DATABASE_ERROR",
-          message: "Failed to deduct points",
-        },
-        { status: 500 }
-      );
-    }
+        return NextResponse.json(
+          {
+            error: "DATABASE_ERROR",
+            message: "Failed to deduct points",
+          },
+          { status: 500 }
+        );
+      }
 
-    // Check if points update affected any rows (concurrent claim race condition)
-    if (!updatedUsers || updatedUsers.length === 0) {
-      console.log("[child:rewards:claim] Race condition: insufficient points after concurrent claim", {
+      // Check if CAS update succeeded
+      if (updatedUsers && updatedUsers.length > 0) {
+        newBalance = updatedUsers[0].points_balance;
+        casSuccess = true;
+        console.log("[child:rewards:claim] CAS update succeeded", {
+          attempt,
+          old_balance: pointsUpdateBalance,
+          new_balance: newBalance,
+        });
+        break; // Success, exit retry loop
+      }
+
+      // CAS failed - balance was modified by concurrent claim
+      console.log("[child:rewards:claim] CAS failed, refetching balance", {
+        attempt,
+        expected_balance: pointsUpdateBalance,
         reward_id: body.reward_id,
-        expected_balance: currentPoints,
-        cost: reward.cost,
       });
 
-      // ROLLBACK: Revert reward claim since points were insufficient
-      await adminClient
-        .from("rewards")
-        .update({ claimed: false, claimed_at: null })
-        .eq("id", body.reward_id);
-
-      // Get actual current balance
-      const { data: actualBalance } = await adminClient
+      // Refetch current balance
+      const { data: refetchedUser, error: refetchError } = await adminClient
         .from("users")
         .select("points_balance")
         .eq("id", session.child_id)
         .single();
 
+      if (refetchError || !refetchedUser) {
+        console.error("[child:rewards:claim] Failed to refetch balance:", refetchError);
+        // ROLLBACK: Revert reward claim
+        await adminClient
+          .from("rewards")
+          .update({ claimed: false, claimed_at: null })
+          .eq("id", body.reward_id);
+
+        return NextResponse.json(
+          {
+            error: "DATABASE_ERROR",
+            message: "Failed to verify points balance",
+          },
+          { status: 500 }
+        );
+      }
+
+      const refetchedBalance = refetchedUser.points_balance ?? 0;
+
+      // Check if still have enough points after concurrent modification
+      if (refetchedBalance < reward.cost) {
+        console.log("[child:rewards:claim] Insufficient points after CAS fail", {
+          refetched_balance: refetchedBalance,
+          cost: reward.cost,
+        });
+
+        // ROLLBACK: Revert reward claim since points were insufficient
+        await adminClient
+          .from("rewards")
+          .update({ claimed: false, claimed_at: null })
+          .eq("id", body.reward_id);
+
+        return NextResponse.json(
+          {
+            error: "INSUFFICIENT_POINTS",
+            message: `Not enough GGPoints. Another claim reduced your balance.`,
+            ggpoints: refetchedBalance,
+          },
+          { status: 400 }
+        );
+      }
+
+      // Have enough points, retry with updated balance
+      if (attempt < MAX_RETRIES) {
+        pointsUpdateBalance = refetchedBalance;
+        console.log("[child:rewards:claim] Retrying CAS with new balance", {
+          new_expected_balance: pointsUpdateBalance,
+        });
+        continue;
+      }
+
+      // Max retries exceeded
+      console.error("[child:rewards:claim] CAS failed after max retries", {
+        attempts: attempt + 1,
+        last_balance: refetchedBalance,
+      });
+
+      // ROLLBACK: Revert reward claim
+      await adminClient
+        .from("rewards")
+        .update({ claimed: false, claimed_at: null })
+        .eq("id", body.reward_id);
+
       return NextResponse.json(
         {
-          error: "INSUFFICIENT_POINTS",
-          message: `Not enough GGPoints. Another claim may have reduced your balance.`,
-          ggpoints: actualBalance?.points_balance ?? 0,
+          error: "CONCURRENT_MODIFICATION",
+          message: "Your balance changed. Please try again.",
+          ggpoints: refetchedBalance,
         },
-        { status: 400 }
+        { status: 409 }
       );
     }
 
-    const newBalance = updatedUsers[0].points_balance;
+    // Sanity check: CAS must have succeeded to reach here
+    if (!casSuccess) {
+      console.error("[child:rewards:claim] Unexpected: CAS loop exited without success");
+      // ROLLBACK: Revert reward claim
+      await adminClient
+        .from("rewards")
+        .update({ claimed: false, claimed_at: null })
+        .eq("id", body.reward_id);
+
+      return NextResponse.json(
+        {
+          error: "INTERNAL_ERROR",
+          message: "Failed to process claim",
+        },
+        { status: 500 }
+      );
+    }
 
     // Step 3: Insert ledger entry for audit trail (non-critical, best effort)
     if (childData.parent_id) {

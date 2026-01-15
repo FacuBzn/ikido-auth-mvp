@@ -25,6 +25,9 @@ import type { NextRequest } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/adminClient";
 import { requireChildSession } from "@/lib/auth/childSession";
 
+// Force dynamic to prevent caching
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   try {
     // Get child session from cookie

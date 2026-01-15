@@ -155,6 +155,18 @@ export default function V2ChildRewardsPage() {
           }
           throw new Error(data.message || "Not enough GGPoints");
         }
+
+        // Special handling for concurrent modification (409)
+        if (data.error === "CONCURRENT_MODIFICATION") {
+          // Update points from server
+          if (data.ggpoints !== undefined) {
+            setGgpoints(data.ggpoints);
+          }
+          // Refetch to sync full state
+          await fetchRewards();
+          throw new Error(data.message || "Your balance changed. Please try again.");
+        }
+
         throw new Error(data.message || "Failed to claim reward");
       }
 

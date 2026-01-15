@@ -122,7 +122,9 @@ export function ParentTasksClient({
         params.append("childId", selectedChildId);
       }
 
-      const response = await fetch(`/api/parent/tasks/list?${params.toString()}`);
+      const response = await fetch(`/api/parent/tasks/list?${params.toString()}`, {
+        cache: "no-store",
+      });
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.message || "Failed to load task templates");
@@ -148,7 +150,8 @@ export function ParentTasksClient({
     setIsLoadingAssigned(true);
     try {
       const response = await fetch(
-        `/api/parent/child-tasks/list?child_id=${encodeURIComponent(selectedChildId)}`
+        `/api/parent/child-tasks/list?child_id=${encodeURIComponent(selectedChildId)}`,
+        { cache: "no-store" }
       );
       if (!response.ok) {
         const data = await response.json();
