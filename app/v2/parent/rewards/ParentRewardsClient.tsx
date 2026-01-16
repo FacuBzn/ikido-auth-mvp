@@ -10,6 +10,7 @@ import {
   SecondaryButton,
   TextInput,
 } from "@/components/ikido";
+import { Modal } from "@/components/ikido/modal";
 import {
   ArrowLeft,
   LogOut,
@@ -20,7 +21,6 @@ import {
   Plus,
   Trash2,
   Edit2,
-  X,
   Check,
   XCircle,
   Clock,
@@ -612,11 +612,11 @@ export function ParentRewardsClient({
       </div>
 
       {/* Create Modal */}
-      {showCreateModal && (
-        <Modal
-          title="Create Reward"
-          onClose={() => setShowCreateModal(false)}
-        >
+      <Modal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title="Create Reward"
+      >
           <div className="space-y-4">
             <TextInput
               label="Reward Name"
@@ -637,14 +637,14 @@ export function ParentRewardsClient({
               </PrimaryButton>
             </div>
           </div>
-        </Modal>
-      )}
+      </Modal>
 
       {/* Edit Modal */}
       {editingReward && (
         <Modal
-          title="Edit Reward"
+          isOpen={true}
           onClose={() => setEditingReward(null)}
+          title="Edit Reward"
         >
           <div className="space-y-4">
             <TextInput
@@ -677,22 +677,6 @@ export function ParentRewardsClient({
 }
 
 // === Sub-components ===
-
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-      <div className="bg-[var(--ik-bg-dark)] border-2 border-[var(--ik-accent-yellow)] rounded-2xl p-6 max-w-sm w-full space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-white">{title}</h3>
-          <button onClick={onClose} className="text-[var(--ik-text-muted)] hover:text-white">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
 
 function RewardRow({ reward, onEdit, onDelete, isLoading }: {
   reward: RewardFromAPI;

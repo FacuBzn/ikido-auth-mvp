@@ -1110,6 +1110,184 @@ npm run build     # ✅
 
 ---
 
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
 ## PRXX: Create Task Template (Without Auto-Assign) ✅ COMPLETADO
 
 ### Objetivo
@@ -1188,6 +1366,184 @@ docs/V2_MIGRATION_PLAN.md                                (UPDATED: esta sección
 6. Asignar template:
    ✅ Click "Assign" en la nueva template
    ✅ Template aparece en "Tasks for {Child}" como Pending
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
 ```
 
 ### Validación
@@ -1287,6 +1643,184 @@ npm run build     # ✅
 
 ---
 
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
 ## PRXX: Create Task Template (Without Auto-Assign) ✅ COMPLETADO
 
 ### Objetivo
@@ -1365,6 +1899,184 @@ docs/V2_MIGRATION_PLAN.md                                (UPDATED: esta sección
 6. Asignar template:
    ✅ Click "Assign" en la nueva template
    ✅ Template aparece en "Tasks for {Child}" como Pending
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
 ```
 
 ### Validación
@@ -1440,6 +2152,184 @@ npm run build     # ✅
 
 ---
 
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
 ## PRXX: Create Task Template (Without Auto-Assign) ✅ COMPLETADO
 
 ### Objetivo
@@ -1518,6 +2408,184 @@ docs/V2_MIGRATION_PLAN.md                                (UPDATED: esta sección
 6. Asignar template:
    ✅ Click "Assign" en la nueva template
    ✅ Template aparece en "Tasks for {Child}" como Pending
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
 ```
 
 ### Validación
@@ -1617,6 +2685,184 @@ npm run build     # ✅
 
 ---
 
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
 ## PRXX: Create Task Template (Without Auto-Assign) ✅ COMPLETADO
 
 ### Objetivo
@@ -1695,6 +2941,184 @@ docs/V2_MIGRATION_PLAN.md                                (UPDATED: esta sección
 6. Asignar template:
    ✅ Click "Assign" en la nueva template
    ✅ Template aparece en "Tasks for {Child}" como Pending
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
 ```
 
 ### Validación
@@ -1891,6 +3315,184 @@ npm run build     # ✅
 
 ---
 
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
 ## PRXX: Create Task Template (Without Auto-Assign) ✅ COMPLETADO
 
 ### Objetivo
@@ -1969,6 +3571,184 @@ docs/V2_MIGRATION_PLAN.md                                (UPDATED: esta sección
 6. Asignar template:
    ✅ Click "Assign" en la nueva template
    ✅ Template aparece en "Tasks for {Child}" como Pending
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
 ```
 
 ### Validación
@@ -2068,6 +3848,184 @@ npm run build     # ✅
 
 ---
 
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
 ## PRXX: Create Task Template (Without Auto-Assign) ✅ COMPLETADO
 
 ### Objetivo
@@ -2146,6 +4104,184 @@ docs/V2_MIGRATION_PLAN.md                                (UPDATED: esta sección
 6. Asignar template:
    ✅ Click "Assign" en la nueva template
    ✅ Template aparece en "Tasks for {Child}" como Pending
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
 ```
 
 ### Validación
