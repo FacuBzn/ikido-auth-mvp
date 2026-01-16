@@ -28,7 +28,7 @@ export function ChildContinueCard() {
           <p className="text-[var(--ik-text-muted)] text-xs">Welcome back!</p>
           <p className="font-bold text-white truncate">{child.name}</p>
         </div>
-        <Link href="/v2/child/dashboard">
+        <Link href="/child/dashboard">
           <PrimaryButton icon={<ArrowRight className="w-4 h-4" />}>
             Continue
           </PrimaryButton>

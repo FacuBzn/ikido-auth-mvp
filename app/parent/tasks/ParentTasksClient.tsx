@@ -106,7 +106,7 @@ export function ParentTasksClient({
 
   const handleLogout = async () => {
     await logout();
-    router.push("/v2/parent/login");
+    router.push("/parent/login");
     router.refresh();
   };
 
@@ -177,7 +177,7 @@ export function ParentTasksClient({
     setShowChildDropdown(false);
     setError(null);
     // Update URL
-    router.push(`/v2/parent/tasks?childId=${childId}`);
+    router.push(`/parent/tasks?childId=${childId}`);
   };
 
   // Handle assign task
@@ -344,7 +344,7 @@ export function ParentTasksClient({
       {/* Top Bar */}
       <div className="flex items-center justify-between mb-6">
         <Link
-          href="/v2/parent/dashboard"
+          href="/parent/dashboard"
           className="ik-btn-primary flex items-center gap-2 px-4 py-2 text-sm"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -404,7 +404,7 @@ export function ParentTasksClient({
             <p className="text-[var(--ik-text-muted)] mb-4">
               No children added yet
             </p>
-            <Link href="/v2/parent/dashboard">
+            <Link href="/parent/dashboard">
               <PrimaryButton>Add Child</PrimaryButton>
             </Link>
           </PanelCard>

@@ -48,7 +48,7 @@ export function ChildActivityClient({
 
   const handleLogout = async () => {
     await logout();
-    router.push("/v2/parent/login");
+    router.push("/parent/login");
     router.refresh();
   };
 
@@ -165,7 +165,7 @@ export function ChildActivityClient({
       {/* Top Bar */}
       <div className="flex items-center justify-between mb-6">
         <Link
-          href="/v2/parent/dashboard"
+          href="/parent/dashboard"
           className="ik-btn-primary flex items-center gap-2 px-4 py-2 text-sm"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -318,7 +318,7 @@ export function ChildActivityClient({
 
         {/* Link to Dashboard */}
         <div className="text-center">
-          <Link href="/v2/parent/dashboard">
+          <Link href="/parent/dashboard">
             <SecondaryButton>Back to Dashboard</SecondaryButton>
           </Link>
         </div>

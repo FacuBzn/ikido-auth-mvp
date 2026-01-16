@@ -5,8 +5,11 @@ export const metadata: Metadata = {
   title: "Child Dashboard | iKidO",
 };
 
-export default async function ChildDashboardPage() {
-  // No server-side auth for children
-  // ChildDashboardClient handles auth with useRequireChildAuth()
+/**
+ * V2 Child Dashboard Page
+ * No server-side auth for children - uses Zustand store
+ * ChildDashboardClient handles auth with useRequireChildAuthV2()
+ */
+export default function V2ChildDashboardPage() {
   return <ChildDashboardClient />;
 }

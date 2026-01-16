@@ -1,129 +1,198 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  PanelCard,
+  IkidoLogo,
+  PrimaryButton,
+  SecondaryButton,
+  CyanButton,
+  PointsPill,
+} from "@/components/ikido";
+import {
+  LogOut,
+  Gamepad2,
+  CheckCircle2,
+  ListTodo,
+  Gift,
+  RefreshCw,
+} from "lucide-react";
 import { useSessionStore } from "@/store/useSessionStore";
-import { useRequireChildAuth } from "@/hooks/useRequireChildAuth";
-import { Loader2, CheckCircle2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { ChildSummaryCard } from "@/components/child/ChildSummaryCard";
+
+/**
+ * Task type from API
+ */
 type TaskFromAPI = {
   child_task_id: string;
   task_id: string;
   title: string;
   description: string | null;
   points: number;
-  completed: boolean;
+  status: "pending" | "in_progress" | "completed" | "approved" | "rejected";
+  completed: boolean; // deprecated, use status
   completed_at: string | null;
   created_at: string;
 };
 
+/**
+ * V2 Child Dashboard Client
+ * Full dashboard with tasks, points, and complete task functionality
+ * Uses same API endpoints as V1:
+ * - POST /api/child/tasks (get tasks list + ggpoints)
+ * - POST /api/child/points (get ggpoints)
+ * - POST /api/child/tasks/complete (mark task complete)
+ */
 export function ChildDashboardClient() {
+  const router = useRouter();
   const child = useSessionStore((state) => state.child);
-  const hydrated = useSessionStore((state) => state._hasHydrated);
+  const logout = useSessionStore((state) => state.logout);
+  const hasHydrated = useSessionStore((state) => state._hasHydrated);
+
+  // Data states
   const [tasks, setTasks] = useState<TaskFromAPI[]>([]);
-  const [loadingTasks, setLoadingTasks] = useState(false);
-  const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
   const [ggpoints, setGgpoints] = useState<number>(0);
-  const [loadingPoints, setLoadingPoints] = useState(false);
-  const { toast } = useToast();
 
-  // Hooks must be called unconditionally
-  useRequireChildAuth();
+  // Loading states
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+  const [isLoadingPoints, setIsLoadingPoints] = useState(false);
+  const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
 
+  // Error states
+  const [tasksError, setTasksError] = useState<string | null>(null);
 
-  // Load tasks for the child
+  // Success feedback
+  const [successTaskId, setSuccessTaskId] = useState<string | null>(null);
+
+  // Auth guard - redirect if no child session
   useEffect(() => {
-    if (!child?.child_code || !child?.family_code) {
-      return;
+    if (hasHydrated && !child) {
+      router.replace("/child/join");
     }
+  }, [child, hasHydrated, router]);
 
-    const loadTasks = async () => {
-      setLoadingTasks(true);
-      try {
-        const response = await fetch("/api/child/tasks", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            child_code: child.child_code,
-            family_code: child.family_code,
-          }),
-        });
+  // Fetch tasks from API
+  const fetchTasks = useCallback(async () => {
+    if (!child?.child_code || !child?.family_code) return;
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.message || "Failed to load tasks");
-        }
+    setIsLoadingTasks(true);
+    setTasksError(null);
 
+    try {
+      const response = await fetch("/api/child/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          child_code: child.child_code,
+          family_code: child.family_code,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to load tasks");
+      }
+
+      const data = await response.json();
+      setTasks(data.tasks || []);
+
+      // Update points from tasks endpoint
+      if (data.ggpoints !== undefined) {
+        setGgpoints(data.ggpoints);
+      }
+    } catch (error) {
+      console.error("[V2 ChildDashboard] Failed to load tasks:", error);
+      setTasksError(
+        error instanceof Error ? error.message : "Failed to load tasks"
+      );
+    } finally {
+      setIsLoadingTasks(false);
+    }
+  }, [child?.child_code, child?.family_code]);
+
+  // Fetch points from API
+  const fetchPoints = useCallback(async () => {
+    if (!child?.child_code || !child?.family_code) return;
+
+    setIsLoadingPoints(true);
+
+    try {
+      const response = await fetch("/api/child/points", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          child_code: child.child_code,
+          family_code: child.family_code,
+        }),
+      });
+
+      if (response.ok) {
         const data = await response.json();
-        setTasks(data.tasks || []);
-        
-        // Update GGPoints if provided
-        if (data.ggpoints !== undefined) {
-          setGgpoints(data.ggpoints);
-        }
-      } catch (error) {
-        console.error("[child:dashboard] Failed to load tasks:", error);
-        toast({
-          variant: "destructive",
-          title: "Error loading tasks",
-          description: error instanceof Error ? error.message : "Could not load tasks. Please try again.",
-        });
-      } finally {
-        setLoadingTasks(false);
+        setGgpoints(data.ggpoints || 0);
       }
-    };
-
-    void loadTasks();
-    
-    // Load GGPoints separately
-    const loadPoints = async () => {
-      if (!child?.child_code || !child?.family_code) {
-        return;
-      }
-      
-      setLoadingPoints(true);
-      try {
-        const response = await fetch("/api/child/points", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            child_code: child.child_code,
-            family_code: child.family_code,
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setGgpoints(data.ggpoints || 0);
-        }
-      } catch (error) {
-        console.error("[child:dashboard] Failed to load points:", error);
-      } finally {
-        setLoadingPoints(false);
-      }
-    };
-
-    void loadPoints();
-  }, [child?.child_code, child?.family_code, toast]);
-
-  const handleCompleteTask = async (taskId: string) => {
-    if (!child?.child_code || !child?.family_code) {
-      return;
+    } catch (error) {
+      console.error("[V2 ChildDashboard] Failed to load points:", error);
+    } finally {
+      setIsLoadingPoints(false);
     }
+  }, [child?.child_code, child?.family_code]);
+
+  // Load data when child is available
+  useEffect(() => {
+    if (hasHydrated && child) {
+      void fetchTasks();
+      void fetchPoints();
+    }
+  }, [hasHydrated, child, fetchTasks, fetchPoints]);
+
+  // Auto-refresh when tab/window becomes visible
+  useEffect(() => {
+    if (!hasHydrated || !child) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        console.log("[ChildDashboard] Tab visible - refreshing data");
+        void fetchTasks();
+      }
+    };
+
+    const handleFocus = () => {
+      console.log("[ChildDashboard] Window focus - refreshing data");
+      void fetchTasks();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [hasHydrated, child, fetchTasks]);
+
+  // Handle task completion
+  const handleCompleteTask = async (task: TaskFromAPI) => {
+    if (!child?.child_code || !child?.family_code) return;
+
+    const taskId = task.child_task_id;
 
     setCompletingTaskId(taskId);
+    setSuccessTaskId(null);
+
+    // Optimistic update
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.child_task_id === taskId
+          ? { ...t, completed: true, completed_at: new Date().toISOString() }
+          : t
+      )
+    );
+
     try {
-      const response = await fetch(`/api/child/tasks/complete`, {
+      const response = await fetch("/api/child/tasks/complete", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           child_task_id: taskId,
           child_code: child.child_code,
@@ -136,180 +205,373 @@ export function ChildDashboardClient() {
         throw new Error(error.message || "Failed to complete task");
       }
 
-      // Reload tasks after completion
-      const reloadResponse = await fetch("/api/child/tasks", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          child_code: child.child_code,
-          family_code: child.family_code,
-        }),
-      });
+      // Show success feedback
+      setSuccessTaskId(taskId);
 
-      if (reloadResponse.ok) {
-        const reloadData = await reloadResponse.json();
-        setTasks(reloadData.tasks || []);
-        if (reloadData.ggpoints !== undefined) {
-          setGgpoints(reloadData.ggpoints);
-        }
-      }
-      
-      // Also reload points separately
-      if (child?.child_code && child?.family_code) {
-        const pointsResponse = await fetch("/api/child/points", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            child_code: child.child_code,
-            family_code: child.family_code,
-          }),
-        });
-        
-        if (pointsResponse.ok) {
-          const pointsData = await pointsResponse.json();
-          setGgpoints(pointsData.ggpoints || 0);
-        }
-      }
+      // Clear success feedback after 3 seconds
+      setTimeout(() => {
+        setSuccessTaskId(null);
+      }, 3000);
 
-      toast({
-        title: "Task completed!",
-        description: "Great job! Your parent will review it soon.",
-      });
-
-      // Refresh child data to update points_balance
-      // Note: This would require updating the session store
+      // Refetch to ensure data consistency
+      await Promise.all([fetchTasks(), fetchPoints()]);
     } catch (error) {
-      console.error("[child:dashboard] Failed to complete task:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error instanceof Error ? error.message : "Could not complete task. Please try again.",
-      });
+      console.error("[V2 ChildDashboard] Failed to complete task:", error);
+
+      // Revert optimistic update
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.child_task_id === taskId
+            ? { ...t, completed: false, completed_at: null }
+            : t
+        )
+      );
+
+      // Show error in the task card
+      setTasksError(
+        error instanceof Error ? error.message : "Failed to complete task"
+      );
     } finally {
       setCompletingTaskId(null);
     }
   };
 
+  const handleLogout = async () => {
+    await logout();
+    router.push("/child/join");
+    router.refresh();
+  };
 
-  // Show loader while Zustand hydrates from localStorage
-  if (!hydrated) {
+  // Show loading while hydrating
+  if (!hasHydrated) {
     return (
-      <main className="min-h-screen bg-gradient-to-b from-[#0F4C7D] to-[#1A5FA0] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-12 h-12 text-yellow-400 animate-spin" />
-          <p className="text-white text-lg">Loading...</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-12 h-12 border-4 border-[var(--ik-accent-yellow)] border-t-transparent rounded-full mx-auto mb-4" />
+          <p className="text-[var(--ik-text-muted)]">Loading...</p>
         </div>
-      </main>
+      </div>
     );
   }
 
+  // Redirect in progress or no child
   if (!child) {
-    return null; // useRequireChildAuth will redirect
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-12 h-12 border-4 border-[var(--ik-accent-yellow)] border-t-transparent rounded-full mx-auto mb-4" />
+          <p className="text-[var(--ik-text-muted)]">Redirecting...</p>
+        </div>
+      </div>
+    );
   }
 
-  return (
-    <main className="min-h-screen bg-gradient-to-b from-[#0F4C7D] to-[#1A5FA0] p-4 page-content">
-      <div className="max-w-2xl mx-auto space-y-6">
+  // Separate tasks by status
+  // pending/in_progress = actionable
+  // completed = waiting for parent approval
+  // approved = done and points credited
+  const actionableTasks = tasks.filter(
+    (t) => t.status === "pending" || t.status === "in_progress"
+  );
+  const waitingApprovalTasks = tasks.filter((t) => t.status === "completed");
+  const approvedTasks = tasks.filter((t) => t.status === "approved");
+  const pendingTasks = actionableTasks; // For display count
 
-        {/* Child Summary Card (Name + GGPoints) */}
-        <ChildSummaryCard
-          childName={child.name}
-          totalPoints={ggpoints}
-          loadingPoints={loadingPoints}
+  return (
+    <div className="min-h-screen flex flex-col p-4">
+      {/* Top Bar */}
+      <div className="flex items-center justify-between mb-6">
+        {/* Points Pill */}
+        <PointsPill
+          points={ggpoints}
+          loading={isLoadingPoints}
         />
 
-        {/* Tasks */}
-        <Card className="bg-white/10 border-yellow-400/30 backdrop-blur">
-          <CardContent className="p-6">
-            <h2 className="text-2xl font-bold text-white mb-4">Your Tasks</h2>
-            
-            {loadingTasks ? (
-              <div className="flex items-center justify-center gap-3 py-8">
-                <Loader2 className="w-5 h-5 text-yellow-400 animate-spin" />
-                <span className="text-white/70">Loading tasks...</span>
-              </div>
-            ) : tasks.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="text-4xl mb-2">📝</div>
-                <p className="text-white/70">No tasks assigned yet</p>
-                <p className="text-white/50 text-sm mt-1">
-                  Your parent will assign tasks soon!
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {tasks.map((task) => (
-                  <div
-                    key={task.child_task_id}
-                    className="bg-white/5 border border-yellow-400/20 rounded-lg p-5"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start gap-3 mb-2">
-                          {task.completed && (
-                            <div className="flex items-center text-green-400 mt-0.5 flex-shrink-0">
-                              <CheckCircle2 className="w-5 h-5" />
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-lg font-semibold text-white mb-1 break-words line-clamp-2">
-                              {task.title || "Task"}
-                            </h3>
-                            {task.description && (
-                              <p className="text-white/70 text-sm mb-3 break-words line-clamp-2">
-                                {task.description}
-                              </p>
-                            )}
-                            <div className="flex items-center gap-4 text-sm flex-wrap">
-                              <span className="text-yellow-400 font-semibold">
-                                {task.points || 0} GGPoints
-                              </span>
-                              <span
-                                className={
-                                  task.completed
-                                    ? "text-green-400 font-medium"
-                                    : "text-yellow-400"
-                                }
-                              >
-                                {task.completed
-                                  ? "✓ Completed"
-                                  : "○ Pending"}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      {!task.completed && (
-                        <Button
-                          onClick={() => handleCompleteTask(task.child_task_id)}
-                          disabled={completingTaskId === task.child_task_id}
-                          className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold flex-shrink-0 min-w-[120px] h-[40px] inline-flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed relative"
-                        >
-                          <span className={completingTaskId === task.child_task_id ? "opacity-0" : "opacity-100 inline-flex items-center"}>
-                            <CheckCircle2 className="w-4 h-4 mr-2" />
-                            Complete
-                          </span>
-                          {completingTaskId === task.child_task_id && (
-                            <span className="absolute inset-0 flex items-center justify-center">
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              <span>Completing...</span>
-                            </span>
-                          )}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Logo */}
+        <IkidoLogo />
+
+        {/* Logout Button */}
+        <button
+          onClick={handleLogout}
+          className="ik-btn-primary flex items-center gap-2 px-4 py-2 text-sm"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>EXIT</span>
+        </button>
       </div>
-    </main>
+
+      {/* Main Content */}
+      <div className="flex-1 max-w-2xl mx-auto w-full space-y-6">
+        {/* Welcome Card */}
+        <PanelCard>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-[var(--ik-accent-cyan)]/20 flex items-center justify-center">
+                <Gamepad2 className="w-6 h-6 text-[var(--ik-accent-cyan)]" />
+              </div>
+              <div>
+                <p className="text-[var(--ik-text-muted)] text-xs">Hello,</p>
+                <h1 className="text-xl font-black text-[var(--ik-accent-yellow)]">
+                  {child.name || "Player"}!
+                </h1>
+              </div>
+            </div>
+
+            {/* Points Display */}
+            <div className="text-right">
+              <p className="text-[var(--ik-text-muted)] text-xs">Your GGPoints</p>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-black text-[var(--ik-accent-yellow)]">
+                  {isLoadingPoints ? "..." : ggpoints}
+                </span>
+                <span className="text-[var(--ik-accent-cyan)] text-xs font-bold">
+                  🪙
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Success Feedback */}
+          {successTaskId !== null && (
+            <div className="mt-4 bg-[var(--ik-accent-yellow)]/20 border-2 border-[var(--ik-accent-yellow)] rounded-xl p-3 flex items-center gap-3 animate-pulse">
+              <CheckCircle2 className="w-5 h-5 text-[var(--ik-accent-yellow)] shrink-0" />
+              <span className="text-[var(--ik-accent-yellow)] font-bold text-sm">
+                Task completed! Waiting for parent approval to earn points.
+              </span>
+            </div>
+          )}
+        </PanelCard>
+
+        {/* Quick Actions */}
+        <div className="flex gap-3">
+          <Link href="/child/rewards" className="flex-1">
+            <CyanButton fullWidth icon={<Gift className="w-4 h-4" />}>
+              Rewards
+            </CyanButton>
+          </Link>
+          <SecondaryButton
+            onClick={() => {
+              void fetchTasks();
+              void fetchPoints();
+            }}
+            icon={<RefreshCw className="w-4 h-4" />}
+            disabled={isLoadingTasks}
+          >
+            Refresh
+          </SecondaryButton>
+        </div>
+
+        {/* Tasks Section */}
+        <PanelCard className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ListTodo className="w-5 h-5 text-[var(--ik-accent-yellow)]" />
+              <h2 className="text-lg font-bold text-white">Your Tasks</h2>
+            </div>
+            {tasks.length > 0 && (
+              <span className="text-[var(--ik-text-muted)] text-sm">
+                {pendingTasks.length} pending
+              </span>
+            )}
+          </div>
+
+          {/* Error State */}
+          {tasksError && (
+            <div className="bg-[var(--ik-danger)]/20 border-2 border-[var(--ik-danger)] text-white text-sm p-3 rounded-xl flex items-start gap-2">
+              <span className="text-lg shrink-0">⚠️</span>
+              <div>
+                <p className="font-bold">Error</p>
+                <p className="text-sm text-white/80">{tasksError}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Loading State */}
+          {isLoadingTasks && tasks.length === 0 && (
+            <div className="flex items-center justify-center gap-3 py-8">
+              <div className="animate-spin w-5 h-5 border-2 border-[var(--ik-accent-yellow)] border-t-transparent rounded-full" />
+              <span className="text-[var(--ik-text-muted)]">
+                Loading tasks...
+              </span>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isLoadingTasks && tasks.length === 0 && !tasksError && (
+            <div className="text-center py-8">
+              <div className="text-4xl mb-3">📝</div>
+              <p className="text-[var(--ik-text-muted)]">No tasks assigned yet</p>
+              <p className="text-[var(--ik-text-muted)] text-sm mt-1">
+                Your parent will assign tasks soon!
+              </p>
+            </div>
+          )}
+
+          {/* Tasks List */}
+          {tasks.length > 0 && (
+            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+              {/* Actionable Tasks First */}
+              {actionableTasks.map((task) => (
+                <TaskCard
+                  key={task.child_task_id}
+                  task={task}
+                  isCompleting={completingTaskId === task.child_task_id}
+                  isSuccess={successTaskId === task.child_task_id}
+                  onComplete={() => handleCompleteTask(task)}
+                />
+              ))}
+
+              {/* Waiting Approval Tasks */}
+              {waitingApprovalTasks.length > 0 && (
+                <>
+                  {actionableTasks.length > 0 && (
+                    <div className="border-t border-[var(--ik-outline-light)] my-4 pt-4">
+                      <p className="text-[var(--ik-accent-yellow)] text-xs font-bold mb-3">
+                        ⏳ Waiting for Approval ({waitingApprovalTasks.length})
+                      </p>
+                    </div>
+                  )}
+                  {waitingApprovalTasks.map((task) => (
+                    <TaskCard
+                      key={task.child_task_id}
+                      task={task}
+                      isCompleting={false}
+                      isSuccess={false}
+                      onComplete={() => {}}
+                    />
+                  ))}
+                </>
+              )}
+
+              {/* Approved Tasks */}
+              {approvedTasks.length > 0 && (
+                <>
+                  {(actionableTasks.length > 0 || waitingApprovalTasks.length > 0) && (
+                    <div className="border-t border-[var(--ik-outline-light)] my-4 pt-4">
+                      <p className="text-green-400 text-xs font-bold mb-3">
+                        ✓ Approved ({approvedTasks.length})
+                      </p>
+                    </div>
+                  )}
+                  {approvedTasks.map((task) => (
+                    <TaskCard
+                      key={task.child_task_id}
+                      task={task}
+                      isCompleting={false}
+                      isSuccess={false}
+                      onComplete={() => {}}
+                    />
+                  ))}
+                </>
+              )}
+            </div>
+          )}
+        </PanelCard>
+
+      </div>
+    </div>
   );
 }
 
+// Task Card Component
+interface TaskCardProps {
+  task: TaskFromAPI;
+  isCompleting: boolean;
+  isSuccess: boolean;
+  onComplete: () => void;
+}
+
+function TaskCard({ task, isCompleting, isSuccess, onComplete }: TaskCardProps) {
+  const isActionable = task.status === "pending" || task.status === "in_progress";
+  const isWaitingApproval = task.status === "completed";
+  const isApproved = task.status === "approved";
+
+  // Border color based on status
+  const borderClass = isApproved
+    ? "border-green-500/30 opacity-75"
+    : isWaitingApproval
+    ? "border-[var(--ik-accent-yellow)]/50"
+    : isSuccess
+    ? "border-green-500 animate-pulse"
+    : "border-[var(--ik-outline-light)]";
+
+  // Status badge config
+  const getStatusBadge = () => {
+    if (isApproved) {
+      return {
+        className: "bg-green-500/20 text-green-400",
+        text: "✓ Approved",
+      };
+    }
+    if (isWaitingApproval) {
+      return {
+        className: "bg-[var(--ik-accent-yellow)]/20 text-[var(--ik-accent-yellow)]",
+        text: "⏳ Waiting Approval",
+      };
+    }
+    return {
+      className: "bg-[var(--ik-accent-cyan)]/20 text-[var(--ik-accent-cyan)]",
+      text: "○ Pending",
+    };
+  };
+
+  const statusBadge = getStatusBadge();
+
+  return (
+    <div
+      className={`bg-[var(--ik-surface-1)] border-2 rounded-xl p-4 transition-all ${borderClass}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        {/* Task Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start gap-2 mb-2">
+            {isApproved && (
+              <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0 mt-0.5" />
+            )}
+            <div className="flex-1 min-w-0">
+              <h3
+                className={`font-bold text-lg break-words ${
+                  isApproved ? "text-white/70 line-through" : "text-white"
+                }`}
+              >
+                {task.title || "Task"}
+              </h3>
+              {task.description && (
+                <p className="text-[var(--ik-text-muted)] text-sm mt-1 break-words line-clamp-2">
+                  {task.description}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Task Meta */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Points Chip */}
+            <span className="inline-flex items-center gap-1 bg-[var(--ik-accent-yellow)]/20 text-[var(--ik-accent-yellow)] text-xs font-bold px-2.5 py-1 rounded-full">
+              🪙 {task.points} GGPoints
+            </span>
+
+            {/* Status Chip */}
+            <span
+              className={`inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full ${statusBadge.className}`}
+            >
+              {statusBadge.text}
+            </span>
+          </div>
+        </div>
+
+        {/* Complete Button - only for actionable tasks */}
+        {isActionable && (
+          <PrimaryButton
+            onClick={onComplete}
+            disabled={isCompleting}
+            loading={isCompleting}
+            className="shrink-0"
+          >
+            {isCompleting ? "..." : "Complete"}
+          </PrimaryButton>
+        )}
+      </div>
+    </div>
+  );
+}

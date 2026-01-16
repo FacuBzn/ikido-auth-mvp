@@ -448,13 +448,13 @@ async function testChildRewardsRequestNoSession() {
 }
 
 /**
- * Test: /v2/parent/rewards (no auth - redirect expected)
+ * Test: /parent/rewards (no auth - redirect expected)
  * Expected: 307/308 redirect to login
  */
 async function testParentRewardsPageNoAuth() {
   const testName = "v2/parent/rewards: redirects without auth";
   try {
-    const response = await fetch(`${BASE_URL}/v2/parent/rewards`, {
+    const response = await fetch(`${BASE_URL}/parent/rewards`, {
       redirect: "manual",
     });
 
@@ -482,13 +482,13 @@ async function testParentRewardsPageNoAuth() {
 // ===========================================
 
 /**
- * Test: /v2/parent/register page loads
+ * Test: /parent/register page loads
  * Expected: 200 OK
  */
 async function testParentRegisterPageLoads() {
   const testName = "v2/parent/register: 200 OK";
   try {
-    const response = await fetch(`${BASE_URL}/v2/parent/register`);
+    const response = await fetch(`${BASE_URL}/parent/register`);
 
     if (response.status === 200) {
       pass(testName);

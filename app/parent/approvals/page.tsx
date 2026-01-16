@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createSupabaseServerComponentClient } from "@/lib/supabase/serverClient";
 import { getServerSession } from "@/lib/authHelpers";
-import { ParentRewardsClient } from "./ParentRewardsClient";
+import { ApprovalsClient } from "./ApprovalsClient";
 
 export const metadata: Metadata = {
-  title: "Manage Rewards | iKidO",
+  title: "Approve Tasks | iKidO",
 };
 
 export const dynamic = "force-dynamic";
@@ -13,19 +13,14 @@ export const dynamic = "force-dynamic";
 type ChildForSelector = {
   id: string;
   name: string;
-  points_balance: number;
 };
 
-export default async function V2ParentRewardsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ childId?: string }>;
-}) {
+export default async function V2ParentApprovalsPage() {
   // Server-side auth check
   const session = await getServerSession();
 
   if (!session?.user) {
-    redirect("/v2/parent/login");
+    redirect("/parent/login");
   }
 
   const supabase = await createSupabaseServerComponentClient();
@@ -39,31 +34,21 @@ export default async function V2ParentRewardsPage({
     .single();
 
   if (parentError || !parentData) {
-    redirect("/v2/parent/login");
+    redirect("/parent/login");
   }
 
   // Get children list
   const { data: childrenData } = await supabase
     .from("users")
-    .select("id, name, points_balance")
+    .select("id, name")
     .eq("parent_id", parentData.id)
     .eq("role", "child")
     .order("name", { ascending: true });
 
-  const childrenList: ChildForSelector[] = (childrenData || []).map((c) => ({
+  const children: ChildForSelector[] = (childrenData || []).map((c) => ({
     id: c.id,
     name: c.name || "Unknown",
-    points_balance: c.points_balance ?? 0,
   }));
 
-  // Get initial child from query params
-  const params = await searchParams;
-  const initialChildId = params.childId || childrenList[0]?.id || "";
-
-  return (
-    <ParentRewardsClient
-      childrenList={childrenList}
-      initialChildId={initialChildId}
-    />
-  );
+  return <ApprovalsClient childrenList={children} />;
 }
