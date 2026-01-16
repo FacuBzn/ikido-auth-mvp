@@ -1107,3 +1107,116 @@ npm run lint      # ✅
 npm run typecheck # ✅
 npm run build     # ✅
 ```
+
+---
+
+## PR13: Parent Register (V2) ✅ COMPLETADO
+
+### Objetivo
+Implementar registro de Parent en V2 con integración completa a Supabase.
+
+### Archivos Creados/Modificados
+```
+app/api/parent/register/route.ts              (NEW)
+app/v2/parent/register/page.tsx               (UPDATED: ahora funcional)
+app/v2/parent/register/RegisterClient.tsx     (NEW)
+docs/V2_MIGRATION_PLAN.md                     (UPDATED: esta sección)
+scripts/smoke-tests.ts                        (UPDATED: tests agregados)
+```
+
+### Endpoint API
+
+**POST `/api/parent/register`**
+
+**Body:**
+```json
+{
+  "full_name": "John Doe",
+  "email": "test@example.com",
+  "password": "password123"
+}
+```
+
+**Validaciones:**
+- `full_name`: requerido, no vacío
+- `email`: requerido, formato válido
+- `password`: requerido, mínimo 6 caracteres
+
+**Flujo:**
+1. Validar inputs
+2. Verificar email no existe en `users` table
+3. Crear usuario en Supabase Auth usando admin client (`auth.admin.createUser`)
+4. Generar `family_code` único (6 caracteres alfanuméricos UPPERCASE)
+5. Insertar row en `public.users` con:
+   - `id` = `auth_id` = auth user ID
+   - `role` = "parent"
+   - `name` = normalized (INITCAP)
+   - `email` = normalized (lowercase)
+   - `family_code` = código único generado
+   - `points_balance` = 0
+6. **Rollback**: Si falla el INSERT en `users`, eliminar el usuario de Auth
+
+**Respuestas:**
+- `200`: `{ success: true }`
+- `400`: `{ error: "INVALID_INPUT", message }`
+- `409`: `{ error: "EMAIL_ALREADY_EXISTS", message }`
+- `500`: `{ error: "DATABASE_ERROR", message }`
+
+### UI Component
+
+**`RegisterClient.tsx`**
+
+**Features:**
+- Form con inputs: Full Name, Email, Password
+- Helper text: "Minimum 6 characters"
+- Validación client-side antes de submit
+- Loading state durante registro
+- Error banner IKIDO (rojo) para errores
+- Success banner (verde) con mensaje "Account created successfully!"
+- Auto-redirect a `/v2/parent/login` después de 1.5s en success
+- Link "Sign in instead" → `/v2/parent/login`
+
+**Patrón reutilizado:**
+- Mismo layout que `ParentLoginForm.tsx`
+- Componentes IKIDO: `PanelCard`, `TextInput`, `PrimaryButton`, `IkidoLogo`
+- Manejo de errores consistente con otros forms V2
+
+### Seguridad
+
+- **Admin Client**: Usa `getSupabaseAdminClient()` para crear usuarios (más seguro que browser client)
+- **Email Normalization**: Lowercase antes de verificar/insertar
+- **Name Normalization**: INITCAP usando `normalizeName()`
+- **Family Code**: Generación única con retry (hasta 10 intentos)
+- **Rollback**: Si falla INSERT en `users`, elimina usuario de Auth para evitar huérfanos
+
+### Smoke Tests Agregados
+
+```typescript
+✅ /v2/parent/register: 200 OK (page loads)
+✅ /api/parent/register: 400 without body
+✅ /api/parent/register: 400 with invalid email
+✅ /api/parent/register: 400 with short password
+```
+
+### Test Manual
+
+```
+1. Navegar a /v2/parent/register
+2. Llenar form:
+   - Full Name: "John Doe"
+   - Email: "test@example.com"
+   - Password: "password123"
+3. Click "Create Account"
+4. Ver success banner "Account created successfully!"
+5. Auto-redirect a /v2/parent/login después de 1.5s
+6. Login con las credenciales creadas
+7. Verificar que funciona correctamente
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+npm run smoke-test # (con dev server)
+```

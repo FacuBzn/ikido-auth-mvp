@@ -477,6 +477,106 @@ async function testParentRewardsPageNoAuth() {
   }
 }
 
+// ===========================================
+// PR13: Parent Register Tests
+// ===========================================
+
+/**
+ * Test: /v2/parent/register page loads
+ * Expected: 200 OK
+ */
+async function testParentRegisterPageLoads() {
+  const testName = "v2/parent/register: 200 OK";
+  try {
+    const response = await fetch(`${BASE_URL}/v2/parent/register`);
+
+    if (response.status === 200) {
+      pass(testName);
+    } else {
+      fail(testName, `Expected 200, got ${response.status}`);
+    }
+  } catch (error) {
+    fail(testName, `Request failed: ${error}`);
+  }
+}
+
+/**
+ * Test: /api/parent/register (no body)
+ * Expected: 400 Bad Request
+ */
+async function testParentRegisterNoBody() {
+  const testName = "parent/register: 400 without body";
+  try {
+    const response = await fetch(`${BASE_URL}/api/parent/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    if (response.status === 400) {
+      pass(testName);
+    } else {
+      fail(testName, `Expected 400, got ${response.status}`);
+    }
+  } catch (error) {
+    fail(testName, `Request failed: ${error}`);
+  }
+}
+
+/**
+ * Test: /api/parent/register (invalid email)
+ * Expected: 400 Bad Request
+ */
+async function testParentRegisterInvalidEmail() {
+  const testName = "parent/register: 400 with invalid email";
+  try {
+    const response = await fetch(`${BASE_URL}/api/parent/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        full_name: "Test User",
+        email: "invalid-email",
+        password: "password123",
+      }),
+    });
+
+    if (response.status === 400) {
+      pass(testName);
+    } else {
+      fail(testName, `Expected 400, got ${response.status}`);
+    }
+  } catch (error) {
+    fail(testName, `Request failed: ${error}`);
+  }
+}
+
+/**
+ * Test: /api/parent/register (short password)
+ * Expected: 400 Bad Request
+ */
+async function testParentRegisterShortPassword() {
+  const testName = "parent/register: 400 with short password";
+  try {
+    const response = await fetch(`${BASE_URL}/api/parent/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        full_name: "Test User",
+        email: "test@example.com",
+        password: "12345", // < 6 characters
+      }),
+    });
+
+    if (response.status === 400) {
+      pass(testName);
+    } else {
+      fail(testName, `Expected 400, got ${response.status}`);
+    }
+  } catch (error) {
+    fail(testName, `Request failed: ${error}`);
+  }
+}
+
 // Run all tests
 async function runAllTests() {
   log("Starting smoke tests...");
@@ -503,6 +603,13 @@ async function runAllTests() {
   await testParentClaimsApproveNoAuth();
   await testChildRewardsRequestNoSession();
   await testParentRewardsPageNoAuth();
+
+  console.log("");
+  console.log("PR13: Parent Register Tests:");
+  await testParentRegisterPageLoads();
+  await testParentRegisterNoBody();
+  await testParentRegisterInvalidEmail();
+  await testParentRegisterShortPassword();
 
   console.log("");
   console.log("Page Load Tests:");
