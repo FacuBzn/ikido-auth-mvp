@@ -1107,3 +1107,3186 @@ npm run lint      # ✅
 npm run typecheck # ✅
 npm run build     # ✅
 ```
+
+---
+
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Create Task Template (Without Auto-Assign) ✅ COMPLETADO
+
+### Objetivo
+Cambiar el flujo de "Create Custom Task" para que cree solo el template (sin asignar automáticamente) y agregar validaciones estrictas.
+
+### Problema
+1. El formulario permitía crear tareas con solo el título (points tenía default, description era opcional)
+2. Al crear una custom task, se asignaba automáticamente al child seleccionado
+3. Las custom tasks no aparecían en la lista de templates disponibles
+
+### Archivos Modificados
+```
+app/api/parent/tasks/custom-create-and-assign/route.ts  (UPDATED)
+app/v2/parent/tasks/ParentTasksClient.tsx               (UPDATED)
+lib/repositories/taskRepository.ts                       (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Backend (`custom-create-and-assign/route.ts`):**
+- ✅ Soporta dos modos:
+  - **Create-only**: Sin `childId` → crea template sin asignar
+  - **Create & Assign**: Con `childId` → crea template y asigna (compatibilidad hacia atrás)
+- ✅ `description` ahora es **requerida** (antes opcional)
+- ✅ `points` debe ser **entero** (1-100), no solo number
+- ✅ Respuesta incluye `assigned: boolean` para indicar si se asignó
+
+**Frontend (`ParentTasksClient.tsx`):**
+- ✅ `description` ahora es requerida (label sin "optional")
+- ✅ `points` inicializa como `""` (sin default)
+- ✅ Validación `canCreate` incluye `descriptionOk`
+- ✅ Botón renombrado a "Create Task Template"
+- ✅ Fetch NO envía `childId` (create-only mode)
+- ✅ Post-success: solo refetch templates, NO assigned tasks
+- ✅ Título de sección cambiado a "Create Task Template"
+
+**Repository (`taskRepository.ts`):**
+- ✅ `listAvailableTasksForParent` ahora incluye:
+  - Global tasks (`is_global=true`)
+  - Parent's custom tasks (`is_global=false`, `created_by_parent_id=parentId`)
+- ✅ Ordena por `created_at DESC` (nuevas templates aparecen primero)
+
+### Estado Final
+
+**Validaciones del botón "Create Task Template":**
+- ❌ Disabled si title vacío
+- ❌ Disabled si description vacío
+- ❌ Disabled si points vacío, NaN, no entero, o fuera de rango 1-100
+- ✅ Enabled solo cuando todos los campos son válidos
+
+**Flujo de creación:**
+1. Parent llena form (title, description, points)
+2. Click "Create Task Template"
+3. Se crea template en tabla `tasks` (sin asignar)
+4. Template aparece **primero** en lista "Assign Task"
+5. Parent puede hacer click "Assign" para asignarla al child
+6. Solo entonces aparece en "Tasks for {Child}"
+
+### Test Manual
+```
+1. Login como parent
+2. Navegar a /v2/parent/tasks?childId=...
+3. Click "New Task" para mostrar form
+4. Verificar validaciones:
+   ✅ Title vacío → botón disabled
+   ✅ Description vacío → botón disabled
+   ✅ Points vacío/inválido → botón disabled
+   ✅ Todos válidos → botón enabled
+5. Crear template:
+   ✅ Llenar title, description, points válidos
+   ✅ Click "Create Task Template"
+   ✅ Success: "Task template created!"
+   ✅ Template aparece PRIMERO en "Assign Task"
+   ✅ NO aparece en "Tasks for {Child}"
+6. Asignar template:
+   ✅ Click "Assign" en la nueva template
+   ✅ Template aparece en "Tasks for {Child}" como Pending
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Disable Create & Assign Button Until Form Valid ✅ COMPLETADO
+
+### Objetivo
+Deshabilitar el botón "Create & Assign" en el formulario de Create Custom Task hasta que todos los campos sean válidos.
+
+### Problema
+El botón "Create & Assign" se podía clickear aunque faltaran campos (title vacío, points vacío o fuera de rango 1-100), causando errores y mala UX.
+
+### Archivos Modificados
+```
+app/v2/parent/tasks/ParentTasksClient.tsx    (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Validación (`ParentTasksClient.tsx`):**
+- ✅ Agregada validación `canCreate` que verifica:
+  - `childOk`: child seleccionado
+  - `titleOk`: title no vacío (trim)
+  - `pointsOk`: points es número finito entre 1-100
+  - `!isCreating`: no está en proceso de creación
+- ✅ Botón "Create & Assign" ahora usa `disabled={!canCreate}`
+
+**Input de Points:**
+- ✅ Cambiado a `type="number"` con `min={1}` y `max={100}`
+- ✅ Agregado `inputMode="numeric"` para mejor UX en mobile
+- ✅ Agregado `onBlur` que hace clamp automático (1-100) cuando el usuario sale del campo
+- ✅ Agregado helper text que muestra error cuando points está fuera de rango
+
+**Handler:**
+- ✅ Mejorados guards en `handleCreateCustomTask` para validación defensiva
+- ✅ Usa `parsedPoints` calculado una sola vez
+
+**Backend (ya estaba correcto):**
+- ✅ El endpoint `/api/parent/tasks/custom-create-and-assign` ya valida:
+  - `title` requerido y no vacío
+  - `points` number entre 1-100
+  - `childId` requerido
+
+### Estado Final
+
+**Botón "Create & Assign" está disabled cuando:**
+- ❌ No hay child seleccionado
+- ❌ Title está vacío o solo espacios
+- ❌ Points está vacío, NaN, < 1, o > 100
+- ❌ Está en proceso de creación (loading)
+
+**Botón "Create & Assign" está enabled cuando:**
+- ✅ Child seleccionado
+- ✅ Title tiene contenido (trim > 0)
+- ✅ Points es número válido entre 1-100
+- ✅ No está en proceso de creación
+
+### Test Manual
+```
+1. Login como parent
+2. Navegar a /v2/parent/tasks
+3. Seleccionar un child
+4. Click "New Task" para mostrar form
+5. Verificar botón "Create & Assign":
+   ✅ Está disabled (title vacío)
+6. Llenar title "Test Task":
+   ✅ Sigue disabled (points vacío o inválido)
+7. Llenar points "50":
+   ✅ Botón se habilita
+8. Cambiar points a "0":
+   ✅ Botón se deshabilita
+9. Cambiar points a "101":
+   ✅ Botón se deshabilita
+10. Cambiar points a "abc":
+   ✅ Botón se deshabilita
+11. Cambiar points a "25":
+   ✅ Botón se habilita
+12. Click "Create & Assign":
+   ✅ Loading → botón disabled
+   ✅ Success → form se limpia, botón vuelve a disabled
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Create Task Template (Without Auto-Assign) ✅ COMPLETADO
+
+### Objetivo
+Cambiar el flujo de "Create Custom Task" para que cree solo el template (sin asignar automáticamente) y agregar validaciones estrictas.
+
+### Problema
+1. El formulario permitía crear tareas con solo el título (points tenía default, description era opcional)
+2. Al crear una custom task, se asignaba automáticamente al child seleccionado
+3. Las custom tasks no aparecían en la lista de templates disponibles
+
+### Archivos Modificados
+```
+app/api/parent/tasks/custom-create-and-assign/route.ts  (UPDATED)
+app/v2/parent/tasks/ParentTasksClient.tsx               (UPDATED)
+lib/repositories/taskRepository.ts                       (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Backend (`custom-create-and-assign/route.ts`):**
+- ✅ Soporta dos modos:
+  - **Create-only**: Sin `childId` → crea template sin asignar
+  - **Create & Assign**: Con `childId` → crea template y asigna (compatibilidad hacia atrás)
+- ✅ `description` ahora es **requerida** (antes opcional)
+- ✅ `points` debe ser **entero** (1-100), no solo number
+- ✅ Respuesta incluye `assigned: boolean` para indicar si se asignó
+
+**Frontend (`ParentTasksClient.tsx`):**
+- ✅ `description` ahora es requerida (label sin "optional")
+- ✅ `points` inicializa como `""` (sin default)
+- ✅ Validación `canCreate` incluye `descriptionOk`
+- ✅ Botón renombrado a "Create Task Template"
+- ✅ Fetch NO envía `childId` (create-only mode)
+- ✅ Post-success: solo refetch templates, NO assigned tasks
+- ✅ Título de sección cambiado a "Create Task Template"
+
+**Repository (`taskRepository.ts`):**
+- ✅ `listAvailableTasksForParent` ahora incluye:
+  - Global tasks (`is_global=true`)
+  - Parent's custom tasks (`is_global=false`, `created_by_parent_id=parentId`)
+- ✅ Ordena por `created_at DESC` (nuevas templates aparecen primero)
+
+### Estado Final
+
+**Validaciones del botón "Create Task Template":**
+- ❌ Disabled si title vacío
+- ❌ Disabled si description vacío
+- ❌ Disabled si points vacío, NaN, no entero, o fuera de rango 1-100
+- ✅ Enabled solo cuando todos los campos son válidos
+
+**Flujo de creación:**
+1. Parent llena form (title, description, points)
+2. Click "Create Task Template"
+3. Se crea template en tabla `tasks` (sin asignar)
+4. Template aparece **primero** en lista "Assign Task"
+5. Parent puede hacer click "Assign" para asignarla al child
+6. Solo entonces aparece en "Tasks for {Child}"
+
+### Test Manual
+```
+1. Login como parent
+2. Navegar a /v2/parent/tasks?childId=...
+3. Click "New Task" para mostrar form
+4. Verificar validaciones:
+   ✅ Title vacío → botón disabled
+   ✅ Description vacío → botón disabled
+   ✅ Points vacío/inválido → botón disabled
+   ✅ Todos válidos → botón enabled
+5. Crear template:
+   ✅ Llenar title, description, points válidos
+   ✅ Click "Create Task Template"
+   ✅ Success: "Task template created!"
+   ✅ Template aparece PRIMERO en "Assign Task"
+   ✅ NO aparece en "Tasks for {Child}"
+6. Asignar template:
+   ✅ Click "Assign" en la nueva template
+   ✅ Template aparece en "Tasks for {Child}" como Pending
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Fix Task Titles in Assigned Tasks List ✅ COMPLETADO
+
+### Objetivo
+Corregir bug visual donde las tareas asignadas mostraban "Task" genérico en lugar del título real de la tarea.
+
+### Problema
+En `/v2/parent/tasks`, la sección "Tasks for {Child}" mostraba todas las tareas con el título hardcodeado "Task" en lugar del nombre real (ej: "Brush your teeth", "Clean your desk").
+
+### Causa Raíz
+El componente `ParentTasksClient.tsx` definía un tipo local `AssignedTask` que no coincidía con la estructura devuelta por el API. El API devuelve `ChildTaskInstance[]` con un campo anidado `task: { title, description }`, pero el componente intentaba leer `task.title` directamente del objeto `AssignedTask` en lugar de `task.task?.title`.
+
+### Archivos Modificados
+```
+app/v2/parent/tasks/ParentTasksClient.tsx    (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Frontend (`ParentTasksClient.tsx`):**
+- ✅ Actualizado tipo `AssignedTask` para usar `ChildTaskInstance` del API (en lugar de tipo local)
+- ✅ Actualizado render en `TaskRow` para leer `task.task?.title` y `task.task?.description`
+- ✅ Agregado fallback "Untitled Task" si no hay título disponible
+- ✅ Descripción ahora se muestra con `line-clamp-2` (2 líneas máximo con ellipsis)
+
+**Backend (ya estaba correcto):**
+- ✅ El endpoint `/api/parent/child-tasks/list` ya hace join correcto con `tasks!task_id`
+- ✅ El repository `getTasksForChild` ya selecciona `title` y `description` del join
+- ✅ El mapper `mapChildTaskRow` ya mapea correctamente los datos a `ChildTaskInstance`
+
+### Estado Final
+
+**Tareas asignadas ahora muestran:**
+- ✅ Título real de la tarea (ej: "Brush your teeth", "Clean your desk")
+- ✅ Descripción de la tarea (si existe, máximo 2 líneas)
+- ✅ Points chip (🪙 X GG)
+- ✅ Status badge (Pending / Awaiting Approval / Approved)
+- ✅ Botón "Approve" (solo para tareas Completed)
+
+### Test Manual
+```
+1. Login como parent
+2. Navegar a /v2/parent/tasks?childId=...
+3. Verificar sección "Tasks for {Child}":
+   ✅ Títulos reales se muestran (no "Task" genérico)
+   ✅ Descripciones se muestran cuando existen
+   ✅ Pending: muestra título real
+   ✅ Awaiting Approval: muestra título real + botón Approve
+   ✅ Approved: muestra título real
+4. Asignar un template nuevo:
+   ✅ Aparece con el título correcto inmediatamente
+5. Crear custom task:
+   ✅ Aparece con el título correcto inmediatamente
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Create Task Template (Without Auto-Assign) ✅ COMPLETADO
+
+### Objetivo
+Cambiar el flujo de "Create Custom Task" para que cree solo el template (sin asignar automáticamente) y agregar validaciones estrictas.
+
+### Problema
+1. El formulario permitía crear tareas con solo el título (points tenía default, description era opcional)
+2. Al crear una custom task, se asignaba automáticamente al child seleccionado
+3. Las custom tasks no aparecían en la lista de templates disponibles
+
+### Archivos Modificados
+```
+app/api/parent/tasks/custom-create-and-assign/route.ts  (UPDATED)
+app/v2/parent/tasks/ParentTasksClient.tsx               (UPDATED)
+lib/repositories/taskRepository.ts                       (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Backend (`custom-create-and-assign/route.ts`):**
+- ✅ Soporta dos modos:
+  - **Create-only**: Sin `childId` → crea template sin asignar
+  - **Create & Assign**: Con `childId` → crea template y asigna (compatibilidad hacia atrás)
+- ✅ `description` ahora es **requerida** (antes opcional)
+- ✅ `points` debe ser **entero** (1-100), no solo number
+- ✅ Respuesta incluye `assigned: boolean` para indicar si se asignó
+
+**Frontend (`ParentTasksClient.tsx`):**
+- ✅ `description` ahora es requerida (label sin "optional")
+- ✅ `points` inicializa como `""` (sin default)
+- ✅ Validación `canCreate` incluye `descriptionOk`
+- ✅ Botón renombrado a "Create Task Template"
+- ✅ Fetch NO envía `childId` (create-only mode)
+- ✅ Post-success: solo refetch templates, NO assigned tasks
+- ✅ Título de sección cambiado a "Create Task Template"
+
+**Repository (`taskRepository.ts`):**
+- ✅ `listAvailableTasksForParent` ahora incluye:
+  - Global tasks (`is_global=true`)
+  - Parent's custom tasks (`is_global=false`, `created_by_parent_id=parentId`)
+- ✅ Ordena por `created_at DESC` (nuevas templates aparecen primero)
+
+### Estado Final
+
+**Validaciones del botón "Create Task Template":**
+- ❌ Disabled si title vacío
+- ❌ Disabled si description vacío
+- ❌ Disabled si points vacío, NaN, no entero, o fuera de rango 1-100
+- ✅ Enabled solo cuando todos los campos son válidos
+
+**Flujo de creación:**
+1. Parent llena form (title, description, points)
+2. Click "Create Task Template"
+3. Se crea template en tabla `tasks` (sin asignar)
+4. Template aparece **primero** en lista "Assign Task"
+5. Parent puede hacer click "Assign" para asignarla al child
+6. Solo entonces aparece en "Tasks for {Child}"
+
+### Test Manual
+```
+1. Login como parent
+2. Navegar a /v2/parent/tasks?childId=...
+3. Click "New Task" para mostrar form
+4. Verificar validaciones:
+   ✅ Title vacío → botón disabled
+   ✅ Description vacío → botón disabled
+   ✅ Points vacío/inválido → botón disabled
+   ✅ Todos válidos → botón enabled
+5. Crear template:
+   ✅ Llenar title, description, points válidos
+   ✅ Click "Create Task Template"
+   ✅ Success: "Task template created!"
+   ✅ Template aparece PRIMERO en "Assign Task"
+   ✅ NO aparece en "Tasks for {Child}"
+6. Asignar template:
+   ✅ Click "Assign" en la nueva template
+   ✅ Template aparece en "Tasks for {Child}" como Pending
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Disable Create & Assign Button Until Form Valid ✅ COMPLETADO
+
+### Objetivo
+Deshabilitar el botón "Create & Assign" en el formulario de Create Custom Task hasta que todos los campos sean válidos.
+
+### Problema
+El botón "Create & Assign" se podía clickear aunque faltaran campos (title vacío, points vacío o fuera de rango 1-100), causando errores y mala UX.
+
+### Archivos Modificados
+```
+app/v2/parent/tasks/ParentTasksClient.tsx    (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Validación (`ParentTasksClient.tsx`):**
+- ✅ Agregada validación `canCreate` que verifica:
+  - `childOk`: child seleccionado
+  - `titleOk`: title no vacío (trim)
+  - `pointsOk`: points es número finito entre 1-100
+  - `!isCreating`: no está en proceso de creación
+- ✅ Botón "Create & Assign" ahora usa `disabled={!canCreate}`
+
+**Input de Points:**
+- ✅ Cambiado a `type="number"` con `min={1}` y `max={100}`
+- ✅ Agregado `inputMode="numeric"` para mejor UX en mobile
+- ✅ Agregado `onBlur` que hace clamp automático (1-100) cuando el usuario sale del campo
+- ✅ Agregado helper text que muestra error cuando points está fuera de rango
+
+**Handler:**
+- ✅ Mejorados guards en `handleCreateCustomTask` para validación defensiva
+- ✅ Usa `parsedPoints` calculado una sola vez
+
+**Backend (ya estaba correcto):**
+- ✅ El endpoint `/api/parent/tasks/custom-create-and-assign` ya valida:
+  - `title` requerido y no vacío
+  - `points` number entre 1-100
+  - `childId` requerido
+
+### Estado Final
+
+**Botón "Create & Assign" está disabled cuando:**
+- ❌ No hay child seleccionado
+- ❌ Title está vacío o solo espacios
+- ❌ Points está vacío, NaN, < 1, o > 100
+- ❌ Está en proceso de creación (loading)
+
+**Botón "Create & Assign" está enabled cuando:**
+- ✅ Child seleccionado
+- ✅ Title tiene contenido (trim > 0)
+- ✅ Points es número válido entre 1-100
+- ✅ No está en proceso de creación
+
+### Test Manual
+```
+1. Login como parent
+2. Navegar a /v2/parent/tasks
+3. Seleccionar un child
+4. Click "New Task" para mostrar form
+5. Verificar botón "Create & Assign":
+   ✅ Está disabled (title vacío)
+6. Llenar title "Test Task":
+   ✅ Sigue disabled (points vacío o inválido)
+7. Llenar points "50":
+   ✅ Botón se habilita
+8. Cambiar points a "0":
+   ✅ Botón se deshabilita
+9. Cambiar points a "101":
+   ✅ Botón se deshabilita
+10. Cambiar points a "abc":
+   ✅ Botón se deshabilita
+11. Cambiar points a "25":
+   ✅ Botón se habilita
+12. Click "Create & Assign":
+   ✅ Loading → botón disabled
+   ✅ Success → form se limpia, botón vuelve a disabled
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Create Task Template (Without Auto-Assign) ✅ COMPLETADO
+
+### Objetivo
+Cambiar el flujo de "Create Custom Task" para que cree solo el template (sin asignar automáticamente) y agregar validaciones estrictas.
+
+### Problema
+1. El formulario permitía crear tareas con solo el título (points tenía default, description era opcional)
+2. Al crear una custom task, se asignaba automáticamente al child seleccionado
+3. Las custom tasks no aparecían en la lista de templates disponibles
+
+### Archivos Modificados
+```
+app/api/parent/tasks/custom-create-and-assign/route.ts  (UPDATED)
+app/v2/parent/tasks/ParentTasksClient.tsx               (UPDATED)
+lib/repositories/taskRepository.ts                       (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Backend (`custom-create-and-assign/route.ts`):**
+- ✅ Soporta dos modos:
+  - **Create-only**: Sin `childId` → crea template sin asignar
+  - **Create & Assign**: Con `childId` → crea template y asigna (compatibilidad hacia atrás)
+- ✅ `description` ahora es **requerida** (antes opcional)
+- ✅ `points` debe ser **entero** (1-100), no solo number
+- ✅ Respuesta incluye `assigned: boolean` para indicar si se asignó
+
+**Frontend (`ParentTasksClient.tsx`):**
+- ✅ `description` ahora es requerida (label sin "optional")
+- ✅ `points` inicializa como `""` (sin default)
+- ✅ Validación `canCreate` incluye `descriptionOk`
+- ✅ Botón renombrado a "Create Task Template"
+- ✅ Fetch NO envía `childId` (create-only mode)
+- ✅ Post-success: solo refetch templates, NO assigned tasks
+- ✅ Título de sección cambiado a "Create Task Template"
+
+**Repository (`taskRepository.ts`):**
+- ✅ `listAvailableTasksForParent` ahora incluye:
+  - Global tasks (`is_global=true`)
+  - Parent's custom tasks (`is_global=false`, `created_by_parent_id=parentId`)
+- ✅ Ordena por `created_at DESC` (nuevas templates aparecen primero)
+
+### Estado Final
+
+**Validaciones del botón "Create Task Template":**
+- ❌ Disabled si title vacío
+- ❌ Disabled si description vacío
+- ❌ Disabled si points vacío, NaN, no entero, o fuera de rango 1-100
+- ✅ Enabled solo cuando todos los campos son válidos
+
+**Flujo de creación:**
+1. Parent llena form (title, description, points)
+2. Click "Create Task Template"
+3. Se crea template en tabla `tasks` (sin asignar)
+4. Template aparece **primero** en lista "Assign Task"
+5. Parent puede hacer click "Assign" para asignarla al child
+6. Solo entonces aparece en "Tasks for {Child}"
+
+### Test Manual
+```
+1. Login como parent
+2. Navegar a /v2/parent/tasks?childId=...
+3. Click "New Task" para mostrar form
+4. Verificar validaciones:
+   ✅ Title vacío → botón disabled
+   ✅ Description vacío → botón disabled
+   ✅ Points vacío/inválido → botón disabled
+   ✅ Todos válidos → botón enabled
+5. Crear template:
+   ✅ Llenar title, description, points válidos
+   ✅ Click "Create Task Template"
+   ✅ Success: "Task template created!"
+   ✅ Template aparece PRIMERO en "Assign Task"
+   ✅ NO aparece en "Tasks for {Child}"
+6. Asignar template:
+   ✅ Click "Assign" en la nueva template
+   ✅ Template aparece en "Tasks for {Child}" como Pending
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PR13: Parent Register (V2) ✅ COMPLETADO
+
+### Objetivo
+Implementar registro de Parent en V2 con integración completa a Supabase.
+
+### Archivos Creados/Modificados
+```
+app/api/parent/register/route.ts              (NEW)
+app/v2/parent/register/page.tsx               (UPDATED: ahora funcional)
+app/v2/parent/register/RegisterClient.tsx     (NEW)
+docs/V2_MIGRATION_PLAN.md                     (UPDATED: esta sección)
+scripts/smoke-tests.ts                        (UPDATED: tests agregados)
+```
+
+### Endpoint API
+
+**POST `/api/parent/register`**
+
+**Body:**
+```json
+{
+  "full_name": "John Doe",
+  "email": "test@example.com",
+  "password": "password123"
+}
+```
+
+**Validaciones:**
+- `full_name`: requerido, no vacío
+- `email`: requerido, formato válido
+- `password`: requerido, mínimo 6 caracteres
+
+**Flujo:**
+1. Validar inputs
+2. Verificar email no existe en `users` table
+3. Crear usuario en Supabase Auth usando admin client (`auth.admin.createUser`)
+4. Generar `family_code` único (6 caracteres alfanuméricos UPPERCASE)
+5. Insertar row en `public.users` con:
+   - `id` = `auth_id` = auth user ID
+   - `role` = "parent"
+   - `name` = normalized (INITCAP)
+   - `email` = normalized (lowercase)
+   - `family_code` = código único generado
+   - `points_balance` = 0
+6. **Rollback**: Si falla el INSERT en `users`, eliminar el usuario de Auth
+
+**Respuestas:**
+- `200`: `{ success: true }`
+- `400`: `{ error: "INVALID_INPUT", message }`
+- `409`: `{ error: "EMAIL_ALREADY_EXISTS", message }`
+- `500`: `{ error: "DATABASE_ERROR", message }`
+
+### UI Component
+
+**`RegisterClient.tsx`**
+
+**Features:**
+- Form con inputs: Full Name, Email, Password
+- Helper text: "Minimum 6 characters"
+- Validación client-side antes de submit
+- Loading state durante registro
+- Error banner IKIDO (rojo) para errores
+- Success banner (verde) con mensaje "Account created successfully!"
+- Auto-redirect a `/v2/parent/login` después de 1.5s en success
+- Link "Sign in instead" → `/v2/parent/login`
+
+**Patrón reutilizado:**
+- Mismo layout que `ParentLoginForm.tsx`
+- Componentes IKIDO: `PanelCard`, `TextInput`, `PrimaryButton`, `IkidoLogo`
+- Manejo de errores consistente con otros forms V2
+
+### Seguridad
+
+- **Admin Client**: Usa `getSupabaseAdminClient()` para crear usuarios (más seguro que browser client)
+- **Email Normalization**: Lowercase antes de verificar/insertar
+- **Name Normalization**: INITCAP usando `normalizeName()`
+- **Family Code**: Generación única con retry (hasta 10 intentos)
+- **Rollback**: Si falla INSERT en `users`, elimina usuario de Auth para evitar huérfanos
+
+### Smoke Tests Agregados
+
+```typescript
+✅ /v2/parent/register: 200 OK (page loads)
+✅ /api/parent/register: 400 without body
+✅ /api/parent/register: 400 with invalid email
+✅ /api/parent/register: 400 with short password
+```
+
+### Test Manual
+
+```
+1. Navegar a /v2/parent/register
+2. Llenar form:
+   - Full Name: "John Doe"
+   - Email: "test@example.com"
+   - Password: "password123"
+3. Click "Create Account"
+4. Ver success banner "Account created successfully!"
+5. Auto-redirect a /v2/parent/login después de 1.5s
+6. Login con las credenciales creadas
+7. Verificar que funciona correctamente
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+npm run smoke-test # (con dev server)
+```
+
+---
+
+## PRXX: Remove Delete Button for Assigned Tasks ✅ COMPLETADO
+
+### Objetivo
+Eliminar el botón de eliminar (trash) de las tareas asignadas en `/v2/parent/tasks` para mantener trazabilidad y consistencia.
+
+### Razón (Regla de Negocio)
+Una vez que una tarea fue asignada a un child (existe un row en `child_tasks`), NO debe poder borrarse por:
+- **Trazabilidad**: Mantener historial completo de tareas asignadas
+- **Consistencia**: Si está Pending, el niño podría estar trabajando en ella
+- **Flujo de aprobación**: Si está Completed esperando aprobación, borrar rompería el flujo
+- **Auditoría**: Si está Approved, borrar rompe el historial de puntos ganados
+
+### Archivos Modificados
+```
+app/v2/parent/tasks/ParentTasksClient.tsx    (UPDATED)
+app/api/parent/tasks/delete/route.ts         (UPDATED: comentario agregado)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**UI (`ParentTasksClient.tsx`):**
+- ❌ Eliminado botón de delete (Trash2 icon) del componente `TaskRow`
+- ❌ Eliminado prop `onDelete` e `isDeleting` de `TaskRowProps`
+- ❌ Eliminado handler `handleDeleteAssignment`
+- ❌ Eliminado estado `deletingTaskId`
+- ❌ Eliminado import de `Trash2` de lucide-react
+- ✅ Layout ajustado: botón Approve ahora usa `shrink-0` para mantener alineación
+
+**Backend (`app/api/parent/tasks/delete/route.ts`):**
+- ✅ Agregado comentario documentando que el endpoint maneja TEMPLATES, no asignaciones
+- ✅ Documentada regla: `child_tasks` son inmutables una vez creadas
+
+### Estado Final
+
+**Tareas asignadas ahora muestran:**
+- ✅ Status badge (Pending / Awaiting Approval / Approved)
+- ✅ Points chip (🪙 X GG)
+- ✅ Botón "Approve" (solo para tareas Completed)
+- ❌ NO botón de delete (eliminado)
+
+**Funcionalidades que siguen funcionando:**
+- ✅ Assign task template
+- ✅ Create custom task & assign
+- ✅ Approve completed tasks
+- ✅ Refresh data
+- ✅ Status badges y visual feedback
+
+### Test Manual
+```
+1. Login como parent
+2. Navegar a /v2/parent/tasks?childId=...
+3. Verificar sección "Tasks for {Child}":
+   ✅ NO aparece ícono de basurero en ninguna card
+   ✅ Status badges se muestran correctamente
+   ✅ Botón Approve aparece solo en tareas Completed
+4. Verificar que aún funcionan:
+   ✅ Assign task template
+   ✅ Refresh
+   ✅ Custom create & assign
+   ✅ Status badges (Pending/Completed/Approved)
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Create Task Template (Without Auto-Assign) ✅ COMPLETADO
+
+### Objetivo
+Cambiar el flujo de "Create Custom Task" para que cree solo el template (sin asignar automáticamente) y agregar validaciones estrictas.
+
+### Problema
+1. El formulario permitía crear tareas con solo el título (points tenía default, description era opcional)
+2. Al crear una custom task, se asignaba automáticamente al child seleccionado
+3. Las custom tasks no aparecían en la lista de templates disponibles
+
+### Archivos Modificados
+```
+app/api/parent/tasks/custom-create-and-assign/route.ts  (UPDATED)
+app/v2/parent/tasks/ParentTasksClient.tsx               (UPDATED)
+lib/repositories/taskRepository.ts                       (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Backend (`custom-create-and-assign/route.ts`):**
+- ✅ Soporta dos modos:
+  - **Create-only**: Sin `childId` → crea template sin asignar
+  - **Create & Assign**: Con `childId` → crea template y asigna (compatibilidad hacia atrás)
+- ✅ `description` ahora es **requerida** (antes opcional)
+- ✅ `points` debe ser **entero** (1-100), no solo number
+- ✅ Respuesta incluye `assigned: boolean` para indicar si se asignó
+
+**Frontend (`ParentTasksClient.tsx`):**
+- ✅ `description` ahora es requerida (label sin "optional")
+- ✅ `points` inicializa como `""` (sin default)
+- ✅ Validación `canCreate` incluye `descriptionOk`
+- ✅ Botón renombrado a "Create Task Template"
+- ✅ Fetch NO envía `childId` (create-only mode)
+- ✅ Post-success: solo refetch templates, NO assigned tasks
+- ✅ Título de sección cambiado a "Create Task Template"
+
+**Repository (`taskRepository.ts`):**
+- ✅ `listAvailableTasksForParent` ahora incluye:
+  - Global tasks (`is_global=true`)
+  - Parent's custom tasks (`is_global=false`, `created_by_parent_id=parentId`)
+- ✅ Ordena por `created_at DESC` (nuevas templates aparecen primero)
+
+### Estado Final
+
+**Validaciones del botón "Create Task Template":**
+- ❌ Disabled si title vacío
+- ❌ Disabled si description vacío
+- ❌ Disabled si points vacío, NaN, no entero, o fuera de rango 1-100
+- ✅ Enabled solo cuando todos los campos son válidos
+
+**Flujo de creación:**
+1. Parent llena form (title, description, points)
+2. Click "Create Task Template"
+3. Se crea template en tabla `tasks` (sin asignar)
+4. Template aparece **primero** en lista "Assign Task"
+5. Parent puede hacer click "Assign" para asignarla al child
+6. Solo entonces aparece en "Tasks for {Child}"
+
+### Test Manual
+```
+1. Login como parent
+2. Navegar a /v2/parent/tasks?childId=...
+3. Click "New Task" para mostrar form
+4. Verificar validaciones:
+   ✅ Title vacío → botón disabled
+   ✅ Description vacío → botón disabled
+   ✅ Points vacío/inválido → botón disabled
+   ✅ Todos válidos → botón enabled
+5. Crear template:
+   ✅ Llenar title, description, points válidos
+   ✅ Click "Create Task Template"
+   ✅ Success: "Task template created!"
+   ✅ Template aparece PRIMERO en "Assign Task"
+   ✅ NO aparece en "Tasks for {Child}"
+6. Asignar template:
+   ✅ Click "Assign" en la nueva template
+   ✅ Template aparece en "Tasks for {Child}" como Pending
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Disable Create & Assign Button Until Form Valid ✅ COMPLETADO
+
+### Objetivo
+Deshabilitar el botón "Create & Assign" en el formulario de Create Custom Task hasta que todos los campos sean válidos.
+
+### Problema
+El botón "Create & Assign" se podía clickear aunque faltaran campos (title vacío, points vacío o fuera de rango 1-100), causando errores y mala UX.
+
+### Archivos Modificados
+```
+app/v2/parent/tasks/ParentTasksClient.tsx    (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Validación (`ParentTasksClient.tsx`):**
+- ✅ Agregada validación `canCreate` que verifica:
+  - `childOk`: child seleccionado
+  - `titleOk`: title no vacío (trim)
+  - `pointsOk`: points es número finito entre 1-100
+  - `!isCreating`: no está en proceso de creación
+- ✅ Botón "Create & Assign" ahora usa `disabled={!canCreate}`
+
+**Input de Points:**
+- ✅ Cambiado a `type="number"` con `min={1}` y `max={100}`
+- ✅ Agregado `inputMode="numeric"` para mejor UX en mobile
+- ✅ Agregado `onBlur` que hace clamp automático (1-100) cuando el usuario sale del campo
+- ✅ Agregado helper text que muestra error cuando points está fuera de rango
+
+**Handler:**
+- ✅ Mejorados guards en `handleCreateCustomTask` para validación defensiva
+- ✅ Usa `parsedPoints` calculado una sola vez
+
+**Backend (ya estaba correcto):**
+- ✅ El endpoint `/api/parent/tasks/custom-create-and-assign` ya valida:
+  - `title` requerido y no vacío
+  - `points` number entre 1-100
+  - `childId` requerido
+
+### Estado Final
+
+**Botón "Create & Assign" está disabled cuando:**
+- ❌ No hay child seleccionado
+- ❌ Title está vacío o solo espacios
+- ❌ Points está vacío, NaN, < 1, o > 100
+- ❌ Está en proceso de creación (loading)
+
+**Botón "Create & Assign" está enabled cuando:**
+- ✅ Child seleccionado
+- ✅ Title tiene contenido (trim > 0)
+- ✅ Points es número válido entre 1-100
+- ✅ No está en proceso de creación
+
+### Test Manual
+```
+1. Login como parent
+2. Navegar a /v2/parent/tasks
+3. Seleccionar un child
+4. Click "New Task" para mostrar form
+5. Verificar botón "Create & Assign":
+   ✅ Está disabled (title vacío)
+6. Llenar title "Test Task":
+   ✅ Sigue disabled (points vacío o inválido)
+7. Llenar points "50":
+   ✅ Botón se habilita
+8. Cambiar points a "0":
+   ✅ Botón se deshabilita
+9. Cambiar points a "101":
+   ✅ Botón se deshabilita
+10. Cambiar points a "abc":
+   ✅ Botón se deshabilita
+11. Cambiar points a "25":
+   ✅ Botón se habilita
+12. Click "Create & Assign":
+   ✅ Loading → botón disabled
+   ✅ Success → form se limpia, botón vuelve a disabled
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Create Task Template (Without Auto-Assign) ✅ COMPLETADO
+
+### Objetivo
+Cambiar el flujo de "Create Custom Task" para que cree solo el template (sin asignar automáticamente) y agregar validaciones estrictas.
+
+### Problema
+1. El formulario permitía crear tareas con solo el título (points tenía default, description era opcional)
+2. Al crear una custom task, se asignaba automáticamente al child seleccionado
+3. Las custom tasks no aparecían en la lista de templates disponibles
+
+### Archivos Modificados
+```
+app/api/parent/tasks/custom-create-and-assign/route.ts  (UPDATED)
+app/v2/parent/tasks/ParentTasksClient.tsx               (UPDATED)
+lib/repositories/taskRepository.ts                       (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Backend (`custom-create-and-assign/route.ts`):**
+- ✅ Soporta dos modos:
+  - **Create-only**: Sin `childId` → crea template sin asignar
+  - **Create & Assign**: Con `childId` → crea template y asigna (compatibilidad hacia atrás)
+- ✅ `description` ahora es **requerida** (antes opcional)
+- ✅ `points` debe ser **entero** (1-100), no solo number
+- ✅ Respuesta incluye `assigned: boolean` para indicar si se asignó
+
+**Frontend (`ParentTasksClient.tsx`):**
+- ✅ `description` ahora es requerida (label sin "optional")
+- ✅ `points` inicializa como `""` (sin default)
+- ✅ Validación `canCreate` incluye `descriptionOk`
+- ✅ Botón renombrado a "Create Task Template"
+- ✅ Fetch NO envía `childId` (create-only mode)
+- ✅ Post-success: solo refetch templates, NO assigned tasks
+- ✅ Título de sección cambiado a "Create Task Template"
+
+**Repository (`taskRepository.ts`):**
+- ✅ `listAvailableTasksForParent` ahora incluye:
+  - Global tasks (`is_global=true`)
+  - Parent's custom tasks (`is_global=false`, `created_by_parent_id=parentId`)
+- ✅ Ordena por `created_at DESC` (nuevas templates aparecen primero)
+
+### Estado Final
+
+**Validaciones del botón "Create Task Template":**
+- ❌ Disabled si title vacío
+- ❌ Disabled si description vacío
+- ❌ Disabled si points vacío, NaN, no entero, o fuera de rango 1-100
+- ✅ Enabled solo cuando todos los campos son válidos
+
+**Flujo de creación:**
+1. Parent llena form (title, description, points)
+2. Click "Create Task Template"
+3. Se crea template en tabla `tasks` (sin asignar)
+4. Template aparece **primero** en lista "Assign Task"
+5. Parent puede hacer click "Assign" para asignarla al child
+6. Solo entonces aparece en "Tasks for {Child}"
+
+### Test Manual
+```
+1. Login como parent
+2. Navegar a /v2/parent/tasks?childId=...
+3. Click "New Task" para mostrar form
+4. Verificar validaciones:
+   ✅ Title vacío → botón disabled
+   ✅ Description vacío → botón disabled
+   ✅ Points vacío/inválido → botón disabled
+   ✅ Todos válidos → botón enabled
+5. Crear template:
+   ✅ Llenar title, description, points válidos
+   ✅ Click "Create Task Template"
+   ✅ Success: "Task template created!"
+   ✅ Template aparece PRIMERO en "Assign Task"
+   ✅ NO aparece en "Tasks for {Child}"
+6. Asignar template:
+   ✅ Click "Assign" en la nueva template
+   ✅ Template aparece en "Tasks for {Child}" como Pending
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```
+
+---
+
+## PRXX: Fix Modal Overlay/Backdrop Across V2 ✅ COMPLETADO
+
+### Objetivo
+Corregir el bug visual donde los modals/popups en V2 tenían backdrop transparente o casi transparente, permitiendo ver y clickear elementos detrás del modal.
+
+### Problema
+- Modals en V2 (especialmente "Request Reward?") tenían backdrop transparente o `bg-black/70` sin blur
+- No bloqueaban interacción con el fondo (scroll, clicks)
+- No había un componente reutilizable para modals con estilo consistente
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                                    (NEW)
+app/v2/child/rewards/page.tsx                                 (UPDATED)
+app/v2/parent/rewards/ParentRewardsClient.tsx                 (UPDATED)
+docs/V2_MIGRATION_PLAN.md                                     (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Nuevo Componente (`components/ikido/modal.tsx`):**
+- ✅ Componente Modal reutilizable con:
+  - Backdrop oscuro con blur: `bg-black/60 backdrop-blur-sm`
+  - Bloqueo de scroll del body cuando está abierto (`document.body.style.overflow = "hidden"`)
+  - Z-index correcto (z-50 para modal, backdrop fijo)
+  - Estilo IKIDO (glassy panel con border amarillo)
+  - Click fuera para cerrar (opcional, `closeOnBackdropClick`)
+  - Accesibilidad (aria-modal, aria-labelledby)
+  - Animaciones (fade-in, zoom-in)
+
+**Modals Actualizados:**
+1. **Child Rewards - "Request Reward?"** (`app/v2/child/rewards/page.tsx`):
+   - Reemplazado div custom por `<Modal>` component
+   - Backdrop ahora oscuro con blur
+   - Scroll bloqueado cuando está abierto
+
+2. **Parent Rewards - Create/Edit Modals** (`app/v2/parent/rewards/ParentRewardsClient.tsx`):
+   - Reemplazado componente `Modal` local por `<Modal>` de `@/components/ikido/modal`
+   - Eliminado componente Modal duplicado
+   - Ambos modals (Create y Edit) ahora usan el mismo componente base
+
+### Características del Nuevo Modal
+
+**Props:**
+- `isOpen: boolean` - Controla visibilidad
+- `onClose: () => void` - Callback al cerrar
+- `title?: string` - Título opcional (si no se provee, no se renderiza header)
+- `children: React.ReactNode` - Contenido del modal
+- `className?: string` - Clases adicionales para el panel
+- `showCloseButton?: boolean` - Mostrar botón X (default: true)
+- `closeOnBackdropClick?: boolean` - Cerrar al click fuera (default: true)
+
+**Comportamiento:**
+- Backdrop: `bg-black/60 backdrop-blur-sm` (oscuro con blur sutil)
+- Bloqueo de scroll: automático cuando `isOpen === true`
+- Z-index: `z-50` para modal y backdrop
+- Mobile-first: padding `p-4`, max-width `max-w-sm`, responsive
+
+### Estado Final
+
+✅ Todos los modals en V2 tienen backdrop oscuro con blur
+✅ No se puede clickear nada detrás del modal
+✅ Scroll del body bloqueado cuando modal está abierto
+✅ Estilo consistente IKIDO en todos los modals
+✅ Componente reutilizable para futuros modals
+
+### Test Manual
+```
+1. Child Rewards:
+   ✅ Ir a /v2/child/rewards
+   ✅ Click "Request" en cualquier reward
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar que no se puede clickear rewards detrás
+   ✅ Verificar que scroll está bloqueado
+   ✅ Click fuera del modal → se cierra
+
+2. Parent Rewards:
+   ✅ Ir a /v2/parent/rewards
+   ✅ Click "+ New" → Create Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Click "Edit" en reward → Edit Modal
+   ✅ Verificar backdrop oscuro con blur
+   ✅ Verificar bloqueo de interacción
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅ (42 routes)
+```
+
+---
+
+## PRXX: Improve Modal Panel Solid Background (Request Reward) ✅ COMPLETADO
+
+### Objetivo
+Mejorar la legibilidad del modal "Request Reward?" haciendo el panel más sólido y opaco, manteniendo el backdrop oscuro con blur que ya funciona bien.
+
+### Problema
+- El panel del modal se veía demasiado transparente/glassy y se mezclaba con el fondo
+- Textos informativos tenían bajo contraste
+- El header y elementos internos no tenían suficiente separación visual
+
+### Archivos Modificados
+```
+components/ikido/modal.tsx                    (UPDATED)
+app/v2/child/rewards/page.tsx                (UPDATED)
+docs/V2_MIGRATION_PLAN.md                    (UPDATED: esta sección)
+```
+
+### Cambios Realizados
+
+**Componente Modal (`components/ikido/modal.tsx`):**
+- ✅ Agregada prop `variant` con opciones:
+  - `"solid"` (default): Panel más opaco para mejor legibilidad
+  - `"glassy"`: Estilo glassy original (para compatibilidad)
+- ✅ Variant "solid" aplica:
+  - Background: `bg-[#1B2F52]/95` (más opaco)
+  - Border: `border-white/10` (sutil)
+  - Shadow: `shadow-2xl ring-1 ring-black/20` (profundidad)
+  - Backdrop blur: `backdrop-blur-xl` (efecto adicional)
+  - Rounded: `rounded-3xl` (bordes más redondeados)
+- ✅ Botón close mejorado en variant "solid":
+  - `bg-white/5 hover:bg-white/10` (fondo visible)
+  - `rounded-full p-2` (mejor área de click)
+
+**Modal "Request Reward?" (`app/v2/child/rewards/page.tsx`):**
+- ✅ Usa `variant="solid"` para panel más sólido
+- ✅ Reward summary card mejorada:
+  - Background: `bg-[#142744]/90` (más oscuro que el panel)
+  - Border: `border-white/10` (separación clara)
+  - Rounded: `rounded-2xl`
+- ✅ Info note mejorada:
+  - Border: `border-white/10` (separador visual)
+  - Texto principal: `text-[var(--ik-accent-cyan)] font-medium` (más contraste)
+  - Texto secundario: `text-white/70` (mejor legibilidad)
+
+### Estado Final
+
+**Panel del Modal:**
+- ✅ Background sólido `bg-[#1B2F52]/95` (no transparente)
+- ✅ Shadow y ring para profundidad
+- ✅ Bordes redondeados `rounded-3xl`
+- ✅ Backdrop blur adicional
+
+**Elementos Internos:**
+- ✅ Reward card con fondo más oscuro y border
+- ✅ Textos con mejor contraste
+- ✅ Separadores visuales claros
+- ✅ Botones mantienen estilo IKIDO
+
+**Compatibilidad:**
+- ✅ Otros modals pueden usar `variant="glassy"` si necesitan el estilo original
+- ✅ Default es "solid" para mejor legibilidad
+
+### Test Manual
+```
+1. Ir a /v2/child/rewards
+2. Click "Request" en cualquier reward
+3. Verificar:
+   ✅ Panel del modal es sólido (no transparente)
+   ✅ Textos se leen perfectamente
+   ✅ Reward card tiene fondo distinto al panel
+   ✅ Info note tiene border y buen contraste
+   ✅ Botones se ven bien sobre el panel sólido
+   ✅ Backdrop sigue oscuro con blur
+```
+
+### Validación
+```bash
+npm run lint      # ✅
+npm run typecheck # ✅
+npm run build     # ✅
+```

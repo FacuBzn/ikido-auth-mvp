@@ -10,7 +10,8 @@ import {
   PrimaryButton,
   PointsPill,
 } from "@/components/ikido";
-import { ArrowLeft, Gift, RefreshCw, X, Clock, Check } from "lucide-react";
+import { Modal } from "@/components/ikido/modal";
+import { ArrowLeft, Gift, RefreshCw, Clock, Check } from "lucide-react";
 import { useSessionStore } from "@/store/useSessionStore";
 
 /**
@@ -436,62 +437,62 @@ export default function V2ChildRewardsPage() {
       </div>
 
       {/* Confirm Modal */}
-      {confirmReward && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-          <div className="bg-[var(--ik-bg-dark)] border-2 border-[var(--ik-accent-yellow)] rounded-2xl p-6 max-w-sm w-full space-y-4 animate-in fade-in zoom-in duration-200">
-            {/* Header */}
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[var(--ik-accent-cyan)]/20 flex items-center justify-center">
-                  <Gift className="w-5 h-5 text-[var(--ik-accent-cyan)]" />
-                </div>
-                <h3 className="text-lg font-bold text-white">Request Reward?</h3>
-              </div>
-              <button
-                onClick={() => setConfirmReward(null)}
-                className="text-[var(--ik-text-muted)] hover:text-white transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+      <Modal
+        isOpen={!!confirmReward}
+        onClose={() => setConfirmReward(null)}
+        title=""
+        showCloseButton={true}
+        variant="solid"
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between -mt-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[var(--ik-accent-cyan)]/20 flex items-center justify-center">
+              <Gift className="w-5 h-5 text-[var(--ik-accent-cyan)]" />
             </div>
+            <h3 className="text-lg font-bold text-white">Request Reward?</h3>
+          </div>
+        </div>
 
-            {/* Reward Info */}
-            <div className="bg-[var(--ik-surface-1)] rounded-xl p-4 space-y-2">
-              <p className="text-white font-bold">{confirmReward.name}</p>
+        {/* Reward Info */}
+        {confirmReward && (
+          <>
+            <div className="bg-[#1B263B] border-2 border-[#415A77] rounded-2xl p-4 space-y-3" style={{ backgroundColor: "#1B263B" }}>
+              <p className="text-white font-bold text-lg">{confirmReward.name}</p>
               <div className="flex items-center gap-2">
-                <span className="text-[var(--ik-accent-yellow)] font-bold">
+                <span className="text-[var(--ik-accent-yellow)] font-bold text-xl">
                   🪙 {confirmReward.cost} GG
                 </span>
               </div>
             </div>
 
             {/* Info Note */}
-            <div className="text-center text-sm bg-[var(--ik-accent-cyan)]/10 rounded-xl p-3">
-              <p className="text-[var(--ik-accent-cyan)]">
+            <div className="text-center text-sm bg-[#1B263B] border-2 border-[#415A77] rounded-xl p-4" style={{ backgroundColor: "#1B263B" }}>
+              <p className="text-[var(--ik-accent-cyan)] font-semibold">
                 Your parent will need to approve this request.
               </p>
-              <p className="text-[var(--ik-text-muted)] text-xs mt-1">
+              <p className="text-white text-xs mt-2">
                 Points will be deducted after approval.
               </p>
             </div>
+          </>
+        )}
 
-            {/* Actions */}
-            <div className="flex gap-3">
-              <SecondaryButton onClick={() => setConfirmReward(null)} fullWidth>
-                Cancel
-              </SecondaryButton>
-              <PrimaryButton
-                onClick={handleConfirmRequest}
-                fullWidth
-                disabled={requestingRewardId !== null}
-                loading={requestingRewardId === confirmReward.id}
-              >
-                Request
-              </PrimaryButton>
-            </div>
-          </div>
+        {/* Actions */}
+        <div className="flex gap-3">
+          <SecondaryButton onClick={() => setConfirmReward(null)} fullWidth>
+            Cancel
+          </SecondaryButton>
+          <PrimaryButton
+            onClick={handleConfirmRequest}
+            fullWidth
+            disabled={requestingRewardId !== null}
+            loading={requestingRewardId === confirmReward?.id}
+          >
+            Request
+          </PrimaryButton>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

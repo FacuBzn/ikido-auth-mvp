@@ -54,6 +54,7 @@ type Screen =
   | "child-insights"
   | "approvals"
   | "rewards-management"
+  | "create-account"
 
 // Mock Data
 const mockChildren = [
@@ -207,6 +208,10 @@ export default function IKidOApp() {
   const [childCode, setChildCode] = useState("")
   const [selectedReward, setSelectedReward] = useState<string | null>(null)
   const [activityFilter, setActivityFilter] = useState("All")
+  const [registerName, setRegisterName] = useState("")
+  const [registerEmail, setRegisterEmail] = useState("")
+  const [registerPassword, setRegisterPassword] = useState("")
+  const [registerConfirmPassword, setRegisterConfirmPassword] = useState("")
 
   const selectedChild = mockChildren.find((c) => c.id === selectedChildId) || mockChildren[0]
   const familyCode = "RZHNEV"
@@ -227,6 +232,20 @@ export default function IKidOApp() {
         )
       case "child-login":
         return <ChildLoginScreen code={childCode} setCode={setChildCode} onNavigate={setCurrentScreen} />
+      case "create-account":
+        return (
+          <CreateAccountScreen
+            name={registerName}
+            setName={setRegisterName}
+            email={registerEmail}
+            setEmail={setRegisterEmail}
+            password={registerPassword}
+            setPassword={setRegisterPassword}
+            confirmPassword={registerConfirmPassword}
+            setConfirmPassword={setRegisterConfirmPassword}
+            onNavigate={setCurrentScreen}
+          />
+        )
       case "parent-dashboard":
         return <ParentDashboardScreen familyCode={familyCode} children={mockChildren} onNavigate={setCurrentScreen} />
       case "assign-tasks":
@@ -391,7 +410,12 @@ function ParentLoginScreen({
 
         <div className="text-center mt-6">
           <p className="text-[var(--ik-text-muted)] text-sm mb-2">{"Don't have an account?"}</p>
-          <button className="text-[var(--ik-accent-cyan)] font-bold underline">Create one now</button>
+          <button
+            onClick={() => onNavigate("create-account")}
+            className="text-[var(--ik-accent-cyan)] font-bold underline"
+          >
+            Create one now
+          </button>
         </div>
 
         <div className="absolute bottom-6 left-6">
@@ -443,6 +467,108 @@ function ChildLoginScreen({
         <p className="text-[var(--ik-text-muted)] text-sm text-center mt-4">
           Ask your parent for your unique child code
         </p>
+
+        <div className="absolute bottom-6 left-6">
+          <div className="w-10 h-10 rounded-full bg-[var(--ik-surface-1)] border-2 border-[var(--ik-outline-light)] flex items-center justify-center text-white font-bold">
+            N
+          </div>
+        </div>
+      </div>
+    </MobileScreenShell>
+  )
+}
+
+// B2) Create Account Screen
+function CreateAccountScreen({
+  name,
+  setName,
+  email,
+  setEmail,
+  password,
+  setPassword,
+  confirmPassword,
+  setConfirmPassword,
+  onNavigate,
+}: {
+  name: string
+  setName: (v: string) => void
+  email: string
+  setEmail: (v: string) => void
+  password: string
+  setPassword: (v: string) => void
+  confirmPassword: string
+  setConfirmPassword: (v: string) => void
+  onNavigate: (screen: Screen) => void
+}) {
+  const passwordsMatch = password === confirmPassword || confirmPassword === ""
+  const isValid = name && email && password && confirmPassword && password === confirmPassword && password.length >= 6
+
+  return (
+    <MobileScreenShell>
+      <div className="flex flex-col min-h-[700px] px-4 py-6">
+        {/* Back to Login button */}
+        <SecondaryButton
+          size="sm"
+          icon={<span>←</span>}
+          onClick={() => onNavigate("parent-login")}
+          className="self-start mb-4"
+        >
+          BACK TO LOGIN
+        </SecondaryButton>
+
+        <div className="flex justify-center mb-4">
+          <IkidoLogo />
+        </div>
+
+        <h1 className="text-2xl font-black text-white text-center mb-6">Create Parent Account</h1>
+
+        <PanelCard className="mb-6">
+          <div className="space-y-4">
+            <TextInput label="Full Name" type="text" placeholder="Your name" value={name} onChange={setName} />
+
+            <TextInput label="Email" type="email" placeholder="your@email.com" value={email} onChange={setEmail} />
+
+            <TextInput
+              label="Password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={setPassword}
+              helper="Minimum 6 characters"
+              error={password && password.length < 6 ? "Password must be at least 6 characters" : undefined}
+            />
+
+            <TextInput
+              label="Confirm Password"
+              type="password"
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={setConfirmPassword}
+              error={!passwordsMatch ? "Passwords do not match" : undefined}
+            />
+          </div>
+        </PanelCard>
+
+        <PrimaryButton
+          fullWidth
+          icon={<Star className="w-5 h-5" />}
+          onClick={() => onNavigate("parent-dashboard")}
+          disabled={!isValid}
+        >
+          Create Account
+        </PrimaryButton>
+
+        <div className="text-center mt-6">
+          <p className="text-[var(--ik-text-muted)] text-sm">
+            Already have an account?{" "}
+            <button
+              onClick={() => onNavigate("parent-login")}
+              className="text-[var(--ik-accent-cyan)] font-bold underline"
+            >
+              Sign in instead
+            </button>
+          </p>
+        </div>
 
         <div className="absolute bottom-6 left-6">
           <div className="w-10 h-10 rounded-full bg-[var(--ik-surface-1)] border-2 border-[var(--ik-outline-light)] flex items-center justify-center text-white font-bold">

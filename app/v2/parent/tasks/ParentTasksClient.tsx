@@ -21,10 +21,10 @@ import {
   CheckCircle2,
   Clock,
   Award,
-  Trash2,
 } from "lucide-react";
 import { useSessionStore } from "@/store/useSessionStore";
 import type { ChildForSelector } from "./page";
+import type { ChildTaskInstance } from "@/lib/types/tasks";
 
 /**
  * Task template type
@@ -38,19 +38,9 @@ type TaskTemplate = {
 };
 
 /**
- * Assigned task type
+ * Assigned task type (alias for ChildTaskInstance from API)
  */
-type AssignedTask = {
-  id: string;
-  task_id: string;
-  child_id: string;
-  status: "pending" | "completed" | "approved" | "rejected";
-  points: number;
-  assigned_at: string;
-  completed_at: string | null;
-  title?: string;
-  description?: string | null;
-};
+type AssignedTask = ChildTaskInstance;
 
 interface ParentTasksClientProps {
   parentId: string;
@@ -85,7 +75,6 @@ export function ParentTasksClient({
   const [isLoadingAssigned, setIsLoadingAssigned] = useState(false);
   const [assigningTaskId, setAssigningTaskId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   const [approvingTaskId, setApprovingTaskId] = useState<string | null>(null);
 
   // Error state
@@ -95,7 +84,14 @@ export function ParentTasksClient({
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customTitle, setCustomTitle] = useState("");
   const [customDescription, setCustomDescription] = useState("");
-  const [customPoints, setCustomPoints] = useState("10");
+  const [customPoints, setCustomPoints] = useState("");
+
+  // Validation for create button
+  const parsedPoints = Number(customPoints);
+  const titleOk = customTitle.trim().length > 0;
+  const descriptionOk = customDescription.trim().length > 0;
+  const pointsOk = Number.isFinite(parsedPoints) && Number.isInteger(parsedPoints) && parsedPoints >= 1 && parsedPoints <= 100;
+  const canCreate = titleOk && descriptionOk && pointsOk && !isCreating;
 
   // Success feedback
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -222,57 +218,49 @@ export function ParentTasksClient({
     }
   };
 
-  // Handle create custom task
+  // Handle create custom task (create-only, no auto-assign)
   const handleCreateCustomTask = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedChildId) {
-      setError("Please select a child first");
+    // Client-side validation guards (even though button is disabled)
+    if (!titleOk || !descriptionOk || !pointsOk) {
+      setError("Please fill Title, Description, and Points (1-100).");
       return;
     }
 
-    if (!customTitle.trim()) {
-      setError("Task title is required");
-      return;
-    }
-
-    const points = parseInt(customPoints, 10);
-    if (isNaN(points) || points < 1 || points > 100) {
-      setError("Points must be between 1 and 100");
-      return;
-    }
+    const points = parsedPoints;
 
     setIsCreating(true);
     setError(null);
 
     try {
+      // Create-only mode: don't send childId
       const response = await fetch("/api/parent/tasks/custom-create-and-assign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          childId: selectedChildId,
           title: customTitle.trim(),
+          description: customDescription.trim(),
           points: points,
-          description: customDescription.trim() || undefined,
         }),
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || "Failed to create task");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create task");
       }
 
       // Success - clear form
       setCustomTitle("");
       setCustomDescription("");
-      setCustomPoints("10");
+      setCustomPoints("");
       setShowCustomForm(false);
 
-      setSuccessMessage("Task created & assigned!");
+      setSuccessMessage("Task template created!");
       setTimeout(() => setSuccessMessage(null), 2000);
 
-      // Refetch both lists
-      await Promise.all([fetchAssignedTasks(), fetchTemplates()]);
+      // Refetch only templates (not assigned tasks, since we didn't assign)
+      await fetchTemplates();
     } catch (err) {
       console.error("[V2 ParentTasks] Failed to create custom task:", err);
       setError(err instanceof Error ? err.message : "Failed to create task");
@@ -314,39 +302,6 @@ export function ParentTasksClient({
     }
   };
 
-  // Handle delete assigned task
-  const handleDeleteAssignment = async (taskId: string) => {
-    if (!confirm("Remove this task assignment?")) return;
-
-    setDeletingTaskId(taskId);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/parent/tasks/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          taskId,
-          childId: selectedChildId,
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || "Failed to delete");
-      }
-
-      // Remove from local state
-      setAssignedTasks((prev) => prev.filter((t) => t.id !== taskId));
-      setSuccessMessage("Task removed");
-      setTimeout(() => setSuccessMessage(null), 2000);
-    } catch (err) {
-      console.error("[V2 ParentTasks] Failed to delete:", err);
-      setError(err instanceof Error ? err.message : "Failed to delete");
-    } finally {
-      setDeletingTaskId(null);
-    }
-  };
 
   // Get selected child info
   const selectedChild = childrenList.find((c) => c.id === selectedChildId);
@@ -543,8 +498,6 @@ export function ParentTasksClient({
                               key={task.id}
                               task={task}
                               statusBadge={getStatusBadge(task.status)}
-                              onDelete={() => handleDeleteAssignment(task.id)}
-                              isDeleting={deletingTaskId === task.id}
                             />
                           ))}
                         </div>
@@ -561,8 +514,6 @@ export function ParentTasksClient({
                               key={task.id}
                               task={task}
                               statusBadge={getStatusBadge(task.status)}
-                              onDelete={() => handleDeleteAssignment(task.id)}
-                              isDeleting={deletingTaskId === task.id}
                               showApprove
                               onApprove={() => handleApproveTask(task)}
                               isApproving={approvingTaskId === task.id}
@@ -582,8 +533,6 @@ export function ParentTasksClient({
                               key={task.id}
                               task={task}
                               statusBadge={getStatusBadge(task.status)}
-                              onDelete={() => handleDeleteAssignment(task.id)}
-                              isDeleting={deletingTaskId === task.id}
                             />
                           ))}
                         </div>
@@ -660,7 +609,7 @@ export function ParentTasksClient({
                 <PanelCard className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h2 className="text-lg font-bold text-white">
-                      Create Custom Task
+                      Create Task Template
                     </h2>
                     {!showCustomForm && (
                       <SecondaryButton
@@ -682,27 +631,43 @@ export function ParentTasksClient({
                         disabled={isCreating}
                       />
                       <TextInput
-                        label="Description (optional)"
+                        label="Description"
                         placeholder="Additional details..."
                         value={customDescription}
                         onChange={setCustomDescription}
                         disabled={isCreating}
+                        helper={!descriptionOk && customDescription !== "" ? "Description is required" : undefined}
                       />
                       <TextInput
                         label="GGPoints (1-100)"
                         placeholder="10"
+                        type="number"
+                        min={1}
+                        max={100}
+                        inputMode="numeric"
                         value={customPoints}
                         onChange={setCustomPoints}
+                        onBlur={() => {
+                          if (customPoints === "") return;
+                          const n = Number(customPoints);
+                          if (!Number.isFinite(n) || !Number.isInteger(n)) {
+                            setCustomPoints("");
+                            return;
+                          }
+                          const clamped = Math.min(100, Math.max(1, Math.round(n)));
+                          setCustomPoints(String(clamped));
+                        }}
                         disabled={isCreating}
+                        helper={!pointsOk && customPoints !== "" ? "Points must be an integer between 1 and 100" : undefined}
                       />
                       <div className="flex gap-3">
                         <PrimaryButton
                           type="submit"
-                          disabled={isCreating || !customTitle.trim()}
+                          disabled={!canCreate}
                           loading={isCreating}
                           fullWidth
                         >
-                          Create & Assign
+                          Create Task Template
                         </PrimaryButton>
                         <SecondaryButton
                           type="button"
@@ -710,7 +675,7 @@ export function ParentTasksClient({
                             setShowCustomForm(false);
                             setCustomTitle("");
                             setCustomDescription("");
-                            setCustomPoints("10");
+                            setCustomPoints("");
                           }}
                         >
                           Cancel
@@ -739,8 +704,6 @@ export function ParentTasksClient({
 interface TaskRowProps {
   task: AssignedTask;
   statusBadge: React.ReactNode;
-  onDelete: () => void;
-  isDeleting: boolean;
   showApprove?: boolean;
   onApprove?: () => void;
   isApproving?: boolean;
@@ -749,12 +712,14 @@ interface TaskRowProps {
 function TaskRow({
   task,
   statusBadge,
-  onDelete,
-  isDeleting,
   showApprove = false,
   onApprove,
   isApproving = false,
 }: TaskRowProps) {
+  // Get title and description from joined task data
+  const title = task.task?.title ?? "Untitled Task";
+  const description = task.task?.description ?? null;
+
   return (
     <div
       className={`bg-[var(--ik-surface-1)] border rounded-xl p-4 ${
@@ -765,10 +730,10 @@ function TaskRow({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-white">{task.title || "Task"}</p>
-          {task.description && (
-            <p className="text-[var(--ik-text-muted)] text-xs mt-1 line-clamp-1">
-              {task.description}
+          <p className="font-bold text-white">{title}</p>
+          {description && (
+            <p className="text-[var(--ik-text-muted)] text-xs mt-1 line-clamp-2">
+              {description}
             </p>
           )}
           <div className="flex items-center gap-3 mt-2">
@@ -778,40 +743,26 @@ function TaskRow({
             {statusBadge}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Approve Button */}
-          {showApprove && onApprove && (
-            <button
-              onClick={onApprove}
-              disabled={isApproving}
-              className="ik-btn-primary flex items-center gap-2 px-3 py-2 text-sm disabled:opacity-50"
-            >
-              {isApproving ? (
-                <>
-                  <div className="animate-spin w-4 h-4 border-2 border-[var(--ik-bg-dark)] border-t-transparent rounded-full" />
-                  <span>...</span>
-                </>
-              ) : (
-                <>
-                  <Award className="w-4 h-4" />
-                  <span>Approve</span>
-                </>
-              )}
-            </button>
-          )}
-          {/* Delete Button */}
+        {/* Approve Button - only shown for completed tasks awaiting approval */}
+        {showApprove && onApprove && (
           <button
-            onClick={onDelete}
-            disabled={isDeleting}
-            className="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-500/10 transition-colors disabled:opacity-50"
+            onClick={onApprove}
+            disabled={isApproving}
+            className="ik-btn-primary flex items-center gap-2 px-3 py-2 text-sm disabled:opacity-50 shrink-0"
           >
-            {isDeleting ? (
-              <div className="animate-spin w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full" />
+            {isApproving ? (
+              <>
+                <div className="animate-spin w-4 h-4 border-2 border-[var(--ik-bg-dark)] border-t-transparent rounded-full" />
+                <span>...</span>
+              </>
             ) : (
-              <Trash2 className="w-4 h-4" />
+              <>
+                <Award className="w-4 h-4" />
+                <span>Approve</span>
+              </>
             )}
           </button>
-        </div>
+        )}
       </div>
     </div>
   );

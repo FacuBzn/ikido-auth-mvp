@@ -165,19 +165,38 @@ export async function listAvailableTasksForParent(
     }
   }
 
-  // Query global tasks, excluding hidden ones
-  // If there are hidden tasks, filter them out
-  // Note: Supabase doesn't support NOT IN directly, so we filter in memory if needed
-  const { data: allTasks, error } = await supabase
-    .from("tasks")
-    .select("*")
-    .eq("is_global", true)
-    .order("title");
+  // Query tasks: global tasks + parent's custom tasks
+  // Order by created_at DESC so newest templates appear first
+  // Use two separate queries and combine (more reliable than complex .or())
+  const [globalTasksResult, customTasksResult] = await Promise.all([
+    supabase
+      .from("tasks")
+      .select("*")
+      .eq("is_global", true),
+    supabase
+      .from("tasks")
+      .select("*")
+      .eq("is_global", false)
+      .eq("created_by_parent_id", parentId),
+  ]);
 
-  if (error) {
-    console.error("[tasks:listAvailableTasksForParent] Error:", error);
+  if (globalTasksResult.error) {
+    console.error("[tasks:listAvailableTasksForParent] Error fetching global tasks:", globalTasksResult.error);
     throw new TaskError("DATABASE_ERROR", "Failed to fetch tasks");
   }
+
+  if (customTasksResult.error) {
+    console.error("[tasks:listAvailableTasksForParent] Error fetching custom tasks:", customTasksResult.error);
+    throw new TaskError("DATABASE_ERROR", "Failed to fetch tasks");
+  }
+
+  // Combine and sort by created_at DESC
+  const allTasks = [...(globalTasksResult.data || []), ...(customTasksResult.data || [])]
+    .sort((a, b) => {
+      const dateA = new Date(a.created_at || 0).getTime();
+      const dateB = new Date(b.created_at || 0).getTime();
+      return dateB - dateA; // DESC
+    });
 
   // Filter out hidden tasks in memory
   const data = hiddenTaskIds.length > 0
