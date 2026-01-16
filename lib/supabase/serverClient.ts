@@ -92,7 +92,7 @@ export const createSupabaseRouteHandlerClient = (request: NextRequest) => {
 };
 
 /**
- * Creates a Supabase client for middleware (app/proxy.ts).
+ * Creates a Supabase client for middleware.
  */
 export const createMiddlewareClient = (request: NextRequest) =>
   createSupabaseRouteHandlerClient(request);
