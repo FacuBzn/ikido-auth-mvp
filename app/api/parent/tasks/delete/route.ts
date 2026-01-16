@@ -5,6 +5,15 @@
  * - Global tasks (is_global = true): Hidden (soft delete visual) via child_hidden_tasks (per child)
  *   Requires childId in request body
  * - Custom tasks (is_global = false, created_by_parent_id = auth.uid()): Hard delete
+ * 
+ * IMPORTANT: This endpoint handles task TEMPLATES only, not child_tasks assignments.
+ * Once a task is assigned to a child (child_tasks row exists), it should NOT be deleted
+ * for traceability and consistency reasons:
+ * - Pending: child might be working on it
+ * - Completed: awaiting approval, deletion would break the flow
+ * - Approved: deletion breaks history/audit trail
+ * 
+ * Assigned tasks (child_tasks) are immutable once created - they remain for historical record.
  */
 
 import { NextResponse } from "next/server";
