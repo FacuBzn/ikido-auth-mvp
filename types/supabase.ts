@@ -156,6 +156,8 @@ export type Database = {
           assigned_at: string;
           completed_at: string | null;
           approved_at: string | null;
+          period_key: string;
+          assigned_for_date: string;
         };
         Insert: {
           id?: string;
@@ -167,6 +169,8 @@ export type Database = {
           assigned_at?: string;
           completed_at?: string | null;
           approved_at?: string | null;
+          period_key?: string;
+          assigned_for_date?: string;
         };
         Update: {
           id?: string;
@@ -178,6 +182,8 @@ export type Database = {
           assigned_at?: string;
           completed_at?: string | null;
           approved_at?: string | null;
+          period_key?: string;
+          assigned_for_date?: string;
         };
         Relationships: [
           {

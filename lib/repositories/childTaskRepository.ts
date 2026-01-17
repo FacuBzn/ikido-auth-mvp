@@ -25,10 +25,12 @@ type ChildTaskRow = Db["child_tasks"]["Row"];
 type TaskRow = Db["tasks"]["Row"];
 
 // Type for child_tasks query result with joined tasks
-// NOTE: approved_at is NOT included in queries, so it's optional here
+// NOTE: approved_at, period_key, and assigned_for_date may not be included in all queries, so they're optional here
 // tasks is a partial TaskRow since we only select specific fields
-type ChildTaskRowWithTask = Omit<ChildTaskRow, 'approved_at'> & {
+type ChildTaskRowWithTask = Omit<ChildTaskRow, 'approved_at' | 'period_key' | 'assigned_for_date'> & {
   approved_at?: string | null;
+  period_key?: string;
+  assigned_for_date?: string;
   tasks?: Pick<TaskRow, 'id' | 'title' | 'description' | 'points' | 'is_global'> | null;
 };
 
