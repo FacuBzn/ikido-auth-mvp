@@ -37,11 +37,11 @@ export default async function V2ChildActivityPage({ params }: PageProps) {
   const authUser = await getAuthenticatedUser();
 
   if (!authUser) {
-    redirect("/v2/parent/login");
+    redirect("/parent/login");
   }
 
   if (authUser.profile.role !== "Parent") {
-    redirect("/v2/child/dashboard");
+    redirect("/child/dashboard");
   }
 
   const supabase = await createSupabaseServerComponentClient();
@@ -55,7 +55,7 @@ export default async function V2ChildActivityPage({ params }: PageProps) {
     .single();
 
   if (parentError || !parentData) {
-    redirect("/v2/parent/login");
+    redirect("/parent/login");
   }
 
   // Get child and validate ownership

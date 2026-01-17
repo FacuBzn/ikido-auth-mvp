@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createSupabaseServerComponentClient } from "@/lib/supabase/serverClient";
 import { getServerSession } from "@/lib/authHelpers";
-import { ApprovalsClient } from "./ApprovalsClient";
+import { ParentRewardsClient } from "./ParentRewardsClient";
 
 export const metadata: Metadata = {
-  title: "Approve Tasks | iKidO",
+  title: "Manage Rewards | iKidO",
 };
 
 export const dynamic = "force-dynamic";
@@ -13,14 +13,19 @@ export const dynamic = "force-dynamic";
 type ChildForSelector = {
   id: string;
   name: string;
+  points_balance: number;
 };
 
-export default async function V2ParentApprovalsPage() {
+export default async function V2ParentRewardsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ childId?: string }>;
+}) {
   // Server-side auth check
   const session = await getServerSession();
 
   if (!session?.user) {
-    redirect("/v2/parent/login");
+    redirect("/parent/login");
   }
 
   const supabase = await createSupabaseServerComponentClient();
@@ -34,21 +39,31 @@ export default async function V2ParentApprovalsPage() {
     .single();
 
   if (parentError || !parentData) {
-    redirect("/v2/parent/login");
+    redirect("/parent/login");
   }
 
   // Get children list
   const { data: childrenData } = await supabase
     .from("users")
-    .select("id, name")
+    .select("id, name, points_balance")
     .eq("parent_id", parentData.id)
     .eq("role", "child")
     .order("name", { ascending: true });
 
-  const children: ChildForSelector[] = (childrenData || []).map((c) => ({
+  const childrenList: ChildForSelector[] = (childrenData || []).map((c) => ({
     id: c.id,
     name: c.name || "Unknown",
+    points_balance: c.points_balance ?? 0,
   }));
 
-  return <ApprovalsClient childrenList={children} />;
+  // Get initial child from query params
+  const params = await searchParams;
+  const initialChildId = params.childId || childrenList[0]?.id || "";
+
+  return (
+    <ParentRewardsClient
+      childrenList={childrenList}
+      initialChildId={initialChildId}
+    />
+  );
 }

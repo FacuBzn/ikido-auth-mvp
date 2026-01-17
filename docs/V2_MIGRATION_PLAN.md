@@ -2,7 +2,7 @@
 
 ## Resumen
 
-Migración incremental de la UI generada en V0 (`/v0-ui`) hacia la app Next.js existente, usando rutas paralelas `/v2/*` sin afectar las rutas actuales.
+Migración incremental de la UI generada en V0 (`/v0-ui`) hacia la app Next.js existente. **V1 ha sido deprecado y eliminado. V2 es ahora la única versión activa y está en las rutas root (`/parent/*`, `/child/*`).**
 
 ## Análisis Inicial
 

@@ -89,7 +89,7 @@ export function RegisterClient() {
       
       // Redirect to login after a short delay
       setTimeout(() => {
-        router.push("/v2/parent/login");
+        router.push("/parent/login");
       }, 1500);
     } catch (error) {
       console.error("[V2 RegisterClient] Registration error:", error);
@@ -106,7 +106,7 @@ export function RegisterClient() {
       <div className="flex items-center justify-between mb-8">
         {/* Back Button */}
         <Link
-          href="/v2/parent/login"
+          href="/parent/login"
           className="ik-btn-primary flex items-center gap-2 px-4 py-2 text-sm"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -203,7 +203,7 @@ export function RegisterClient() {
                 Already have an account?
               </p>
               <Link
-                href="/v2/parent/login"
+                href="/parent/login"
                 className="text-[var(--ik-accent-yellow)] font-bold underline underline-offset-2 hover:text-[var(--ik-accent-yellow-dark)] transition-colors"
               >
                 Sign in instead

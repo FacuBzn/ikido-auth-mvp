@@ -3,18 +3,22 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerComponentClient } from "@/lib/supabase/serverClient";
-import { getChildrenByParent } from "@/lib/repositories/childRepository";
 import { ParentDashboardClient } from "./ParentDashboardClient";
-import type { Child } from "@/store/useSessionStore";
+import type { Child, Parent } from "@/store/useSessionStore";
 
 export const metadata: Metadata = {
   title: "Parent Dashboard | iKidO",
 };
 
-export default async function ParentDashboardPage() {
+/**
+ * V2 Parent Dashboard Page
+ * Server-side auth check and data fetching
+ * Uses same pattern as current /parent/dashboard
+ */
+export default async function V2ParentDashboardPage() {
   const supabase = await createSupabaseServerComponentClient();
-  
-  // Use getUser() instead of getSession() for secure authentication
+
+  // Use getUser() for secure authentication
   const {
     data: { user },
     error: userError,
@@ -27,7 +31,7 @@ export default async function ParentDashboardPage() {
   // Get parent from users table
   const { data: parentData, error: parentError } = await supabase
     .from("users")
-    .select()
+    .select("id, auth_id, name, email, family_code, created_at")
     .eq("auth_id", user.id)
     .eq("role", "parent")
     .maybeSingle();
@@ -36,34 +40,38 @@ export default async function ParentDashboardPage() {
     redirect("/parent/login");
   }
 
-  // Map users table structure to Parent type
-  const parentRecord = parentData as {
-    id: string;
-    auth_id: string;
-    name: string | null;
-    email: string;
-    family_code?: string | null; // Family code for parent
-    created_at: string;
-  };
+  // Get children for this parent
+  const { data: childrenData, error: childrenError } = await supabase
+    .from("users")
+    .select("id, parent_id, name, child_code, family_code, points_balance, created_at")
+    .eq("role", "child")
+    .eq("parent_id", parentData.id)
+    .order("created_at", { ascending: true });
 
-  // Get children
-  let children: Child[] = [];
-  try {
-    children = await getChildrenByParent(parentRecord.id);
-  } catch (error) {
-    console.error("Failed to load children:", error);
+  if (childrenError) {
+    console.error("[V2 ParentDashboard] Failed to load children:", childrenError);
   }
 
-  const parent = {
-    id: parentRecord.id,
-    auth_user_id: parentRecord.auth_id,
-    full_name: parentRecord.name || "",
-    email: parentRecord.email,
-    family_code: parentRecord.family_code || "", // Use family_code field
-    created_at: parentRecord.created_at,
+  // Map to Parent type
+  const parent: Parent = {
+    id: parentData.id,
+    auth_user_id: parentData.auth_id || user.id,
+    full_name: parentData.name || "",
+    email: parentData.email || user.email || "",
+    family_code: parentData.family_code || "",
+    created_at: parentData.created_at,
   };
 
-  return (
-    <ParentDashboardClient parent={parent} initialChildren={children} />
-  );
+  // Map to Child[] type
+  const children: Child[] = (childrenData || []).map((child) => ({
+    id: child.id,
+    parent_id: child.parent_id || parent.id,
+    name: child.name || "",
+    child_code: child.child_code || undefined,
+    family_code: child.family_code || undefined,
+    points_balance: child.points_balance || 0,
+    created_at: child.created_at,
+  }));
+
+  return <ParentDashboardClient parent={parent} initialChildren={children} />;
 }

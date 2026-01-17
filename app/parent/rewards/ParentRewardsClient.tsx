@@ -186,13 +186,13 @@ export function ParentRewardsClient({
   const handleSelectChild = (childId: string) => {
     setSelectedChildId(childId);
     setShowChildDropdown(false);
-    router.push(`/v2/parent/rewards?childId=${childId}`);
+    router.push(`/parent/rewards?childId=${childId}`);
   };
 
   // Handle logout
   const handleLogout = async () => {
     await logout();
-    router.push("/v2/parent/login");
+    router.push("/parent/login");
     router.refresh();
   };
 
@@ -393,7 +393,7 @@ export function ParentRewardsClient({
     return (
       <div className="min-h-screen flex flex-col p-4">
         <div className="flex items-center justify-between mb-6">
-          <Link href="/v2/parent/dashboard" className="ik-btn-primary flex items-center gap-2 px-4 py-2 text-sm">
+          <Link href="/parent/dashboard" className="ik-btn-primary flex items-center gap-2 px-4 py-2 text-sm">
             <ArrowLeft className="w-4 h-4" />
             <span>BACK</span>
           </Link>
@@ -403,7 +403,7 @@ export function ParentRewardsClient({
         <PanelCard className="text-center py-12">
           <User className="w-12 h-12 text-[var(--ik-text-muted)] mx-auto mb-4" />
           <p className="text-[var(--ik-text-muted)]">No children yet</p>
-          <Link href="/v2/parent/dashboard" className="text-[var(--ik-accent-cyan)] text-sm underline mt-2 inline-block">
+          <Link href="/parent/dashboard" className="text-[var(--ik-accent-cyan)] text-sm underline mt-2 inline-block">
             Add a child first
           </Link>
         </PanelCard>
@@ -415,7 +415,7 @@ export function ParentRewardsClient({
     <div className="min-h-screen flex flex-col p-4">
       {/* Top Bar */}
       <div className="flex items-center justify-between mb-6">
-        <Link href="/v2/parent/dashboard" className="ik-btn-primary flex items-center gap-2 px-4 py-2 text-sm">
+        <Link href="/parent/dashboard" className="ik-btn-primary flex items-center gap-2 px-4 py-2 text-sm">
           <ArrowLeft className="w-4 h-4" />
           <span>BACK</span>
         </Link>

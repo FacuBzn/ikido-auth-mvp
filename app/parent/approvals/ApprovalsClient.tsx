@@ -137,7 +137,7 @@ export function ApprovalsClient({ childrenList }: ApprovalsClientProps) {
       <div className="min-h-screen flex flex-col p-4">
         <div className="flex items-center justify-between mb-6">
           <Link
-            href="/v2/parent/dashboard"
+            href="/parent/dashboard"
             className="ik-btn-primary flex items-center gap-2 px-4 py-2 text-sm"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -151,7 +151,7 @@ export function ApprovalsClient({ childrenList }: ApprovalsClientProps) {
           <User className="w-12 h-12 text-[var(--ik-text-muted)] mx-auto mb-4" />
           <p className="text-[var(--ik-text-muted)]">No children yet</p>
           <Link
-            href="/v2/parent/dashboard"
+            href="/parent/dashboard"
             className="text-[var(--ik-accent-cyan)] text-sm underline mt-2 inline-block"
           >
             Add a child first
@@ -166,7 +166,7 @@ export function ApprovalsClient({ childrenList }: ApprovalsClientProps) {
       {/* Top Bar */}
       <div className="flex items-center justify-between mb-6">
         <Link
-          href="/v2/parent/dashboard"
+          href="/parent/dashboard"
           className="ik-btn-primary flex items-center gap-2 px-4 py-2 text-sm"
         >
           <ArrowLeft className="w-4 h-4" />
