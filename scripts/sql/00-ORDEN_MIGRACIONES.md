@@ -109,3 +109,48 @@ WHERE routine_schema = 'public'
 - ✅ Políticas RLS creadas para padres autenticados
 - ✅ Función `approve_child_task_and_add_points` disponible
 
+---
+
+### 5. User Login Events (Métricas)
+
+**Archivo:** `scripts/sql/32-user-login-events-table.sql`  
+**Propósito:** Crear tabla `user_login_events` y función RPC `metrics_unique_logins` para trackear logins únicos de usuarios.
+
+**Orden recomendado (después de las migraciones de tasks):**
+
+1. `32-user-login-events-table.sql` - Crear tabla, índices, RLS y función RPC
+
+**Verificación post-migración:**
+
+```sql
+-- Verificar tabla creada
+SELECT table_name 
+FROM information_schema.tables 
+WHERE table_schema = 'public' 
+  AND table_name = 'user_login_events';
+
+-- Verificar índices
+SELECT indexname 
+FROM pg_indexes 
+WHERE tablename = 'user_login_events';
+
+-- Verificar función RPC
+SELECT routine_name
+FROM information_schema.routines
+WHERE routine_schema = 'public'
+  AND routine_name = 'metrics_unique_logins';
+
+-- Verificar RLS habilitado
+SELECT tablename, rowsecurity
+FROM pg_tables
+WHERE schemaname = 'public'
+  AND tablename = 'user_login_events';
+```
+
+**Resultado esperado:**
+
+- ✅ Tabla `user_login_events` creada con índices optimizados
+- ✅ RLS habilitado (sin policies para authenticated/anon)
+- ✅ Función `metrics_unique_logins` disponible
+- ✅ Solo `service_role` puede insertar/leer eventos
+
