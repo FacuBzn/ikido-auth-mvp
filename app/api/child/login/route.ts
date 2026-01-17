@@ -4,6 +4,7 @@ import type { Database } from "@/types/supabase";
 import { normalizeCode } from "@/lib/types/profiles";
 import { getSupabaseAdminClient } from "@/lib/supabase/adminClient";
 import { createChildSession } from "@/lib/auth/childSession";
+import { trackLogin } from "@/lib/metrics/trackLogin";
 
 type UserRow = Database["public"]["Tables"]["users"]["Row"];
 
@@ -148,6 +149,13 @@ export async function POST(request: NextRequest) {
       },
       response
     );
+
+    // Track login event for metrics (non-blocking)
+    await trackLogin({
+      userId: child.id,
+      role: "child",
+      request,
+    });
 
     return response;
   } catch (error) {

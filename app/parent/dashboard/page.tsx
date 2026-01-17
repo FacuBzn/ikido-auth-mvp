@@ -73,5 +73,10 @@ export default async function V2ParentDashboardPage() {
     created_at: child.created_at,
   }));
 
-  return <ParentDashboardClient parent={parent} initialChildren={children} />;
+  return (
+    <ParentDashboardClient
+      parent={parent}
+      initialChildren={children}
+    />
+  );
 }
