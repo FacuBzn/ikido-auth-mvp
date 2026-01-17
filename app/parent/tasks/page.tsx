@@ -1,42 +1,82 @@
 import type { Metadata } from "next";
-import ProtectedRoute from "@/components/ProtectedRoute";
+import { redirect } from "next/navigation";
+import { getAuthenticatedUser } from "@/lib/authHelpers";
 import { createSupabaseServerComponentClient } from "@/lib/supabase/serverClient";
-import type { Database } from "@/types/supabase";
-import { TasksManagement } from "./TasksManagement";
+import { ParentTasksClient } from "./ParentTasksClient";
 
 export const metadata: Metadata = {
-  title: "Create Tasks | iKidO (GGPoints)",
+  title: "Manage Tasks | iKidO",
 };
 
-type ChildUser = Pick<
-  Database["public"]["Tables"]["users"]["Row"],
-  "id" | "name" | "child_code"
->;
+export const dynamic = "force-dynamic";
 
-const ParentTasksManager = async ({ parentId }: { parentId: string }) => {
+interface PageProps {
+  searchParams: Promise<{ childId?: string }>;
+}
+
+/**
+ * Child type for selector
+ */
+export type ChildForSelector = {
+  id: string;
+  name: string;
+  child_code: string | null;
+};
+
+/**
+ * V2 Parent Tasks Page
+ * Server component that validates auth and fetches children list
+ */
+export default async function V2ParentTasksPage({ searchParams }: PageProps) {
+  const { childId: initialChildId } = await searchParams;
+
+  const authUser = await getAuthenticatedUser();
+
+  if (!authUser) {
+    redirect("/parent/login");
+  }
+
+  if (authUser.profile.role !== "Parent") {
+    redirect("/child/dashboard");
+  }
+
   const supabase = await createSupabaseServerComponentClient();
-  const { data, error } = await supabase
+
+  // Get parent record
+  const { data: parentData, error: parentError } = await supabase
+    .from("users")
+    .select("id")
+    .eq("auth_id", authUser.user.id)
+    .eq("role", "parent")
+    .single();
+
+  if (parentError || !parentData) {
+    redirect("/parent/login");
+  }
+
+  // Get children for selector
+  const { data: childrenData, error: childrenError } = await supabase
     .from("users")
     .select("id, name, child_code")
     .eq("role", "child")
-    .eq("parent_id", parentId)
+    .eq("parent_id", parentData.id)
     .order("name", { ascending: true });
 
-  if (error) {
-    console.error("[parent:tasks] Failed to load children", error);
-    throw new Error("We could not load your children list. Please try again.");
+  if (childrenError) {
+    console.error("[V2 ParentTasks] Failed to load children:", childrenError);
   }
 
-  return (
-    <TasksManagement parentId={parentId} initialChildren={(data ?? []) as ChildUser[]} />
-  );
-};
+  const children: ChildForSelector[] = (childrenData || []).map((c) => ({
+    id: c.id,
+    name: c.name || "Unknown",
+    child_code: c.child_code,
+  }));
 
-export default function ParentTasksPage() {
   return (
-    <ProtectedRoute allowedRoles={["Parent"]}>
-      {({ profile }) => <ParentTasksManager parentId={profile.id} />}
-    </ProtectedRoute>
+    <ParentTasksClient
+      parentId={parentData.id}
+      childrenList={children}
+      initialChildId={initialChildId}
+    />
   );
 }
-

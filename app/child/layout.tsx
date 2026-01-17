@@ -1,12 +1,9 @@
 import type { ReactNode } from "react";
 
-// IMPORTANT: Children do NOT use Supabase Auth
-// Auth checking must be done 100% client-side with useRequireChildAuth()
-// This layout only wraps children without any auth logic
-
-export default function ChildLayout({ children }: { children: ReactNode }) {
-  // No server-side auth check possible for children
-  // Client components will handle auth with useRequireChildAuth()
+/**
+ * V2 Child Layout
+ * No server-side auth check - child auth uses Zustand only
+ */
+export default function V2ChildLayout({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
-

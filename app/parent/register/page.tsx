@@ -1,18 +1,15 @@
 import type { Metadata } from "next";
-import { ParentRegisterForm } from "./ParentRegisterForm";
+import { RegisterClient } from "./RegisterClient";
 
 export const metadata: Metadata = {
   title: "Parent Register | iKidO",
+  description: "Create a new parent account to manage your family's tasks and rewards",
 };
 
-export default async function ParentRegisterPage() {
-  return (
-    <main
-      className="min-h-screen flex items-center justify-center p-4"
-      style={{ background: "linear-gradient(135deg, #0F4C7D 0%, #1A5FA0 100%)" }}
-    >
-      <ParentRegisterForm />
-    </main>
-  );
+/**
+ * V2 Parent Register Page
+ * Uses iKidO UI Kit with high fidelity to V0 design
+ */
+export default function V2ParentRegisterPage() {
+  return <RegisterClient />;
 }
-

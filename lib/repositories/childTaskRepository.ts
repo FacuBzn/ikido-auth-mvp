@@ -747,8 +747,18 @@ export async function markTaskCompleted(params: {
 }
 
 /**
- * GET TOTAL POINTS FOR CHILD
- * Returns the sum of points from all completed and approved tasks
+ * GET TOTAL POINTS FOR CHILD (RECONCILIATION ONLY)
+ * 
+ * ⚠️ WARNING: Do NOT use this for user-facing endpoints.
+ * Use users.points_balance as the source of truth instead.
+ * 
+ * This function calculates points by summing child_tasks and is intended
+ * ONLY for:
+ * - Admin reconciliation scripts
+ * - Debugging discrepancies
+ * - One-time data migrations
+ * 
+ * For real-time point queries, always read from users.points_balance directly.
  */
 export async function getTotalPointsForChild(params: {
   childId: string;

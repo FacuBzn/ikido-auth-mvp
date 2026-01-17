@@ -258,6 +258,13 @@ export type Database = {
           child_user_id: string;
           claimed_at: string | null;
           created_at: string;
+          // PR13: Request/Approve flow fields
+          status: "available" | "requested" | "approved" | "rejected";
+          requested_at: string | null;
+          approved_at: string | null;
+          rejected_at: string | null;
+          decided_by_parent_id: string | null;
+          reject_reason: string | null;
         };
         Insert: {
           id?: string;
@@ -267,6 +274,13 @@ export type Database = {
           child_user_id: string;
           claimed_at?: string | null;
           created_at?: string;
+          // PR13: Request/Approve flow fields
+          status?: "available" | "requested" | "approved" | "rejected";
+          requested_at?: string | null;
+          approved_at?: string | null;
+          rejected_at?: string | null;
+          decided_by_parent_id?: string | null;
+          reject_reason?: string | null;
         };
         Update: {
           id?: string;
@@ -276,11 +290,49 @@ export type Database = {
           child_user_id?: string;
           claimed_at?: string | null;
           created_at?: string;
+          // PR13: Request/Approve flow fields
+          status?: "available" | "requested" | "approved" | "rejected";
+          requested_at?: string | null;
+          approved_at?: string | null;
+          rejected_at?: string | null;
+          decided_by_parent_id?: string | null;
+          reject_reason?: string | null;
         };
         Relationships: [
           {
             foreignKeyName: "rewards_child_user_id_fkey";
             columns: ["child_user_id"];
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      user_login_events: {
+        Row: {
+          id: string;
+          created_at: string;
+          user_id: string;
+          role: "parent" | "child";
+          source: string;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          user_id: string;
+          role: "parent" | "child";
+          source?: string;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          user_id?: string;
+          role?: "parent" | "child";
+          source?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_login_events_user_id_fkey";
+            columns: ["user_id"];
             referencedRelation: "users";
             referencedColumns: ["id"];
           },
@@ -295,6 +347,23 @@ export type Database = {
           p_parent_auth_id: string;
         };
         Returns: void;
+      };
+      metrics_unique_logins: {
+        Args: {
+          from_ts: string;
+          to_ts: string;
+        };
+        Returns: {
+          unique_users_total: number;
+          unique_users_by_role: Array<{
+            role: string;
+            unique_users: number;
+          }>;
+          unique_users_by_day: Array<{
+            date: string;
+            unique_users: number;
+          }>;
+        };
       };
     };
     Enums: Record<string, never>;

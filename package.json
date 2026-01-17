@@ -9,7 +9,9 @@
     "lint": "eslint . --max-warnings=0 --ignore-pattern dist",
     "typecheck": "tsc --noEmit",
     "vercel-build": "npm run lint && npm run typecheck && next build",
-    "repair-user": "tsx scripts/repairUser.ts"
+    "repair-user": "tsx scripts/repairUser.ts",
+    "smoke-test": "tsx scripts/smoke-tests.ts",
+    "smoke-metrics": "tsx scripts/smoke-metrics.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

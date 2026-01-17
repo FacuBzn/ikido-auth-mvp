@@ -1,9 +1,9 @@
 /**
  * POST /api/child/tasks
- * 
+ *
  * Lists tasks assigned to a child
  * Requires: Child session cookie (set by /api/child/login)
- * 
+ *
  * Returns:
  * {
  *   tasks: [
@@ -13,7 +13,8 @@
  *       title: string,
  *       description: string | null,
  *       points: number,
- *       completed: boolean,
+ *       status: "pending" | "in_progress" | "completed" | "approved" | "rejected",
+ *       completed: boolean,        // deprecated, use status
  *       completed_at: string | null,
  *       created_at: string
  *     }
@@ -27,10 +28,12 @@ import type { NextRequest } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/adminClient";
 import {
   getTasksForChildByCodes,
-  getTotalPointsForChild,
   ChildTaskError,
 } from "@/lib/repositories/childTaskRepository";
 import { requireChildSession } from "@/lib/auth/childSession";
+
+// Force dynamic to prevent caching
+export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,10 +59,11 @@ export async function POST(request: NextRequest) {
       family_code: session.family_code,
     });
 
-    // Get child_code from database for backward compatibility with repository
+    // Get child_code and points_balance from database
+    // points_balance is the source of truth for consistency across all endpoints
     const { data: childData, error: childError } = await adminClient
       .from("users")
-      .select("child_code")
+      .select("child_code, points_balance")
       .eq("id", session.child_id)
       .eq("role", "child")
       .single();
@@ -81,17 +85,8 @@ export async function POST(request: NextRequest) {
       supabase: adminClient,
     });
 
-    // Get total points for the child
-    let totalPoints = 0;
-    try {
-      totalPoints = await getTotalPointsForChild({
-        childId: session.child_id,
-        supabase: adminClient,
-      });
-    } catch (pointsError) {
-      console.error("[child:tasks] Failed to get total points:", pointsError);
-      // Continue without points if calculation fails
-    }
+    // Use points_balance from users table (source of truth)
+    const totalPoints = childData.points_balance ?? 0;
 
     console.log("[child:tasks] Found tasks", {
       count: tasks.length,
@@ -100,16 +95,18 @@ export async function POST(request: NextRequest) {
     });
 
     // Transform tasks to the required format
+    // Include status for proper UI display (pending, completed, approved, etc.)
     const formattedTasks = tasks.map((task) => {
-      const taskPoints = task.task?.points ?? 0;
-      
+      const taskPoints = task.points ?? task.task?.points ?? 0;
+
       return {
         child_task_id: task.id,
         task_id: task.task_id,
         title: task.task?.title || "Unknown Task",
         description: task.task?.description || null,
         points: taskPoints,
-        completed: task.completed,
+        status: task.status, // Real status: pending | completed | approved | etc
+        completed: task.completed, // Deprecated: use status instead
         completed_at: task.completed_at,
         created_at: task.created_at,
       };
