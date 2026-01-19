@@ -87,6 +87,9 @@ SUPABASE_SERVICE_ROLE_KEY="your-service-role-key-here"
 
 # Optional: Development admin key (only for /api/dev/* endpoints)
 DEV_ADMIN_KEY="your-dev-admin-key-here"
+
+# Optional: Metrics admin emails (comma-separated, for /metrics access)
+METRICS_ADMIN_EMAILS="admin@example.com,another@example.com"
 ```
 
 **Important:**
@@ -172,6 +175,7 @@ app/
 │   ├── join/           # Child login (code-based)
 │   ├── dashboard/      # Child dashboard
 │   └── rewards/        # Rewards shop
+├── metrics/            # Metrics dashboard (admin only)
 └── v2/                 # Development playground (/v2/playground)
 
 components/
@@ -255,6 +259,39 @@ Smoke tests verify:
 - API authentication (401 for unauthenticated requests)
 - Route accessibility
 - Required field validation
+
+## Metrics Dashboard
+
+The application includes a metrics dashboard accessible at `/metrics` for tracking login statistics.
+
+### Access Control
+
+- **Protected Route**: Only accessible to authenticated parents whose email is in `METRICS_ADMIN_EMAILS`
+- **No UI Links**: This route is not linked anywhere in the application UI
+- **Direct Access Only**: Must navigate directly to `/metrics` in the browser
+- **Security**: Unauthorized users receive 404 (route existence is not exposed)
+
+### Configuration
+
+Add your email(s) to `.env.local`:
+
+```env
+METRICS_ADMIN_EMAILS="your-email@example.com,another@example.com"
+```
+
+**Format:**
+- Comma-separated list (no spaces)
+- Case-insensitive (emails are normalized to lowercase)
+- If not configured or empty → access denied by default (secure)
+
+### Features
+
+- View unique login statistics
+- Filter by date range
+- Breakdown by user role (parent/child)
+- Daily login counts
+
+See `docs/METRICS.md` for detailed documentation.
 
 ## Deployment
 
