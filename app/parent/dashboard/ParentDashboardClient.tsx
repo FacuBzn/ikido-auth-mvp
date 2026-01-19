@@ -148,7 +148,7 @@ export function ParentDashboardClient({
 
         {/* Family Code Card */}
         <PanelCard>
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex-1">
               <p className="text-[var(--ik-text-muted)] text-xs mb-1">
                 Family Code
@@ -162,7 +162,7 @@ export function ParentDashboardClient({
             </div>
             <button
               onClick={handleCopyFamilyCode}
-              className="ik-btn-primary flex items-center justify-center gap-2 px-4 py-2 text-sm min-w-[240px]"
+              className="ik-btn-primary flex items-center justify-center gap-2 px-4 py-2 text-sm w-full md:w-auto md:min-w-[240px] shrink-0"
             >
               {copiedFamilyCode ? (
                 <>
@@ -181,15 +181,15 @@ export function ParentDashboardClient({
 
         {/* Manage Tasks Card */}
         <PanelCard>
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex-1">
               <h2 className="text-lg font-bold text-white mb-1">Manage Tasks</h2>
               <p className="text-[var(--ik-text-muted)] text-sm">
                 Assign tasks and track progress
               </p>
             </div>
-            <Link href="/parent/tasks">
-              <PrimaryButton icon={<CheckSquare className="w-4 h-4" />} uniform>
+            <Link href="/parent/tasks" className="w-full md:w-auto shrink-0">
+              <PrimaryButton icon={<CheckSquare className="w-4 h-4" />} className="w-full md:w-auto md:min-w-[240px]">
                 Go to Tasks
               </PrimaryButton>
             </Link>
@@ -198,15 +198,15 @@ export function ParentDashboardClient({
 
         {/* Approve Tasks Card */}
         <PanelCard>
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex-1">
               <h2 className="text-lg font-bold text-white mb-1">Approve Tasks</h2>
               <p className="text-[var(--ik-text-muted)] text-sm">
                 Review and approve completed tasks
               </p>
             </div>
-            <Link href="/parent/approvals">
-              <SecondaryButton icon={<CheckSquare className="w-4 h-4" />} uniform>
+            <Link href="/parent/approvals" className="w-full md:w-auto shrink-0">
+              <SecondaryButton icon={<CheckSquare className="w-4 h-4" />} className="w-full md:w-auto md:min-w-[240px]">
                 Review
               </SecondaryButton>
             </Link>
@@ -215,15 +215,15 @@ export function ParentDashboardClient({
 
         {/* Manage Rewards Card */}
         <PanelCard>
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex-1">
               <h2 className="text-lg font-bold text-white mb-1">Manage Rewards</h2>
               <p className="text-[var(--ik-text-muted)] text-sm">
                 Create rewards and approve claims
               </p>
             </div>
-            <Link href="/parent/rewards">
-              <PrimaryButton icon={<Gift className="w-4 h-4" />} uniform>
+            <Link href="/parent/rewards" className="w-full md:w-auto shrink-0">
+              <PrimaryButton icon={<Gift className="w-4 h-4" />} className="w-full md:w-auto md:min-w-[240px]">
                 Rewards
               </PrimaryButton>
             </Link>
@@ -232,12 +232,12 @@ export function ParentDashboardClient({
 
         {/* Children Section */}
         <PanelCard className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <h2 className="text-lg font-bold text-white">Your Children</h2>
             {!showAddChild && (
               <button
                 onClick={() => setShowAddChild(true)}
-                className="ik-btn-primary flex items-center justify-center gap-2 px-3 py-1.5 text-sm min-w-[240px]"
+                className="ik-btn-primary flex items-center justify-center gap-2 px-3 py-1.5 text-sm w-full sm:w-auto sm:min-w-[240px] shrink-0"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Child</span>
@@ -369,13 +369,13 @@ function ChildCard({
       {child.child_code && (
         <div className="bg-[var(--ik-surface-2)] rounded-lg p-3">
           <p className="text-[var(--ik-text-muted)] text-xs mb-1">Child Code</p>
-          <div className="flex items-center justify-between gap-2">
-            <code className="text-sm font-mono text-[var(--ik-accent-yellow)] font-bold">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <code className="text-sm font-mono text-[var(--ik-accent-yellow)] font-bold break-all">
               {child.child_code}
             </code>
             <button
               onClick={() => onCopyCode(child.child_code!)}
-              className="text-[var(--ik-accent-cyan)] hover:text-white text-xs flex items-center gap-1 transition-colors"
+              className="text-[var(--ik-accent-cyan)] hover:text-white text-xs flex items-center gap-1 transition-colors shrink-0 self-start sm:self-auto"
             >
               {copiedChildCode === child.child_code ? (
                 <>
