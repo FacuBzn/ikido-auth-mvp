@@ -13,6 +13,7 @@ import {
   assignTaskToChildren,
   ChildTaskError,
 } from "@/lib/repositories/childTaskRepository";
+import { getCurrentPeriodKey, getWeekStartDateUTC } from "@/lib/utils/period";
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,6 +40,7 @@ export async function POST(request: NextRequest) {
       task_id?: string;
       child_user_id?: string | string[];
       points?: number;
+      period_key?: string; // ISO week key (e.g., "2025-W04"), optional, defaults to current week
     };
 
     if (!body.task_id || !body.child_user_id) {
@@ -129,12 +131,18 @@ export async function POST(request: NextRequest) {
 
     const parentId = parentData.id; // Internal id from session, NOT from client
 
+    // Calculate period_key and assigned_for_date (default to current week if not provided)
+    const periodKey = body.period_key || getCurrentPeriodKey();
+    const assignedForDate = getWeekStartDateUTC();
+
     console.log("[tasks:assign] Parent assigning task", {
       parent_auth_id: parentAuthId,
       parent_internal_id: parentId,
       task_id: body.task_id,
       child_ids: childIds,
       points: body.points,
+      period_key: periodKey,
+      assigned_for_date: assignedForDate,
     });
 
     const childTasks = await assignTaskToChildren({
@@ -142,6 +150,8 @@ export async function POST(request: NextRequest) {
       parentId, // Pass internal id from session
       taskId: body.task_id,
       childIds,
+      periodKey,
+      assignedForDate,
       supabase,
     });
 
@@ -178,9 +188,16 @@ export async function POST(request: NextRequest) {
       )
         status = 404;
       else if (error.code === "INVALID_POINTS") status = 400;
+      else if (error.code === "TASK_ALREADY_ASSIGNED_FOR_WEEK") status = 409;
 
       return NextResponse.json(
-        { error: error.code, message: error.message },
+        { 
+          error: error.code, 
+          message: error.message,
+          period_key: error.code === "TASK_ALREADY_ASSIGNED_FOR_WEEK" 
+            ? (body.period_key || getCurrentPeriodKey()) 
+            : undefined,
+        },
         { status }
       );
     }

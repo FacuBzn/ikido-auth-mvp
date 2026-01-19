@@ -177,3 +177,70 @@ export function getISOWeekStartDate(weekKey: string): Date {
 export function getCurrentISOWeekKey(): string {
   return getISOWeekKey(new Date());
 }
+
+/**
+ * Alias for getISOWeekKey - maintains API consistency
+ * Calculates the ISO week key from a date (format: "YYYY-Www")
+ * 
+ * @param date - Date to calculate week key for (defaults to current date)
+ * @returns ISO week key string in format "YYYY-Www" (e.g., "2025-W04")
+ */
+export function getCurrentPeriodKey(date: Date = new Date()): string {
+  return getISOWeekKey(date);
+}
+
+/**
+ * Gets the week start date (Monday) in UTC as a date string (YYYY-MM-DD)
+ * 
+ * @param date - Date to calculate week start for (defaults to current date)
+ * @returns Date string in format "YYYY-MM-DD" representing Monday 00:00:00 UTC
+ * 
+ * @example
+ * getWeekStartDateUTC(new Date('2025-01-20')) // "2025-01-20" (if Jan 20 is Monday)
+ * getWeekStartDateUTC() // "2025-01-20" (Monday of current week)
+ */
+export function getWeekStartDateUTC(date: Date = new Date()): string {
+  const weekKey = getISOWeekKey(date);
+  const mondayDate = getISOWeekStartDate(weekKey);
+  
+  // Format as YYYY-MM-DD in UTC
+  const year = mondayDate.getUTCFullYear();
+  const month = String(mondayDate.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(mondayDate.getUTCDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Normalizes a period key string (validates format)
+ * 
+ * @param input - Period key string (optional)
+ * @returns Normalized period key string or null if invalid
+ * 
+ * @example
+ * normalizePeriodKey("2025-W04") // "2025-W04"
+ * normalizePeriodKey("2025-w4") // "2025-W04" (normalized)
+ * normalizePeriodKey("invalid") // null
+ */
+export function normalizePeriodKey(input?: string): string | null {
+  if (!input || typeof input !== "string") {
+    return null;
+  }
+  
+  // Match format YYYY-Www (case-insensitive, allow single digit weeks)
+  const match = input.trim().match(/^(\d{4})-W(\d{1,2})$/i);
+  if (!match) {
+    return null;
+  }
+  
+  const [, year, week] = match;
+  const weekNum = parseInt(week, 10);
+  
+  // Validate week range (1-53)
+  if (weekNum < 1 || weekNum > 53) {
+    return null;
+  }
+  
+  // Normalize to uppercase W and zero-padded week
+  return `${year}-W${weekNum.toString().padStart(2, '0')}`;
+}
