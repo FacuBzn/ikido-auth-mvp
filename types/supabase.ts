@@ -313,6 +313,37 @@ export type Database = {
           },
         ];
       };
+      user_login_events: {
+        Row: {
+          id: string;
+          created_at: string;
+          user_id: string;
+          role: "parent" | "child";
+          source: string;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          user_id: string;
+          role: "parent" | "child";
+          source?: string;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          user_id?: string;
+          role?: "parent" | "child";
+          source?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_login_events_user_id_fkey";
+            columns: ["user_id"];
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -322,6 +353,23 @@ export type Database = {
           p_parent_auth_id: string;
         };
         Returns: void;
+      };
+      metrics_unique_logins: {
+        Args: {
+          from_ts: string;
+          to_ts: string;
+        };
+        Returns: {
+          unique_users_total: number;
+          unique_users_by_role: Array<{
+            role: string;
+            unique_users: number;
+          }>;
+          unique_users_by_day: Array<{
+            date: string;
+            unique_users: number;
+          }>;
+        };
       };
     };
     Enums: Record<string, never>;

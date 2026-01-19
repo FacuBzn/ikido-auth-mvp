@@ -11,7 +11,8 @@
     "vercel-build": "npm run lint && npm run typecheck && next build",
     "repair-user": "tsx scripts/repairUser.ts",
     "smoke-test": "tsx scripts/smoke-tests.ts",
-    "verify:migration:period": "tsx scripts/verify-period-key-migration.ts"
+    "verify:migration:period": "tsx scripts/verify-period-key-migration.ts",
+    "smoke-metrics": "tsx scripts/smoke-metrics.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
