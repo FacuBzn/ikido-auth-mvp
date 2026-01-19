@@ -20,8 +20,10 @@ type Db = Database["public"]["Tables"];
 type ChildTaskRow = Db["child_tasks"]["Row"];
 type TaskRow = Db["tasks"]["Row"];
 
-type ChildTaskRowWithTask = Omit<ChildTaskRow, 'approved_at'> & {
+type ChildTaskRowWithTask = Omit<ChildTaskRow, 'approved_at' | 'period_key' | 'assigned_for_date'> & {
   approved_at?: string | null;
+  period_key?: string;
+  assigned_for_date?: string;
   tasks?: Pick<TaskRow, 'id' | 'title' | 'description' | 'points' | 'is_global'> | null;
 };
 

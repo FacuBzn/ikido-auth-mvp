@@ -162,7 +162,7 @@ export function ParentDashboardClient({
             </div>
             <button
               onClick={handleCopyFamilyCode}
-              className="ik-btn-primary flex items-center gap-2 px-4 py-2 text-sm"
+              className="ik-btn-primary flex items-center justify-center gap-2 px-4 py-2 text-sm min-w-[240px]"
             >
               {copiedFamilyCode ? (
                 <>
@@ -189,7 +189,7 @@ export function ParentDashboardClient({
               </p>
             </div>
             <Link href="/parent/tasks">
-              <PrimaryButton icon={<CheckSquare className="w-4 h-4" />}>
+              <PrimaryButton icon={<CheckSquare className="w-4 h-4" />} uniform>
                 Go to Tasks
               </PrimaryButton>
             </Link>
@@ -206,7 +206,7 @@ export function ParentDashboardClient({
               </p>
             </div>
             <Link href="/parent/approvals">
-              <SecondaryButton icon={<CheckSquare className="w-4 h-4" />}>
+              <SecondaryButton icon={<CheckSquare className="w-4 h-4" />} uniform>
                 Review
               </SecondaryButton>
             </Link>
@@ -223,7 +223,7 @@ export function ParentDashboardClient({
               </p>
             </div>
             <Link href="/parent/rewards">
-              <PrimaryButton icon={<Gift className="w-4 h-4" />}>
+              <PrimaryButton icon={<Gift className="w-4 h-4" />} uniform>
                 Rewards
               </PrimaryButton>
             </Link>
@@ -237,7 +237,7 @@ export function ParentDashboardClient({
             {!showAddChild && (
               <button
                 onClick={() => setShowAddChild(true)}
-                className="ik-btn-primary flex items-center gap-2 px-3 py-1.5 text-sm"
+                className="ik-btn-primary flex items-center justify-center gap-2 px-3 py-1.5 text-sm min-w-[240px]"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Child</span>

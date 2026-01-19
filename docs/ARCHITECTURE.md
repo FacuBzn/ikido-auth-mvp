@@ -55,8 +55,6 @@
 - Children son identificados por `child_code` único (ej: `GERONIMO#3842`)
 - Parent debe crear el child primero vía `/api/children/create`
 
-Ver documentación completa: [docs/CHILD_LOGIN_FLOW.md](./CHILD_LOGIN_FLOW.md)
-
 ## Estado Global
 
 ### Zustand Store

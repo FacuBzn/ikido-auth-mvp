@@ -28,6 +28,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/adminClient";
 import { getAuthenticatedUser } from "@/lib/authHelpers";
+import { getCurrentPeriodKey } from "@/lib/utils/period";
 
 // Force dynamic to prevent caching
 export const dynamic = "force-dynamic";
@@ -51,9 +52,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 2. Get child_id from query params
+    // 2. Get child_id and optional period_key from query params
     const { searchParams } = new URL(request.url);
     const childId = searchParams.get("child_id");
+    const periodKey = searchParams.get("period_key") || undefined;
 
     if (!childId) {
       return NextResponse.json(
@@ -61,6 +63,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Default to current week if period_key not provided
+    const finalPeriodKey = periodKey || getCurrentPeriodKey();
 
     const adminClient = getSupabaseAdminClient();
 
@@ -105,7 +110,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 5. Get completed tasks pending approval (status = 'completed')
+    // 5. Get completed tasks pending approval (status = 'completed') for current week
     const { data: tasksData, error: tasksError } = await adminClient
       .from("child_tasks")
       .select(`
@@ -113,6 +118,8 @@ export async function GET(request: NextRequest) {
         task_id,
         points,
         completed_at,
+        period_key,
+        assigned_for_date,
         tasks!task_id (
           id,
           title,
@@ -121,6 +128,7 @@ export async function GET(request: NextRequest) {
       `)
       .eq("child_id", childId)
       .eq("status", "completed")
+      .eq("period_key", finalPeriodKey)
       .order("completed_at", { ascending: false });
 
     if (tasksError) {
@@ -139,6 +147,7 @@ export async function GET(request: NextRequest) {
       description: task.tasks?.description || null,
       points: task.points,
       completed_at: task.completed_at,
+      period_key: task.period_key, // Include for debug/UI
     }));
 
     console.log("[pending-approval] Found pending tasks", {
