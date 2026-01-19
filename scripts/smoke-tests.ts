@@ -289,44 +289,18 @@ async function testTasksApproveNoBody() {
 }
 
 /**
- * Test: V2 role select page loads
+ * Test: Root role select page loads
  * Expected: 200 OK
  */
-async function testV2RoleSelectLoads() {
-  const testName = "v2 role select: 200 OK";
+async function testRootRoleSelectLoads() {
+  const testName = "root role select: 200 OK";
   try {
-    const response = await fetch(`${BASE_URL}/v2`);
+    const response = await fetch(`${BASE_URL}/`);
 
     if (response.status === 200) {
       pass(testName);
     } else {
       fail(testName, `Expected 200, got ${response.status}`);
-    }
-  } catch (error) {
-    fail(testName, `Request failed: ${error}`);
-  }
-}
-
-/**
- * Test: / redirects to /v2
- * Expected: 307/308 redirect
- */
-async function testRootRedirectsToV2() {
-  const testName = "root redirects to /v2";
-  try {
-    const response = await fetch(`${BASE_URL}/`, {
-      redirect: "manual",
-    });
-
-    if (response.status === 307 || response.status === 308) {
-      const location = response.headers.get("location");
-      if (location?.includes("/v2")) {
-        pass(testName);
-      } else {
-        fail(testName, `Expected redirect to /v2, got ${location}`);
-      }
-    } else {
-      fail(testName, `Expected 307/308, got ${response.status}`);
     }
   } catch (error) {
     fail(testName, `Request failed: ${error}`);
@@ -613,8 +587,7 @@ async function runAllTests() {
 
   console.log("");
   console.log("Page Load Tests:");
-  await testV2RoleSelectLoads();
-  await testRootRedirectsToV2();
+  await testRootRoleSelectLoads();
   await testLegacyLoads();
 
   console.log("");

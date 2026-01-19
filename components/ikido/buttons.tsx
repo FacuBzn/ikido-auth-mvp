@@ -11,6 +11,7 @@ export interface ButtonProps
   icon?: ReactNode;
   size?: "sm" | "md" | "lg";
   fullWidth?: boolean;
+  uniform?: boolean;
 }
 
 const sizeClasses = {
@@ -30,6 +31,7 @@ export function PrimaryButton({
   icon,
   size = "md",
   fullWidth,
+  uniform,
   disabled,
   ...props
 }: ButtonProps) {
@@ -40,6 +42,7 @@ export function PrimaryButton({
         "ik-btn-primary flex items-center justify-center gap-2",
         sizeClasses[size],
         fullWidth && "w-full",
+        uniform && "min-w-[240px]",
         className
       )}
       {...props}
@@ -67,6 +70,7 @@ export function SecondaryButton({
   icon,
   size = "md",
   fullWidth,
+  uniform,
   disabled,
   ...props
 }: ButtonProps) {
@@ -77,6 +81,7 @@ export function SecondaryButton({
         "ik-btn-secondary flex items-center justify-center gap-2",
         sizeClasses[size],
         fullWidth && "w-full",
+        uniform && "min-w-[240px]",
         className
       )}
       {...props}
@@ -104,6 +109,7 @@ export function CyanButton({
   icon,
   size = "md",
   fullWidth,
+  uniform,
   disabled,
   ...props
 }: ButtonProps) {
@@ -114,6 +120,7 @@ export function CyanButton({
         "ik-btn-cyan flex items-center justify-center gap-2",
         sizeClasses[size],
         fullWidth && "w-full",
+        uniform && "min-w-[240px]",
         className
       )}
       {...props}

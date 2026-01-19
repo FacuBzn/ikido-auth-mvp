@@ -10,6 +10,7 @@ import type { NextRequest } from "next/server";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/serverClient";
 import { getAuthenticatedUser } from "@/lib/authHelpers";
 import { getTasksForChild, ChildTaskError } from "@/lib/repositories/childTaskRepository";
+import { getCurrentPeriodKey } from "@/lib/utils/period";
 
 // Force dynamic rendering to prevent caching
 export const dynamic = "force-dynamic";
@@ -32,9 +33,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get child_id from query params
+    // Get child_id and optional period_key from query params
     const { searchParams } = new URL(request.url);
     const childId = searchParams.get("child_id");
+    const periodKey = searchParams.get("period_key") || undefined;
 
     if (!childId || typeof childId !== "string") {
       return NextResponse.json(
@@ -45,15 +47,20 @@ export async function GET(request: NextRequest) {
 
     const { supabase } = createSupabaseRouteHandlerClient(request);
 
+    // Default to current week if period_key not provided
+    const finalPeriodKey = periodKey || getCurrentPeriodKey();
+
     console.log("[api:parent:child-tasks:list] GET Fetching child tasks", {
       parentAuthId: authUser.user.id,
       childId,
+      periodKey: finalPeriodKey,
     });
 
     // Use repository function to get tasks
     const tasks = await getTasksForChild({
       parentAuthId: authUser.user.id,
       childId,
+      periodKey: finalPeriodKey,
       supabase,
     });
 

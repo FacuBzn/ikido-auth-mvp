@@ -31,6 +31,7 @@ import {
   ChildTaskError,
 } from "@/lib/repositories/childTaskRepository";
 import { requireChildSession } from "@/lib/auth/childSession";
+import { getCurrentPeriodKey } from "@/lib/utils/period";
 
 // Force dynamic to prevent caching
 export const dynamic = "force-dynamic";
@@ -39,6 +40,14 @@ export async function POST(request: NextRequest) {
   try {
     // Get child session from cookie
     const session = await requireChildSession(request);
+
+    // Parse optional period_key from body
+    let body: { period_key?: string } = {};
+    try {
+      body = await request.json();
+    } catch {
+      // Body is optional, continue with defaults
+    }
 
     let adminClient;
     try {
@@ -79,9 +88,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Use provided period_key or default to current week
+    const periodKey = body.period_key || getCurrentPeriodKey();
+
     const tasks = await getTasksForChildByCodes({
       childCode: childData.child_code,
       familyCode: session.family_code,
+      periodKey,
       supabase: adminClient,
     });
 

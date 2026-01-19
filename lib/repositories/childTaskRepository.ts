@@ -19,16 +19,19 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 import type { ChildTaskInstance } from "@/lib/types/tasks";
+import { getCurrentPeriodKey, getWeekStartDateUTC } from "@/lib/utils/period";
 
 type Db = Database["public"]["Tables"];
 type ChildTaskRow = Db["child_tasks"]["Row"];
 type TaskRow = Db["tasks"]["Row"];
 
 // Type for child_tasks query result with joined tasks
-// NOTE: approved_at is NOT included in queries, so it's optional here
+// NOTE: approved_at, period_key, and assigned_for_date may not be included in all queries, so they're optional here
 // tasks is a partial TaskRow since we only select specific fields
-type ChildTaskRowWithTask = Omit<ChildTaskRow, 'approved_at'> & {
+type ChildTaskRowWithTask = Omit<ChildTaskRow, 'approved_at' | 'period_key' | 'assigned_for_date'> & {
   approved_at?: string | null;
+  period_key?: string;
+  assigned_for_date?: string;
   tasks?: Pick<TaskRow, 'id' | 'title' | 'description' | 'points' | 'is_global'> | null;
 };
 
@@ -39,7 +42,8 @@ export type ChildTaskErrorCode =
   | "TASK_NOT_FOUND"
   | "INVALID_INPUT"
   | "INVALID_POINTS"
-  | "DATABASE_ERROR";
+  | "DATABASE_ERROR"
+  | "TASK_ALREADY_ASSIGNED_FOR_WEEK";
 
 export class ChildTaskError extends Error {
   code: ChildTaskErrorCode;
@@ -138,16 +142,22 @@ function validatePoints(points: unknown): number {
 
 /**
  * ASSIGN TASK TO CHILD
- * Creates a child_task entry
+ * Creates a child_task entry with period_key support for weekly occurrences
  */
 export async function assignTaskToChild(params: {
   parentAuthId: string;
   parentId: string; // Internal id from session - NEVER from client
   taskId: string;
   childId: string;
+  periodKey?: string; // ISO week key (e.g., "2025-W04"), defaults to current week
+  assignedForDate?: string; // Date string YYYY-MM-DD (Monday of week), defaults to current week Monday
   supabase: SupabaseClient<Database>;
 }): Promise<ChildTaskInstance> {
-  const { parentId, taskId, childId, supabase } = params;
+  const { parentId, taskId, childId, periodKey, assignedForDate, supabase } = params;
+
+  // Calculate period_key and assigned_for_date if not provided
+  const finalPeriodKey = periodKey || getCurrentPeriodKey();
+  const finalAssignedForDate = assignedForDate || getWeekStartDateUTC();
 
   // parentId is now passed from route handler (from session), not calculated here
 
@@ -155,6 +165,8 @@ export async function assignTaskToChild(params: {
     parentId,
     taskId,
     childId,
+    periodKey: finalPeriodKey,
+    assignedForDate: finalAssignedForDate,
   });
 
   // 1. Verify task exists and validate points
@@ -190,7 +202,7 @@ export async function assignTaskToChild(params: {
     );
   }
 
-  // 3. Create child_task assignment with validated points
+  // 3. Create child_task assignment with validated points and period_key
   const validatedPoints = validatePoints(task.points);
   
   console.log("[child_tasks:assignTaskToChild] Using schema columns", {
@@ -199,6 +211,8 @@ export async function assignTaskToChild(params: {
     parent_id: parentId, // From session (auth.uid()), NOT from client
     points: validatedPoints,
     status: "pending",
+    period_key: finalPeriodKey,
+    assigned_for_date: finalAssignedForDate,
   });
   
   // parent_id is ALWAYS from session (auth.uid()), NEVER from client
@@ -208,6 +222,8 @@ export async function assignTaskToChild(params: {
     parent_id: parentId, // From session, not client
     status: "pending",
     points: validatedPoints,
+    period_key: finalPeriodKey,
+    assigned_for_date: finalAssignedForDate,
   };
   
   const { data, error } = await supabase
@@ -217,6 +233,22 @@ export async function assignTaskToChild(params: {
     .single();
 
   if (error || !data) {
+    // Handle unique constraint violation (23505 = duplicate key violation)
+    // This occurs when trying to assign the same task to the same child in the same week
+    if (error?.code === "23505" || error?.message?.includes("duplicate key value violates unique constraint")) {
+      console.error("[child_tasks:assignTaskToChild] Unique constraint violation (task already assigned for week)", {
+        taskId,
+        childId,
+        periodKey: finalPeriodKey,
+        errorCode: error?.code,
+        errorMessage: error?.message,
+      });
+      throw new ChildTaskError(
+        "TASK_ALREADY_ASSIGNED_FOR_WEEK",
+        `Task already assigned for this week (${finalPeriodKey})`
+      );
+    }
+
     console.error("[child_tasks:assignTaskToChild] INSERT Error:", {
       error,
       insertData,
@@ -237,6 +269,7 @@ export async function assignTaskToChild(params: {
     task_id: data.task_id,
     status: data.status,
     points: data.points,
+    period_key: data.period_key,
   });
 
   return mapChildTaskRow(data, task);
@@ -250,9 +283,11 @@ export async function assignTaskToChildren(params: {
   parentId: string; // Internal id from session - NEVER from client
   taskId: string;
   childIds: string[];
+  periodKey?: string; // ISO week key (e.g., "2025-W04"), defaults to current week
+  assignedForDate?: string; // Date string YYYY-MM-DD (Monday of week), defaults to current week Monday
   supabase: SupabaseClient<Database>;
 }): Promise<ChildTaskInstance[]> {
-  const { parentId, taskId, childIds, supabase } = params;
+  const { parentId, taskId, childIds, periodKey, assignedForDate, supabase } = params;
 
   if (!childIds || childIds.length === 0) {
     return [];
@@ -262,6 +297,7 @@ export async function assignTaskToChildren(params: {
     parentId,
     taskId,
     childCount: childIds.length,
+    periodKey: periodKey || "currentWeek",
   });
 
   const results: ChildTaskInstance[] = [];
@@ -272,10 +308,18 @@ export async function assignTaskToChildren(params: {
         parentId, // Use internal id from session
         taskId,
         childId,
+        periodKey,
+        assignedForDate,
         supabase,
       });
       results.push(assignment);
     } catch (error) {
+      // If it's a TASK_ALREADY_ASSIGNED_FOR_WEEK error, we should stop trying for other children
+      // and propagate the error. Otherwise, log and continue.
+      if (error instanceof ChildTaskError && error.code === "TASK_ALREADY_ASSIGNED_FOR_WEEK") {
+        // Re-throw to let endpoint handle it
+        throw error;
+      }
       console.error(
         `[child_tasks:assignTaskToChildren] Failed for child ${childId}:`,
         error
@@ -293,15 +337,20 @@ export async function assignTaskToChildren(params: {
 export async function getTasksForChild(params: {
   parentAuthId: string;
   childId: string;
+  periodKey?: string; // ISO week key (e.g., "2025-W04"), defaults to current week
   supabase: SupabaseClient<Database>;
 }): Promise<ChildTaskInstance[]> {
-  const { parentAuthId, childId, supabase } = params;
+  const { parentAuthId, childId, periodKey, supabase } = params;
+
+  // Default to current week if not provided
+  const finalPeriodKey = periodKey || getCurrentPeriodKey();
 
   const parentId = await getParentIdFromAuthId(parentAuthId, supabase);
 
   console.log("[child_tasks:getTasksForChild] Fetching tasks", {
     parentId,
     childId,
+    periodKey: finalPeriodKey,
   });
 
   // Verify child belongs to parent
@@ -319,17 +368,16 @@ export async function getTasksForChild(params: {
     );
   }
 
-  // Query child_tasks with task join
+  // Query child_tasks with task join, filtered by period_key
   // Using ONLY columns that exist in the database
-  // NOTE: approved_at does NOT exist - removed from SELECT
-  const schemaColumns = ["id", "child_id", "task_id", "status", "points", "completed_at", "assigned_at"];
+  const schemaColumns = ["id", "child_id", "task_id", "status", "points", "completed_at", "assigned_at", "period_key", "assigned_for_date"];
   console.log("[child_tasks:getTasksForChild] Querying with schema columns", {
     child_id: childId,
+    period_key: finalPeriodKey,
     columns: schemaColumns,
-    note: "approved_at removed - column does not exist in database",
   });
   
-  const { data, error } = await supabase
+  const query = supabase
     .from("child_tasks")
     .select(
       `
@@ -341,6 +389,8 @@ export async function getTasksForChild(params: {
       points,
       completed_at,
       assigned_at,
+      period_key,
+      assigned_for_date,
       tasks!task_id (
         id,
         title,
@@ -351,7 +401,10 @@ export async function getTasksForChild(params: {
     `
     )
     .eq("child_id", childId)
+    .eq("period_key", finalPeriodKey)
     .order("assigned_at", { ascending: false });
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("[child_tasks:getTasksForChild] SELECT Error:", {
@@ -394,13 +447,18 @@ export async function getTasksForChild(params: {
 export async function getTasksForChildByCodes(params: {
   childCode: string;
   familyCode: string;
+  periodKey?: string; // ISO week key (e.g., "2025-W04"), defaults to current week
   supabase: SupabaseClient<Database>; // Must be admin client
 }): Promise<ChildTaskInstance[]> {
-  const { childCode, familyCode, supabase } = params;
+  const { childCode, familyCode, periodKey, supabase } = params;
+
+  // Default to current week if not provided
+  const finalPeriodKey = periodKey || getCurrentPeriodKey();
 
   console.log("[child_tasks:getTasksForChildByCodes] Fetching tasks", {
     childCode,
     familyCode,
+    periodKey: finalPeriodKey,
   });
 
   // Find child by codes
@@ -420,17 +478,16 @@ export async function getTasksForChildByCodes(params: {
     throw new ChildTaskError("UNAUTHORIZED", "Invalid family code");
   }
 
-  // Query child_tasks with task join
+  // Query child_tasks with task join, filtered by period_key
   // Using ONLY columns that exist in the database
-  // NOTE: approved_at does NOT exist - removed from SELECT
-  const schemaColumns = ["id", "child_id", "task_id", "status", "points", "completed_at", "assigned_at"];
+  const schemaColumns = ["id", "child_id", "task_id", "status", "points", "completed_at", "assigned_at", "period_key", "assigned_for_date"];
   console.log("[child_tasks:getTasksForChildByCodes] Querying child_tasks", {
     child_id: child.id,
+    period_key: finalPeriodKey,
     using_columns: schemaColumns,
-    note: "approved_at removed - column does not exist in database",
   });
 
-  const { data, error } = await supabase
+  const query = supabase
     .from("child_tasks")
     .select(
       `
@@ -442,6 +499,8 @@ export async function getTasksForChildByCodes(params: {
       points,
       completed_at,
       assigned_at,
+      period_key,
+      assigned_for_date,
       tasks!task_id (
         id,
         title,
@@ -452,7 +511,10 @@ export async function getTasksForChildByCodes(params: {
     `
     )
     .eq("child_id", child.id)
+    .eq("period_key", finalPeriodKey)
     .order("assigned_at", { ascending: false });
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("[child_tasks:getTasksForChildByCodes] SELECT Error:", {

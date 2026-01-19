@@ -162,7 +162,7 @@ export function ParentDashboardClient({
             </div>
             <button
               onClick={handleCopyFamilyCode}
-              className="ik-btn-primary flex items-center justify-center gap-2 px-4 py-2 text-sm w-full md:w-auto shrink-0"
+              className="ik-btn-primary flex items-center justify-center gap-2 px-4 py-2 text-sm w-full md:w-auto md:min-w-[240px] shrink-0"
             >
               {copiedFamilyCode ? (
                 <>
@@ -189,7 +189,7 @@ export function ParentDashboardClient({
               </p>
             </div>
             <Link href="/parent/tasks" className="w-full md:w-auto shrink-0">
-              <PrimaryButton icon={<CheckSquare className="w-4 h-4" />} className="w-full md:w-auto">
+              <PrimaryButton icon={<CheckSquare className="w-4 h-4" />} className="w-full md:w-auto md:min-w-[240px]">
                 Go to Tasks
               </PrimaryButton>
             </Link>
@@ -206,7 +206,7 @@ export function ParentDashboardClient({
               </p>
             </div>
             <Link href="/parent/approvals" className="w-full md:w-auto shrink-0">
-              <SecondaryButton icon={<CheckSquare className="w-4 h-4" />} className="w-full md:w-auto">
+              <SecondaryButton icon={<CheckSquare className="w-4 h-4" />} className="w-full md:w-auto md:min-w-[240px]">
                 Review
               </SecondaryButton>
             </Link>
@@ -223,7 +223,7 @@ export function ParentDashboardClient({
               </p>
             </div>
             <Link href="/parent/rewards" className="w-full md:w-auto shrink-0">
-              <PrimaryButton icon={<Gift className="w-4 h-4" />} className="w-full md:w-auto">
+              <PrimaryButton icon={<Gift className="w-4 h-4" />} className="w-full md:w-auto md:min-w-[240px]">
                 Rewards
               </PrimaryButton>
             </Link>
@@ -232,12 +232,12 @@ export function ParentDashboardClient({
 
         {/* Children Section */}
         <PanelCard className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <h2 className="text-lg font-bold text-white">Your Children</h2>
             {!showAddChild && (
               <button
                 onClick={() => setShowAddChild(true)}
-                className="ik-btn-primary flex items-center gap-2 px-3 py-1.5 text-sm"
+                className="ik-btn-primary flex items-center justify-center gap-2 px-3 py-1.5 text-sm w-full sm:w-auto sm:min-w-[240px] shrink-0"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Child</span>
