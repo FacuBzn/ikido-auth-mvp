@@ -16,6 +16,13 @@ import {
 import { getCurrentPeriodKey, getWeekStartDateUTC } from "@/lib/utils/period";
 
 export async function POST(request: NextRequest) {
+  let body: {
+    task_id?: string;
+    child_user_id?: string | string[];
+    points?: number;
+    period_key?: string;
+  } | null = null;
+
   try {
     const authUser = await getAuthenticatedUser();
 
@@ -36,7 +43,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = (await request.json()) as {
+    body = (await request.json()) as {
       task_id?: string;
       child_user_id?: string | string[];
       points?: number;
@@ -195,7 +202,7 @@ export async function POST(request: NextRequest) {
           error: error.code, 
           message: error.message,
           period_key: error.code === "TASK_ALREADY_ASSIGNED_FOR_WEEK" 
-            ? (body.period_key || getCurrentPeriodKey()) 
+            ? (body?.period_key || getCurrentPeriodKey()) 
             : undefined,
         },
         { status }

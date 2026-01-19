@@ -377,7 +377,7 @@ export async function getTasksForChild(params: {
     columns: schemaColumns,
   });
   
-  let query = supabase
+  const query = supabase
     .from("child_tasks")
     .select(
       `
@@ -487,7 +487,7 @@ export async function getTasksForChildByCodes(params: {
     using_columns: schemaColumns,
   });
 
-  let query = supabase
+  const query = supabase
     .from("child_tasks")
     .select(
       `
