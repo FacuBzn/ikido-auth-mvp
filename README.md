@@ -172,7 +172,7 @@ app/
 │   ├── join/           # Child login (code-based)
 │   ├── dashboard/      # Child dashboard
 │   └── rewards/        # Rewards shop
-└── v2/                 # Legacy redirects (v2 → root)
+└── v2/                 # Development playground (/v2/playground)
 
 components/
 ├── ikido/              # IKIDO design system components
